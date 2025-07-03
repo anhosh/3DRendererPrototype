@@ -3,14 +3,13 @@
 #include <Bitmap.hpp>
 #include <Camera.hpp>
 #include <Macros.hpp>
+#include <Meshes.hpp>
 #include <Shader.hpp>
-#include <ShaderPrograms/ShaderProgram.hpp>
-#include <ShaderPrograms/LitSurfaceShaderProgram.hpp>
 #include <ShaderPrograms/LightSourceShaderProgram.hpp>
+#include <ShaderPrograms/LitSurfaceShaderProgram.hpp>
+#include <ShaderPrograms/ShaderProgram.hpp>
 
 #include <imgui.h>
-#include <Log.hpp>
-#include <Meshes.hpp>
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_opengl3.h>
 

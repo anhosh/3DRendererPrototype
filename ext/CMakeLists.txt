@@ -1,5 +1,9 @@
 project(LearnOpenGL-ext)
 
+# add Assimp to build tree
+message(STATUS "[assimp]")
+add_subdirectory(assimp)
+
 # add GLAD to build tree
 message(STATUS "[glm]")
 add_library(glad)
@@ -68,6 +72,7 @@ add_library(LearnOpenGL::ext ALIAS ${PROJECT_NAME})
 
 # link to all dependencies
 target_link_libraries(${PROJECT_NAME} INTERFACE
+  assimp::assimp
   glad::glad
   glm::glm
   imgui::imgui
