@@ -275,12 +275,6 @@ void Engine::gui() {
     }
 
     if (ImGui::CollapsingHeader("Light")) {
-      assert(mState.lightShaderProgram != nullptr);
-      auto& lightShaderProgram = *mState.lightShaderProgram;
-
-      ImGui::ColorPicker3("Light color", glm::value_ptr(lightShaderProgram.emittedColor), colorEditFlags);
-      ImGui::Spacing();
-
       if (ImGui::CollapsingHeader("Directional light")) {
         DirectionalLight& directionalLight = mState.renderData.directionalLight;
 
@@ -381,6 +375,9 @@ void Engine::updateScene() {
                                                   mState.renderData.spotlight.direction;
   mState.cubeShaderProgram->spotlight.cutOff = glm::cos(glm::radians(mState.renderData.spotlight.cutOff));
   mState.cubeShaderProgram->spotlight.outerCutOff = glm::cos(glm::radians(mState.renderData.spotlight.outerCutOff));
+
+  assert(mState.lightShaderProgram != nullptr);
+  mState.lightShaderProgram->emittedColor = mState.renderData.pointLight.colors.specular;
 }
 
 void Engine::drawFrame() {
