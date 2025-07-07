@@ -1,8 +1,8 @@
-#include <Scene.hpp>
+#include <Graphics/Scene.hpp>
 
-#include <Bitmap.hpp>
-#include <Log.hpp>
-#include <Paths.hpp>
+#include <Graphics/Bitmap.hpp>
+#include <Util/Log.hpp>
+#include <Util/Paths.hpp>
 
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>

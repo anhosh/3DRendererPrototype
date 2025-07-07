@@ -22,5 +22,5 @@ public:
   void unbind(GLuint slot) const;
 
 private:
-  GLuint mID;
+  GLuint mID = 0;
 };

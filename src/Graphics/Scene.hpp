@@ -1,13 +1,13 @@
 #pragma once
 
-#include <Camera.hpp>
-#include <DrawContext.hpp>
-#include <Light.hpp>
-#include <Mesh.hpp>
-#include <Model.hpp>
-#include <Scene.hpp>
-#include <ShaderPrograms/ShaderProgram.hpp>
-#include <Texture.hpp>
+#include <Graphics/Camera.hpp>
+#include <Graphics/DrawContext.hpp>
+#include <Graphics/Light.hpp>
+#include <Graphics/Mesh.hpp>
+#include <Graphics/Model.hpp>
+#include <Graphics/Scene.hpp>
+#include <Graphics/ShaderPrograms/ShaderProgram.hpp>
+#include <Graphics/Texture.hpp>
 
 #include <assimp/material.h>
 

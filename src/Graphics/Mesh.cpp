@@ -1,4 +1,4 @@
-#include <Mesh.hpp>
+#include <Graphics/Mesh.hpp>
 
 #include <glm/gtc/type_ptr.hpp>
 

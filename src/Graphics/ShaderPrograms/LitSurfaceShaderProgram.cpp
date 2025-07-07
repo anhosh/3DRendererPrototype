@@ -1,4 +1,4 @@
-#include <ShaderPrograms/LitSurfaceShaderProgram.hpp>
+#include <Graphics/ShaderPrograms/LitSurfaceShaderProgram.hpp>
 
 #include <glm/gtc/type_ptr.inl>
 

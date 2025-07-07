@@ -1,6 +1,6 @@
-#include <Bitmap.hpp>
+#include <Graphics/Bitmap.hpp>
 
-#include <Paths.hpp>
+#include <Util/Paths.hpp>
 
 #include <stb_image.h>
 

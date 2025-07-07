@@ -1,7 +1,7 @@
 #pragma once
 
-#include <ModelTransform.hpp>
-#include <Vertex.hpp>
+#include <Graphics/ModelTransform.hpp>
+#include <Graphics/Vertex.hpp>
 
 #include <span>
 #include <vector>

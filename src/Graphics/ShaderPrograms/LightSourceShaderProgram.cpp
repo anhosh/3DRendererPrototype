@@ -1,4 +1,4 @@
-#include <ShaderPrograms/LightSourceShaderProgram.hpp>
+#include <Graphics/ShaderPrograms/LightSourceShaderProgram.hpp>
 
 #include <glm/gtc/type_ptr.inl>
 

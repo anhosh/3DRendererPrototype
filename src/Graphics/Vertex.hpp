@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Macros.hpp>
+#include <Util/Macros.hpp>
 
 struct Vertex {
   glm::vec3 position;

@@ -1,6 +1,6 @@
 #include <Engine.hpp>
 
-#include <Log.hpp>
+#include <Util/Log.hpp>
 
 int32_t main() {
   std::expected<Engine, std::string> engine = Engine::create("LearnOpenGL", glm::uvec2(1920, 1080));

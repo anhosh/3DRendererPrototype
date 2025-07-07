@@ -1,8 +1,8 @@
 #pragma once
 
-#include <Light.hpp>
-#include <Material.hpp>
-#include <ShaderPrograms/ShaderProgram.hpp>
+#include <Graphics/Light.hpp>
+#include <Graphics/Material.hpp>
+#include <Graphics/ShaderPrograms/ShaderProgram.hpp>
 
 class LitSurfaceShaderProgram : public ShaderProgram {
 public:

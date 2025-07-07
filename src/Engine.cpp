@@ -1,14 +1,14 @@
 #include <Engine.hpp>
 
-#include <Bitmap.hpp>
-#include <Camera.hpp>
-#include <Macros.hpp>
-#include <Meshes.hpp>
-#include <Scene.hpp>
-#include <Shader.hpp>
-#include <ShaderPrograms/LightSourceShaderProgram.hpp>
-#include <ShaderPrograms/LitSurfaceShaderProgram.hpp>
-#include <ShaderPrograms/ShaderProgram.hpp>
+#include <Graphics/Bitmap.hpp>
+#include <Graphics/Camera.hpp>
+#include <Graphics/Meshes.hpp>
+#include <Graphics/Scene.hpp>
+#include <Graphics/Shader.hpp>
+#include <Graphics/ShaderPrograms/LightSourceShaderProgram.hpp>
+#include <Graphics/ShaderPrograms/LitSurfaceShaderProgram.hpp>
+#include <Graphics/ShaderPrograms/ShaderProgram.hpp>
+#include <Util/Macros.hpp>
 
 #include <imgui.h>
 #include <backends/imgui_impl_glfw.h>
@@ -173,6 +173,10 @@ std::expected<void, std::string> Engine::loadModels() {
 }
 
 void Engine::processKeyboard() {
+  if (glfwGetKey(mState.window, GLFW_KEY_LEFT_SUPER) == GLFW_PRESS) {
+    return;
+  }
+
   if (glfwGetKey(mState.window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
     glfwSetWindowShouldClose(mState.window, true);
   }
@@ -266,9 +270,9 @@ void Engine::gui() {
       if (ImGui::CollapsingHeader("Directional light")) {
         DirectionalLight& directionalLight = mState.scene.directionalLight;
 
-        ImGui::ColorPicker3("Ambient", glm::value_ptr(directionalLight.colors.ambient), colorEditFlags);
-        ImGui::ColorPicker3("Diffuse", glm::value_ptr(directionalLight.colors.diffuse), colorEditFlags);
-        ImGui::ColorPicker3("Specular", glm::value_ptr(directionalLight.colors.specular), colorEditFlags);
+        ImGui::ColorPicker3("Ambient##dl", glm::value_ptr(directionalLight.colors.ambient), colorEditFlags);
+        ImGui::ColorPicker3("Diffuse##dl", glm::value_ptr(directionalLight.colors.diffuse), colorEditFlags);
+        ImGui::ColorPicker3("Specular##dl", glm::value_ptr(directionalLight.colors.specular), colorEditFlags);
       }
 
       if (ImGui::CollapsingHeader("Point light")) {
@@ -279,9 +283,9 @@ void Engine::gui() {
         ImGui::DragFloat("Quadratic", &pointLight.quadratic, 0.001f, 0.01f, 1.0f);
         ImGui::Spacing();
 
-        ImGui::ColorPicker3("Ambient", glm::value_ptr(pointLight.colors.ambient), colorEditFlags);
-        ImGui::ColorPicker3("Diffuse", glm::value_ptr(pointLight.colors.diffuse), colorEditFlags);
-        ImGui::ColorPicker3("Specular", glm::value_ptr(pointLight.colors.specular), colorEditFlags);
+        ImGui::ColorPicker3("Ambient##pl", glm::value_ptr(pointLight.colors.ambient), colorEditFlags);
+        ImGui::ColorPicker3("Diffuse##pl", glm::value_ptr(pointLight.colors.diffuse), colorEditFlags);
+        ImGui::ColorPicker3("Specular##pl", glm::value_ptr(pointLight.colors.specular), colorEditFlags);
       }
 
       if (ImGui::CollapsingHeader("Spotlight")) {
@@ -291,9 +295,9 @@ void Engine::gui() {
         ImGui::DragFloat("Outer cut off", &spotlight.outerCutOff, 0.01f, spotlight.cutOff, 120.0f);
         ImGui::Spacing();
 
-        ImGui::ColorPicker3("Ambient", glm::value_ptr(spotlight.colors.ambient), colorEditFlags);
-        ImGui::ColorPicker3("Diffuse", glm::value_ptr(spotlight.colors.diffuse), colorEditFlags);
-        ImGui::ColorPicker3("Specular", glm::value_ptr(spotlight.colors.specular), colorEditFlags);
+        ImGui::ColorPicker3("Ambient##sl", glm::value_ptr(spotlight.colors.ambient), colorEditFlags);
+        ImGui::ColorPicker3("Diffuse##sl", glm::value_ptr(spotlight.colors.diffuse), colorEditFlags);
+        ImGui::ColorPicker3("Specular##sl", glm::value_ptr(spotlight.colors.specular), colorEditFlags);
       }
     }
 

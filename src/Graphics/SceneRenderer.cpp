@@ -1,7 +1,9 @@
-#include <SceneRenderer.hpp>
+#include <Graphics/SceneRenderer.hpp>
 
-#include <Scene.hpp>
-#include <ShaderPrograms/ShaderProgram.hpp>
+#include <Graphics/DrawContext.hpp>
+#include <Graphics/Mesh.hpp>
+#include <Graphics/Scene.hpp>
+#include <Graphics/ShaderPrograms/ShaderProgram.hpp>
 
 void SceneRenderer::render(const Scene& scene, glm::uvec2 windowSize) const {
   const std::vector<Draw> draws = scene.draw();

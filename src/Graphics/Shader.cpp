@@ -1,9 +1,9 @@
-#include <Shader.hpp>
+#include <Graphics/Shader.hpp>
 
-#include <Paths.hpp>
+#include <Util/Macros.hpp>
+#include <Util/Paths.hpp>
 
 #include <fstream>
-#include <Macros.hpp>
 #include <vector>
 
 static fs::path sShadersDir = "shaders";

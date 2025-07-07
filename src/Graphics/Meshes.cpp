@@ -1,4 +1,4 @@
-#include <Meshes.hpp>
+#include <Graphics/Meshes.hpp>
 
 Mesh createCubeMesh() {
   constexpr auto positions = std::array {
@@ -59,5 +59,5 @@ Mesh createCubeMesh() {
     indices.push_back(face + 2);
   }
 
-  return Mesh(vertices, indices);
+  return {vertices, indices};
 }

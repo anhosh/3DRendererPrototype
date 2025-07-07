@@ -1,7 +1,7 @@
 #pragma once
 
-#include <Macros.hpp>
-#include <Shader.hpp>
+#include <Graphics/Shader.hpp>
+#include <Util/Macros.hpp>
 
 #include <concepts>
 #include <expected>

@@ -1,5 +1,5 @@
 #pragma once
 
-#include <Mesh.hpp>
+#include <Graphics/Mesh.hpp>
 
 Mesh createCubeMesh();

@@ -1,7 +1,7 @@
 #pragma once
 
-#include <Scene.hpp>
-#include <SceneRenderer.hpp>
+#include <Graphics/Scene.hpp>
+#include <Graphics/SceneRenderer.hpp>
 
 #include <expected>
 #include <string_view>
