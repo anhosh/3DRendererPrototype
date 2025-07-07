@@ -5,7 +5,7 @@
 #include <Graphics/Scene.hpp>
 #include <Graphics/ShaderPrograms/ShaderProgram.hpp>
 
-void SceneRenderer::render(const Scene& scene, glm::uvec2 windowSize) const {
+void SceneRenderer::render(const Scene& scene, glm::uvec2 windowSize) {
   const std::vector<Draw> draws = scene.draw();
   if (draws.empty()) {
     return;

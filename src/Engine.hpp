@@ -6,8 +6,10 @@
 #include <expected>
 #include <string_view>
 
+class VisualiseNormalShaderProgram;
 class LitSurfaceShaderProgram;
 class LightSourceShaderProgram;
+class VisualiseDepthShaderProgram;
 
 struct AppState {
   GLFWwindow* window = nullptr;
@@ -27,15 +29,24 @@ struct AppState {
   SceneRenderer sceneRenderer;
 
   size_t cubeMeshIndex = 0;
-  size_t cubeTexDiffuseIndex = 0;
-  size_t cubeTexSpecularIndex = 0;
-  size_t cubeTexEmissionIndex = 0;
-  size_t cubeShaderProgramIndex = 0;
-  size_t lightShaderProgramIndex = 0;
   size_t lightModelIndex = 0;
+  size_t backpackModelIndex = 0;
 
-  LitSurfaceShaderProgram* cubeShaderProgram = nullptr;
+  enum class FragmentShader : int32_t {
+    LitSurface,
+    VisualiseDepth,
+    VisualiseNormal,
+  };
+  FragmentShader fsType = FragmentShader::LitSurface;
+
+  size_t litSurfaceShaderProgramIndex = 0;
+  size_t lightShaderProgramIndex = 0;
+  size_t visualiseDepthShaderProgramIndex = 0;
+  size_t visualiseNormalShaderProgramIndex = 0;
+  LitSurfaceShaderProgram* litSurfaceShaderProgram = nullptr;
   LightSourceShaderProgram* lightShaderProgram = nullptr;
+  VisualiseDepthShaderProgram* visualiseDepthShaderProgram = nullptr;
+  VisualiseNormalShaderProgram* visualiseNormalShaderProgram = nullptr;
 };
 
 class Engine {

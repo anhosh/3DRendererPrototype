@@ -40,7 +40,7 @@ std::vector<Draw> Scene::draw() const {
   std::vector<Draw> draws;
 
   for (const auto& [meshIndices, shaderProgramIndex, transform]: models) {
-    for (size_t meshIndex : meshIndices) {
+    for (const size_t meshIndex : meshIndices) {
       draws.push_back(Draw {
         .meshIndex = meshIndex,
         .shaderProgramIndex = shaderProgramIndex,
@@ -125,8 +125,7 @@ std::expected<void, std::string> Scene::processMesh(Model& model, aiMesh* mesh, 
   }
 
   auto newMesh = Mesh(vertices, indices);
-
-  if (mesh->mMaterialIndex >= 0) {
+  if (mesh->mMaterialIndex < scene->mNumMaterials) {
     aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
     std::expected<std::vector<size_t>, std::string> diffuseMaps = loadTextures(material, aiTextureType_DIFFUSE);
     std::expected<std::vector<size_t>, std::string> specularMaps = loadTextures(material, aiTextureType_SPECULAR);
@@ -138,7 +137,6 @@ std::expected<void, std::string> Scene::processMesh(Model& model, aiMesh* mesh, 
     newMesh.specularMapIndices = std::move(specularMaps.value());
     newMesh.emissionMapIndices = std::move(emissionMaps.value());
   }
-
   meshes.push_back(newMesh);
   model.meshIndices.push_back(meshes.size() - 1);
 

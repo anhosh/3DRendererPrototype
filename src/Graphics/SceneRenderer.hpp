@@ -6,8 +6,8 @@ class Scene;
 
 class SceneRenderer {
 public:
-  void render(const Scene& scene, glm::uvec2 windowSize) const;
+  void render(const Scene& scene, glm::uvec2 windowSize);
 
 private:
-  mutable std::unordered_set<GLuint> mBoundTextureSlots;
+  std::unordered_set<GLuint> mBoundTextureSlots;
 };

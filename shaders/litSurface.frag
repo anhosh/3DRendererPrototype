@@ -96,10 +96,11 @@ LightColors spotlight(in Spotlight light, vec3 normal) {
 }
 
 void main() {
-  vec3 normal = normalize(fsIn.normal);
   vec3 materialDiffuse = texture(uMaterial.diffuse, fsIn.texCoord).rgb;
   vec3 materialSpecular = texture(uMaterial.specular, fsIn.texCoord).rgb;
-  vec3 materialEmission = texture(uMaterial.emission, fsIn.texCoord).rgb * 0;
+  vec3 materialEmission = texture(uMaterial.emission, fsIn.texCoord).rgb;
+
+  vec3 normal = normalize(fsIn.normal);
 
   LightColors directionalLightColors = directionalLight(uDirectionalLight, normal);
   LightColors pointLightColors = pointLight(uPointLight, normal);

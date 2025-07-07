@@ -9,6 +9,7 @@
 #include <Graphics/ShaderPrograms/LitSurfaceShaderProgram.hpp>
 #include <Graphics/ShaderPrograms/ShaderProgram.hpp>
 #include <Util/Macros.hpp>
+#include <Util/Timers/TimedBlock.hpp>
 
 #include <imgui.h>
 #include <backends/imgui_impl_glfw.h>
@@ -17,7 +18,8 @@
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.inl>
-#include <Util/Timers/TimedBlock.hpp>
+#include <Graphics/ShaderPrograms/VisualiseDepthShaderProgram.hpp>
+#include <Graphics/ShaderPrograms/VisualiseNormalShaderProgram.hpp>
 
 static Engine* gApp = nullptr;
 
@@ -136,17 +138,30 @@ std::expected<void, std::string> Engine::loadShaders() {
     return std::unexpected("Could not locate shader directory");
   }
 
-  auto cubeShaderProgram = ShaderPrograms::fromShaders<LitSurfaceShaderProgram>({ .vertex = "simple.vert", .fragment = "litSurface.frag" });
-  auto lightShaderProgram = ShaderPrograms::fromShaders<LightSourceShaderProgram>({ .vertex = "simple.vert", .fragment = "light.frag" });
+  const auto addShaderProgram = [this]<typename TShaderProgram>(const ShaderStages& stages,
+                                                                TShaderProgram*& outShader,
+                                                                size_t& outShaderProgramIndex) -> std::expected<void, std::string>
+  {
+    auto program = ShaderPrograms::fromShaders<TShaderProgram>(stages);
+    RETURN_ERROR_IF_UNEXPECTED(program);
+    outShader = dynamic_cast<TShaderProgram*>(program.value().get());
+    assert(outShader != nullptr);
+    outShaderProgramIndex = mState.scene.addShaderProgram(std::move(program.value()));
+    return {};
+  };
 
-  RETURN_ERROR_IF_UNEXPECTED(cubeShaderProgram);
-  RETURN_ERROR_IF_UNEXPECTED(lightShaderProgram);
-
-  mState.cubeShaderProgram = dynamic_cast<LitSurfaceShaderProgram*>(cubeShaderProgram.value().get());
-  mState.lightShaderProgram = dynamic_cast<LightSourceShaderProgram*>(lightShaderProgram.value().get());
-
-  mState.cubeShaderProgramIndex = mState.scene.addShaderProgram(std::move(cubeShaderProgram.value()));
-  mState.lightShaderProgramIndex = mState.scene.addShaderProgram(std::move(lightShaderProgram.value()));
+  RETURN_ERROR_IF_UNEXPECTED(addShaderProgram({.vertex = "simple.vert", .fragment = "litSurface.frag"},
+                                              mState.litSurfaceShaderProgram,
+                                              mState.litSurfaceShaderProgramIndex));
+  RETURN_ERROR_IF_UNEXPECTED(addShaderProgram({.vertex = "simple.vert", .fragment = "light.frag"},
+                                              mState.lightShaderProgram,
+                                              mState.lightShaderProgramIndex));
+  RETURN_ERROR_IF_UNEXPECTED(addShaderProgram({.vertex = "simple.vert", .fragment = "visualiseDepth.frag"},
+                                              mState.visualiseDepthShaderProgram,
+                                              mState.visualiseDepthShaderProgramIndex));
+  RETURN_ERROR_IF_UNEXPECTED(addShaderProgram({.vertex = "simple.vert", .fragment = "visualiseNormal.frag"},
+                                              mState.visualiseNormalShaderProgram,
+                                              mState.visualiseNormalShaderProgramIndex));
 
   return {};
 }
@@ -159,7 +174,7 @@ std::expected<void, std::string> Engine::loadModels() {
     return std::unexpected("Could not locate texture directory");
   }
   RETURN_ERROR_IF_UNEXPECTED(mState.scene.loadModel("backpack/backpack.obj"));
-  mState.scene.models.back().shaderProgramIndex = mState.cubeShaderProgramIndex;
+  mState.scene.models.back().shaderProgramIndex = mState.litSurfaceShaderProgramIndex;
 
   mState.cubeMeshIndex = mState.scene.addMesh(createCubeMesh());
   mState.lightModelIndex = mState.scene.addModel(Model {
@@ -269,7 +284,28 @@ void Engine::gui() {
     if (ImGui::CollapsingHeader("Cube")) {
       ImGui::Indent();
       assert(mState.cubeShaderProgram != nullptr);
-      auto& cubeShaderProgram = *mState.cubeShaderProgram;
+      auto& cubeShaderProgram = *mState.litSurfaceShaderProgram;
+
+      static constexpr const char* fsTypeStrs[] = {
+        "Lit surface",
+        "Visualise depth",
+        "Visualise normal",
+      };
+      if (ImGui::Combo("Fragment shader", reinterpret_cast<int32_t*>(&mState.fsType), fsTypeStrs, std::size(fsTypeStrs))) {
+        switch (mState.fsType) {
+          case AppState::FragmentShader::LitSurface:
+            mState.scene.models[mState.backpackModelIndex].shaderProgramIndex = mState.litSurfaceShaderProgramIndex;
+            break;
+
+          case AppState::FragmentShader::VisualiseDepth:
+            mState.scene.models[mState.backpackModelIndex].shaderProgramIndex = mState.visualiseDepthShaderProgramIndex;
+            break;
+
+          case AppState::FragmentShader::VisualiseNormal:
+            mState.scene.models[mState.backpackModelIndex].shaderProgramIndex = mState.visualiseNormalShaderProgramIndex;
+            break;
+        }
+      }
 
       ImGui::Text("Lit surface material");
       ImGui::DragFloat("Shininess", &cubeShaderProgram.material.shininess, 1.0f, 1.0f, 256.0f);
@@ -343,26 +379,30 @@ void Engine::updateScene() {
   mState.scene.spotlight.direction = mState.scene.camera.forward();
 
   // Shaders
-  assert(mState.cubeShaderProgram != nullptr);
   assert(mState.lightShaderProgram != nullptr);
-  mState.cubeShaderProgram->directionalLight = mState.scene.directionalLight;
-  mState.cubeShaderProgram->pointLight = mState.scene.pointLight;
-  mState.cubeShaderProgram->spotlight = mState.scene.spotlight;
-
   mState.lightShaderProgram->emittedColor = mState.scene.pointLight.colors.specular;
 
+  assert(mState.visualiseDepthShaderProgram != nullptr);
+  mState.visualiseDepthShaderProgram->frustumNear = mState.scene.camera.near;
+  mState.visualiseDepthShaderProgram->frustumFar = mState.scene.camera.far;
+
+  assert(mState.cubeShaderProgram != nullptr);
   const glm::mat4 view = mState.scene.camera.view();
   const glm::vec3 pointLightDirectionView = glm::mat3(glm::transpose(glm::inverse(view))) *
                                             mState.scene.directionalLight.direction;
   const glm::vec4 pointLightPosView = view * glm::vec4(mState.scene.pointLight.position, 1.0f);
 
-  mState.cubeShaderProgram->directionalLight.direction = pointLightDirectionView;
-  mState.cubeShaderProgram->pointLight.position = pointLightPosView;
-  mState.cubeShaderProgram->spotlight.position = view * glm::vec4(mState.scene.spotlight.position, 1.0f);
-  mState.cubeShaderProgram->spotlight.direction = glm::mat3(glm::transpose(glm::inverse(view))) *
+  mState.litSurfaceShaderProgram->directionalLight = mState.scene.directionalLight;
+  mState.litSurfaceShaderProgram->pointLight = mState.scene.pointLight;
+  mState.litSurfaceShaderProgram->spotlight = mState.scene.spotlight;
+
+  mState.litSurfaceShaderProgram->directionalLight.direction = pointLightDirectionView;
+  mState.litSurfaceShaderProgram->pointLight.position = pointLightPosView;
+  mState.litSurfaceShaderProgram->spotlight.position = view * glm::vec4(mState.scene.spotlight.position, 1.0f);
+  mState.litSurfaceShaderProgram->spotlight.direction = glm::mat3(glm::transpose(glm::inverse(view))) *
                                                   mState.scene.spotlight.direction;
-  mState.cubeShaderProgram->spotlight.cutOff = glm::cos(glm::radians(mState.scene.spotlight.cutOff));
-  mState.cubeShaderProgram->spotlight.outerCutOff = glm::cos(glm::radians(mState.scene.spotlight.outerCutOff));
+  mState.litSurfaceShaderProgram->spotlight.cutOff = glm::cos(glm::radians(mState.scene.spotlight.cutOff));
+  mState.litSurfaceShaderProgram->spotlight.outerCutOff = glm::cos(glm::radians(mState.scene.spotlight.outerCutOff));
 }
 
 void Engine::drawFrame() {
