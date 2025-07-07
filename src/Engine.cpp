@@ -284,12 +284,12 @@ void Engine::gui() {
     if (ImGui::CollapsingHeader("Cube")) {
       ImGui::Indent();
 
-      static constexpr const char* fsTypeStrs[] = {
+      static constexpr const char* fsTypeNames[] = {
         "Lit surface",
         "Visualise depth",
         "Visualise normal",
       };
-      if (ImGui::Combo("Fragment shader", reinterpret_cast<int32_t*>(&mState.fsType), fsTypeStrs, std::size(fsTypeStrs))) {
+      if (ImGui::Combo("Fragment shader", reinterpret_cast<int32_t*>(&mState.fsType), fsTypeNames, std::size(fsTypeNames))) {
         switch (mState.fsType) {
           case AppState::FragmentShader::LitSurface:
             mState.scene.models[mState.backpackModelIndex].shaderProgramIndex = mState.litSurfaceShaderProgramIndex;
