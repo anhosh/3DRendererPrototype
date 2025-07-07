@@ -34,10 +34,12 @@ struct Spotlight {
   float outerCutOff;
 };
 
+uniform Material uMaterial;
 uniform DirectionalLight uDirectionalLight;
 uniform PointLight uPointLight;
 uniform Spotlight uSpotlight;
-uniform Material uMaterial;
+
+layout (location = 4) uniform vec3 uViewPos;
 
 in VS_OUT {
   vec3 position;
@@ -52,7 +54,7 @@ float diffuse(in vec3 normal, in vec3 lightDirection) {
 }
 
 float specular(in vec3 normal, in vec3 lightDirection) {
-  vec3 viewDirection = normalize(-fsIn.position);
+  vec3 viewDirection = normalize(uViewPos - fsIn.position);
   vec3 reflectDirection = reflect(-lightDirection, normal);
   float angularDifference = max(dot(viewDirection, reflectDirection), 0);
   return pow(angularDifference, uMaterial.shininess);

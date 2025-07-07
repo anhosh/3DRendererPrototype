@@ -52,7 +52,7 @@ void SceneRenderer::render(const Scene& scene, glm::uvec2 windowSize) {
     lastDraw = currDraw;
 
     transforms.model = currDraw->transform.matrix();
-    transforms.normal = glm::transpose(glm::inverse(transforms.view * transforms.model));
+    transforms.normal = glm::transpose(glm::inverse(transforms.model));
 
     scene.shaderPrograms[currDraw->shaderProgramIndex]->bindUniforms(transforms);
     currMesh.draw();

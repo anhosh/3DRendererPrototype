@@ -283,8 +283,6 @@ void Engine::gui() {
 
     if (ImGui::CollapsingHeader("Cube")) {
       ImGui::Indent();
-      assert(mState.cubeShaderProgram != nullptr);
-      auto& cubeShaderProgram = *mState.litSurfaceShaderProgram;
 
       static constexpr const char* fsTypeStrs[] = {
         "Lit surface",
@@ -296,11 +294,9 @@ void Engine::gui() {
           case AppState::FragmentShader::LitSurface:
             mState.scene.models[mState.backpackModelIndex].shaderProgramIndex = mState.litSurfaceShaderProgramIndex;
             break;
-
           case AppState::FragmentShader::VisualiseDepth:
             mState.scene.models[mState.backpackModelIndex].shaderProgramIndex = mState.visualiseDepthShaderProgramIndex;
             break;
-
           case AppState::FragmentShader::VisualiseNormal:
             mState.scene.models[mState.backpackModelIndex].shaderProgramIndex = mState.visualiseNormalShaderProgramIndex;
             break;
@@ -308,7 +304,8 @@ void Engine::gui() {
       }
 
       ImGui::Text("Lit surface material");
-      ImGui::DragFloat("Shininess", &cubeShaderProgram.material.shininess, 1.0f, 1.0f, 256.0f);
+      assert(mState.litSurfaceShaderProgram != nullptr);
+      ImGui::DragFloat("Shininess", &mState.litSurfaceShaderProgram->material.shininess, 1.0f, 1.0f, 256.0f);
 
       ImGui::Unindent();
     }
@@ -347,6 +344,7 @@ void Engine::gui() {
         ImGui::Indent();
         Spotlight& spotlight = mState.scene.spotlight;
 
+        ImGui::Checkbox("Follow camera", &mState.flashlightFollowCamera);
         ImGui::DragFloat("Cut off", &spotlight.cutOff, 0.01f, 1.0f, spotlight.outerCutOff);
         ImGui::DragFloat("Outer cut off", &spotlight.outerCutOff, 0.01f, spotlight.cutOff, 120.0f);
         ImGui::Spacing();
@@ -375,8 +373,10 @@ void Engine::updateScene() {
   mState.scene.models[mState.lightModelIndex].transform.translation = mState.scene.pointLight.position;
 
   // Flashlight
-  mState.scene.spotlight.position = mState.scene.camera.position;
-  mState.scene.spotlight.direction = mState.scene.camera.forward();
+  if (mState.flashlightFollowCamera) {
+    mState.scene.spotlight.position = mState.scene.camera.position;
+    mState.scene.spotlight.direction = mState.scene.camera.forward();
+  }
 
   // Shaders
   assert(mState.lightShaderProgram != nullptr);
@@ -386,21 +386,11 @@ void Engine::updateScene() {
   mState.visualiseDepthShaderProgram->frustumNear = mState.scene.camera.near;
   mState.visualiseDepthShaderProgram->frustumFar = mState.scene.camera.far;
 
-  assert(mState.cubeShaderProgram != nullptr);
-  const glm::mat4 view = mState.scene.camera.view();
-  const glm::vec3 pointLightDirectionView = glm::mat3(glm::transpose(glm::inverse(view))) *
-                                            mState.scene.directionalLight.direction;
-  const glm::vec4 pointLightPosView = view * glm::vec4(mState.scene.pointLight.position, 1.0f);
-
+  assert(mState.litSurfaceShaderProgram != nullptr);
+  mState.litSurfaceShaderProgram->viewPos = mState.scene.camera.position;
   mState.litSurfaceShaderProgram->directionalLight = mState.scene.directionalLight;
   mState.litSurfaceShaderProgram->pointLight = mState.scene.pointLight;
   mState.litSurfaceShaderProgram->spotlight = mState.scene.spotlight;
-
-  mState.litSurfaceShaderProgram->directionalLight.direction = pointLightDirectionView;
-  mState.litSurfaceShaderProgram->pointLight.position = pointLightPosView;
-  mState.litSurfaceShaderProgram->spotlight.position = view * glm::vec4(mState.scene.spotlight.position, 1.0f);
-  mState.litSurfaceShaderProgram->spotlight.direction = glm::mat3(glm::transpose(glm::inverse(view))) *
-                                                  mState.scene.spotlight.direction;
   mState.litSurfaceShaderProgram->spotlight.cutOff = glm::cos(glm::radians(mState.scene.spotlight.cutOff));
   mState.litSurfaceShaderProgram->spotlight.outerCutOff = glm::cos(glm::radians(mState.scene.spotlight.outerCutOff));
 }

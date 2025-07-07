@@ -34,4 +34,6 @@ void LitSurfaceShaderProgram::bindUniforms(const TransformMatrices& transforms) 
   glUniform3fv(glGetUniformLocation(mShaderProgram, "uSpotlight.direction"), 1, glm::value_ptr(spotlight.direction));
   glUniform1f(glGetUniformLocation(mShaderProgram, "uSpotlight.cutOff"), spotlight.cutOff);
   glUniform1f(glGetUniformLocation(mShaderProgram, "uSpotlight.outerCutOff"), spotlight.outerCutOff);
+
+  glUniform3fv(4, 1, glm::value_ptr(viewPos));
 }

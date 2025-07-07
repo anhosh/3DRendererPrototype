@@ -15,5 +15,6 @@ public:
   DirectionalLight directionalLight;
   PointLight pointLight;
   Spotlight spotlight;
+  glm::vec3 viewPos;
 };
 

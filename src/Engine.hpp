@@ -24,6 +24,7 @@ struct AppState {
   bool freeCursorPressed = false;
   bool freeCursor = true;
   bool firstMouse = true;
+  bool flashlightFollowCamera = true;
 
   Scene scene;
   SceneRenderer sceneRenderer;
@@ -36,8 +37,7 @@ struct AppState {
     LitSurface,
     VisualiseDepth,
     VisualiseNormal,
-  };
-  FragmentShader fsType = FragmentShader::LitSurface;
+  } fsType = FragmentShader::LitSurface;
 
   size_t litSurfaceShaderProgramIndex = 0;
   size_t lightShaderProgramIndex = 0;

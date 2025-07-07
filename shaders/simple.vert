@@ -16,9 +16,9 @@ out VS_OUT {
 } vsOut;
 
 void main() {
-  vec4 vertexPosView = uViewTransform * uModelTransform * vec4(inPosition, 1);
-  gl_Position = uProjectionTransform * vertexPosView;
-  vsOut.position = vertexPosView.xyz;
+  vec4 vertexPosWorld = uModelTransform * vec4(inPosition, 1);
+  gl_Position = uProjectionTransform * uViewTransform * vertexPosWorld;
+  vsOut.position = vertexPosWorld.xyz;
   vsOut.normal = uNormalTransform * inNormal;
   vsOut.texCoord = inTexCoord;
 }
