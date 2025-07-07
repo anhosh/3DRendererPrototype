@@ -14,22 +14,22 @@ struct LightColors {
 };
 
 struct DirectionalLight {
-  vec3 direction;
   LightColors colors;
+  vec3 direction;
 };
 
 struct PointLight {
-  vec3 position;
   LightColors colors;
+  vec3 position;
   float constant;
   float linear;
   float quadratic;
 };
 
 struct Spotlight {
+  LightColors colors;
   vec3 position;
   vec3 direction;
-  LightColors colors;
   float cutOff;
   float outerCutOff;
 };
@@ -42,7 +42,6 @@ uniform Material uMaterial;
 in VS_OUT {
   vec3 position;
   vec3 normal;
-  vec3 color;
   vec2 texCoord;
 } fsIn;
 
@@ -110,9 +109,9 @@ void main() {
   vec3 combinedDiffuse = directionalLightColors.diffuse + pointLightColors.diffuse + spotlightColors.diffuse;
   vec3 combinedSpecular = directionalLightColors.specular + pointLightColors.specular + spotlightColors.specular;
 
-  vec3 result = fsIn.color * (materialDiffuse * combinedAmbient +
-                              materialDiffuse * combinedDiffuse +
-                              materialSpecular * combinedSpecular +
-                              materialEmission * step(1, 1 - materialSpecular));
+  vec3 result = materialDiffuse * combinedAmbient +
+                materialDiffuse * combinedDiffuse +
+                materialSpecular * combinedSpecular +
+                materialEmission * step(1, 1 - materialSpecular);
   outColor = vec4(result, 1);
 }

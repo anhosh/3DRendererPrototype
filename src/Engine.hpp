@@ -1,10 +1,9 @@
 #pragma once
 
-#include <RenderData.hpp>
+#include <Scene.hpp>
 #include <SceneRenderer.hpp>
 
 #include <expected>
-#include <Light.hpp>
 #include <string_view>
 
 class LitSurfaceShaderProgram;
@@ -22,11 +21,16 @@ struct AppState {
   bool freeCursor = true;
   bool firstMouse = true;
 
-  RenderData renderData;
+  Scene scene;
   SceneRenderer sceneRenderer;
 
-  size_t cubeMaterialIndex = 0;
-  size_t lightMaterialIndex = 0;
+  size_t cubeMeshIndex = 0;
+  size_t cubeTexDiffuseIndex = 0;
+  size_t cubeTexSpecularIndex = 0;
+  size_t cubeTexEmissionIndex = 0;
+  size_t cubeShaderProgramIndex = 0;
+  size_t lightShaderProgramIndex = 0;
+  size_t lightModelIndex = 0;
 
   LitSurfaceShaderProgram* cubeShaderProgram = nullptr;
   LightSourceShaderProgram* lightShaderProgram = nullptr;
@@ -47,16 +51,15 @@ private:
 
   std::expected<void, std::string> createContext(std::string_view title, glm::uvec2 initialWindowSize);
   void initialiseImGui() const;
-  std::expected<void, std::string> createMaterials();
-  std::expected<void, std::string> createTextures();
-  void createMeshes();
+  std::expected<void, std::string> loadShaders();
+  std::expected<void, std::string> loadModels();
 
   void processKeyboard();
   void processMousePosition(glm::vec2 mousePosition);
   void runImGui();
   void gui();
   void updateScene();
-  void drawFrame();
+  void drawFrame() const;
 
 private:
   AppState mState;

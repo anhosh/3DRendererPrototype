@@ -1,9 +1,10 @@
 #pragma once
 
-#include <Textures.hpp>
+#include <ModelTransform.hpp>
 #include <Vertex.hpp>
 
 #include <span>
+#include <vector>
 
 class Mesh {
 public:
@@ -18,6 +19,12 @@ public:
   void unbind() const;
   void bindAndDraw() const;
   void draw() const;
+
+public:
+  ModelTransform transform;
+  std::vector<size_t> diffuseMapIndices;
+  std::vector<size_t> specularMapIndices;
+  std::vector<size_t> emissionMapIndices;
 
 private:
   GLuint mVAO = 0;

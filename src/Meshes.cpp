@@ -48,7 +48,6 @@ Mesh createCubeMesh() {
       vertices.push_back(Vertex {
         .position = positions[posIndex],
         .normal = normals[face / 4],
-        .color = glm::vec3(1.0f),
         .texCoord = texCoords[vertex],
       });
     }

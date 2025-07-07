@@ -1,54 +1,44 @@
 #include <SceneRenderer.hpp>
 
-void SceneRenderer::destroy() {
-  for (Mesh& mesh : meshes) {
-    mesh.destroy();
-  }
-  for (const std::unique_ptr<ShaderProgram>& material : materials) {
-    material->destroy();
-  }
-  for (Textures& textures : textureBundles) {
-    textures.destroy();
-  }
+#include <Scene.hpp>
+#include <ShaderPrograms/ShaderProgram.hpp>
 
-  meshes.clear();
-  materials.clear();
-  textureBundles.clear();
-}
-
-void SceneRenderer::render(const RenderData& renderData, glm::uvec2 windowSize) {
-  if (renderData.draws.empty()) {
+void SceneRenderer::render(const Scene& scene, glm::uvec2 windowSize) const {
+  const std::vector<Draw> draws = scene.draw();
+  if (draws.empty()) {
     return;
   }
 
   TransformMatrices transforms{};
-  transforms.view = renderData.camera.view();
-  transforms.projection = renderData.camera.projection(windowSize);
+  transforms.view = scene.camera.view();
+  transforms.projection = scene.camera.projection(windowSize);
 
-  const Draw* lastDraw = &renderData.draws.front();
-  for (size_t i = 0; i < renderData.draws.size(); i++) {
-    const Draw* currDraw = &renderData.draws[i];
+  const Draw* lastDraw = &draws.front();
+  for (size_t i = 0; i < draws.size(); i++) {
+    const Draw* currDraw = &draws[i];
+    const Mesh& currMesh = scene.meshes[currDraw->meshIndex];
 
     if (i == 0 || lastDraw->meshIndex != currDraw->meshIndex) {
-      meshes[currDraw->meshIndex].bind();
+      scene.meshes[currDraw->meshIndex].bind();
     }
-    if (i == 0 || lastDraw->materialIndex != currDraw->materialIndex) {
-      materials[currDraw->materialIndex]->use();
-    }
-    if (i == 0 || lastDraw->texturesIndex != currDraw->texturesIndex) {
-      if (currDraw->texturesIndex != SIZE_MAX) {
-        textureBundles[currDraw->texturesIndex].bindAll();
-      } else {
-        for (GLint slot = 0; slot < 32; slot++) {
-          glActiveTexture(GL_TEXTURE0 + slot);
-          glBindTexture(GL_TEXTURE_2D, 0);
-        }
-      }
+    if (i == 0 || currDraw->shaderProgramIndex != lastDraw->shaderProgramIndex) {
+      scene.shaderPrograms[currDraw->shaderProgramIndex]->use();
     }
 
-    if (currDraw->backfaceCulling != mBackfaceCullingEnabled) {
-      mBackfaceCullingEnabled = currDraw->backfaceCulling;
-      if (mBackfaceCullingEnabled) {
+    GLuint slot = GL_TEXTURE0;
+    const auto bindTextures = [&, this](std::span<const size_t> textureIndices) {
+      for (const size_t index : textureIndices) {
+        scene.textures[index].bind(slot);
+        mBoundTextureSlots.insert(slot);
+        ++slot;
+      }
+    };
+    bindTextures(currMesh.diffuseMapIndices);
+    bindTextures(currMesh.specularMapIndices);
+    bindTextures(currMesh.emissionMapIndices);
+
+    if (i == 0 || currDraw->backfaceCulling != lastDraw->backfaceCulling) {
+      if (currDraw->backfaceCulling) {
         glEnable(GL_CULL_FACE);
         glCullFace(GL_BACK);
         glFrontFace(GL_CCW);
@@ -62,19 +52,15 @@ void SceneRenderer::render(const RenderData& renderData, glm::uvec2 windowSize) 
     transforms.model = currDraw->transform.matrix();
     transforms.normal = glm::transpose(glm::inverse(transforms.view * transforms.model));
 
-    materials[currDraw->materialIndex]->bindUniforms(transforms);
-    meshes[currDraw->meshIndex].draw();
+    scene.shaderPrograms[currDraw->shaderProgramIndex]->bindUniforms(transforms);
+    currMesh.draw();
   }
 
-  meshes[lastDraw->meshIndex].unbind();
-  materials[lastDraw->materialIndex]->stopUsing();
-  if (lastDraw->texturesIndex != SIZE_MAX) {
-    textureBundles[lastDraw->texturesIndex].unbindAllSlots();
+  scene.meshes[lastDraw->meshIndex].unbind();
+  scene.shaderPrograms[lastDraw->shaderProgramIndex]->stopUsing();
+  for (const GLuint slot : mBoundTextureSlots) {
+    glActiveTexture(slot);
+    glBindTexture(GL_TEXTURE_2D, 0);
   }
-}
-
-size_t SceneRenderer::addMaterial(std::unique_ptr<ShaderProgram>&& material) {
-  const size_t lastIndex = materials.size();
-  materials.push_back(std::move(material));
-  return lastIndex;
+  mBoundTextureSlots.clear();
 }
