@@ -17,6 +17,7 @@
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.inl>
+#include <Util/Timers/TimedBlock.hpp>
 
 static Engine* gApp = nullptr;
 
@@ -248,34 +249,50 @@ void Engine::gui() {
   constexpr ImGuiColorEditFlags colorEditFlags = ImGuiColorEditFlags_Float | ImGuiColorEditFlags_HDR;
   if (ImGui::Begin("Test")) {
     ImGui::Text("FPS: %.03f", 1.0 / (mState.currentFrameTime - mState.lastFrameTime));
+    ImGui::Text("Frame duration: %.03f ms", (mState.currentFrameTime - mState.lastFrameTime) * 1000.0);
+    ImGui::Text("Scene draw: %.03f ms", mState.lastSceneRenderTime * 1000.0);
+    ImGui::Text("GUI draw: %.03f ms", mState.lastGuiRenderTime * 1000.0);
     ImGui::Text("Window size: %ux%u", mState.windowSize.x, mState.windowSize.y);
 
     if (ImGui::CollapsingHeader("Camera")) {
+      ImGui::Indent();
       Camera& camera = mState.scene.camera;
+
       ImGui::DragFloat("Movement speed", &camera.speed, 0.001f, 0.0f, 5.0f);
       ImGui::DragFloat("FOV", &camera.fov, 0.1f, 10.0f, 120.0f);
       ImGui::DragFloat("Near", &camera.near, 0.01f, 0.01f, 10.0f);
       ImGui::DragFloat("Far", &camera.far, 0.01f, 10.0f, 1000.0f);
+
+      ImGui::Unindent();
     }
 
     if (ImGui::CollapsingHeader("Cube")) {
+      ImGui::Indent();
       assert(mState.cubeShaderProgram != nullptr);
       auto& cubeShaderProgram = *mState.cubeShaderProgram;
 
       ImGui::Text("Lit surface material");
       ImGui::DragFloat("Shininess", &cubeShaderProgram.material.shininess, 1.0f, 1.0f, 256.0f);
+
+      ImGui::Unindent();
     }
 
     if (ImGui::CollapsingHeader("Light")) {
+      ImGui::Indent();
+
       if (ImGui::CollapsingHeader("Directional light")) {
+        ImGui::Indent();
         DirectionalLight& directionalLight = mState.scene.directionalLight;
 
         ImGui::ColorPicker3("Ambient##dl", glm::value_ptr(directionalLight.colors.ambient), colorEditFlags);
         ImGui::ColorPicker3("Diffuse##dl", glm::value_ptr(directionalLight.colors.diffuse), colorEditFlags);
         ImGui::ColorPicker3("Specular##dl", glm::value_ptr(directionalLight.colors.specular), colorEditFlags);
+
+        ImGui::Unindent();
       }
 
       if (ImGui::CollapsingHeader("Point light")) {
+        ImGui::Indent();
         PointLight& pointLight = mState.scene.pointLight;
 
         ImGui::DragFloat("Constant", &pointLight.constant, 0.1f, 1.0f, 100.0f);
@@ -286,9 +303,12 @@ void Engine::gui() {
         ImGui::ColorPicker3("Ambient##pl", glm::value_ptr(pointLight.colors.ambient), colorEditFlags);
         ImGui::ColorPicker3("Diffuse##pl", glm::value_ptr(pointLight.colors.diffuse), colorEditFlags);
         ImGui::ColorPicker3("Specular##pl", glm::value_ptr(pointLight.colors.specular), colorEditFlags);
+
+        ImGui::Unindent();
       }
 
       if (ImGui::CollapsingHeader("Spotlight")) {
+        ImGui::Indent();
         Spotlight& spotlight = mState.scene.spotlight;
 
         ImGui::DragFloat("Cut off", &spotlight.cutOff, 0.01f, 1.0f, spotlight.outerCutOff);
@@ -298,7 +318,11 @@ void Engine::gui() {
         ImGui::ColorPicker3("Ambient##sl", glm::value_ptr(spotlight.colors.ambient), colorEditFlags);
         ImGui::ColorPicker3("Diffuse##sl", glm::value_ptr(spotlight.colors.diffuse), colorEditFlags);
         ImGui::ColorPicker3("Specular##sl", glm::value_ptr(spotlight.colors.specular), colorEditFlags);
+
+        ImGui::Unindent();
       }
+
+      ImGui::Unindent();
     }
 
     ImGui::End();
@@ -341,11 +365,14 @@ void Engine::updateScene() {
   mState.cubeShaderProgram->spotlight.outerCutOff = glm::cos(glm::radians(mState.scene.spotlight.outerCutOff));
 }
 
-void Engine::drawFrame() const {
+void Engine::drawFrame() {
   glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-  mState.sceneRenderer.render(mState.scene, mState.windowSize);
-
-  ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+  mState.lastSceneRenderTime = timedBlock([this] {
+    mState.sceneRenderer.render(mState.scene, mState.windowSize);
+  });
+  mState.lastGuiRenderTime = timedBlock([] {
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+  });
 }

@@ -16,6 +16,8 @@ struct AppState {
 
   double currentFrameTime = 0.0f;
   double lastFrameTime = 0.0f;
+  double lastSceneRenderTime = 0.0f;
+  double lastGuiRenderTime = 0.0f;
 
   bool freeCursorPressed = false;
   bool freeCursor = true;
@@ -59,7 +61,7 @@ private:
   void runImGui();
   void gui();
   void updateScene();
-  void drawFrame() const;
+  void drawFrame();
 
 private:
   AppState mState;
