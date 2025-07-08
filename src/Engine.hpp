@@ -6,6 +6,7 @@
 #include <expected>
 #include <string_view>
 
+class OutlineShaderProgram;
 class VisualiseNormalShaderProgram;
 class LitSurfaceShaderProgram;
 class LightSourceShaderProgram;
@@ -21,10 +22,12 @@ struct AppState {
   double lastSceneRenderTime = 0.0f;
   double lastGuiRenderTime = 0.0f;
 
-  bool freeCursorPressed = false;
-  bool freeCursor = true;
-  bool firstMouse = true;
-  bool flashlightFollowCamera = true;
+  bool bFreeCursorPressed = false;
+  bool bFreeCursor = true;
+  bool bFirstMouse = true;
+  bool bFlashlightFollowCamera = true;
+  bool bDrawBackpackOutline = false;
+  bool bDrawLightOutline = false;
 
   Scene scene;
   SceneRenderer sceneRenderer;
@@ -43,10 +46,12 @@ struct AppState {
   size_t lightShaderProgramIndex = 0;
   size_t visualiseDepthShaderProgramIndex = 0;
   size_t visualiseNormalShaderProgramIndex = 0;
+  size_t outlineShaderProgramIndex = 0;
   LitSurfaceShaderProgram* litSurfaceShaderProgram = nullptr;
   LightSourceShaderProgram* lightShaderProgram = nullptr;
   VisualiseDepthShaderProgram* visualiseDepthShaderProgram = nullptr;
   VisualiseNormalShaderProgram* visualiseNormalShaderProgram = nullptr;
+  OutlineShaderProgram* outlineShaderProgram = nullptr;
 };
 
 class Engine {
@@ -65,7 +70,7 @@ private:
   std::expected<void, std::string> createContext(std::string_view title, glm::uvec2 initialWindowSize);
   void initialiseImGui() const;
   std::expected<void, std::string> loadShaders();
-  std::expected<void, std::string> loadModels();
+  std::expected<void, std::string> createScene();
 
   void processKeyboard();
   void processMousePosition(glm::vec2 mousePosition);

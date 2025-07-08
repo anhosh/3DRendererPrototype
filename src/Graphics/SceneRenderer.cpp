@@ -18,10 +18,33 @@ void SceneRenderer::render(const Scene& scene, glm::uvec2 windowSize) {
   const Draw* lastDraw = &draws.front();
   for (size_t i = 0; i < draws.size(); i++) {
     const Draw* currDraw = &draws[i];
-    const Mesh& currMesh = scene.meshes[currDraw->meshIndex];
 
+    if (i == 0 || currDraw->bBackfaceCulling != lastDraw->bBackfaceCulling) {
+      if (currDraw->bBackfaceCulling) {
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_BACK);
+        glFrontFace(GL_CCW);
+      } else {
+        glDisable(GL_CULL_FACE);
+      }
+    }
+    if (i == 0 || currDraw->bDepthTest != lastDraw->bDepthTest) {
+      if (currDraw->bDepthTest) {
+        glEnable(GL_DEPTH_TEST);
+      } else {
+        glDisable(GL_DEPTH_TEST);
+      }
+    }
+    if (i == 0 || currDraw->bStencilTest != lastDraw->bStencilTest) {
+      glStencilFunc(currDraw->bStencilTest ? GL_NOTEQUAL : GL_ALWAYS, 1, 0xff);
+    }
+    if (i == 0 || currDraw->bWriteToStencil != lastDraw->bWriteToStencil) {
+      glStencilMask(currDraw->bWriteToStencil ? 0xff : 0x00);
+    }
+
+    const Mesh& currMesh = scene.meshes[currDraw->meshIndex];
     if (i == 0 || lastDraw->meshIndex != currDraw->meshIndex) {
-      scene.meshes[currDraw->meshIndex].bind();
+      currMesh.bind();
     }
     if (i == 0 || currDraw->shaderProgramIndex != lastDraw->shaderProgramIndex) {
       scene.shaderPrograms[currDraw->shaderProgramIndex]->use();
@@ -38,16 +61,6 @@ void SceneRenderer::render(const Scene& scene, glm::uvec2 windowSize) {
     bindTextures(currMesh.diffuseMapIndices);
     bindTextures(currMesh.specularMapIndices);
     bindTextures(currMesh.emissionMapIndices);
-
-    if (i == 0 || currDraw->backfaceCulling != lastDraw->backfaceCulling) {
-      if (currDraw->backfaceCulling) {
-        glEnable(GL_CULL_FACE);
-        glCullFace(GL_BACK);
-        glFrontFace(GL_CCW);
-      } else {
-        glDisable(GL_CULL_FACE);
-      }
-    }
 
     lastDraw = currDraw;
 

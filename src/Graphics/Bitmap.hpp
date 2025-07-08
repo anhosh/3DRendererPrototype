@@ -8,7 +8,7 @@
 
 namespace fs = std::filesystem;
 
-bool locateTextures();
+std::expected<void, std::string> locateTextures();
 
 class Bitmap {
 public:

@@ -10,12 +10,12 @@
 
 static fs::path sModelsDir = "models";
 
-bool locateModels() {
+std::expected<void, std::string> locateModels() {
   if (std::optional<fs::path> modelsDir = locateDirectory("models")) {
     sModelsDir = modelsDir.value();
-    return true;
+    return {};
   }
-  return false;
+  return std::unexpected("Could not locate model directory");
 }
 
 namespace fs = std::filesystem;
@@ -39,13 +39,31 @@ void Scene::destroy() {
 std::vector<Draw> Scene::draw() const {
   std::vector<Draw> draws;
 
-  for (const auto& [meshIndices, shaderProgramIndex, transform]: models) {
-    for (const size_t meshIndex : meshIndices) {
+  for (const Model& model: models) {
+    for (const size_t meshIndex : model.meshIndices) {
       draws.push_back(Draw {
         .meshIndex = meshIndex,
-        .shaderProgramIndex = shaderProgramIndex,
-        .transform = transform,
+        .shaderProgramIndex = model.shaderProgramIndex,
+        .transform = model.transform,
+        .bWriteToStencil = model.outlineShaderProgramIndex.has_value(),
       });
+    }
+  }
+
+  // Object outlines
+  for (const Model& model: models) {
+    if (model.outlineShaderProgramIndex.has_value()) {
+      ModelTransform outlineTransform = model.transform;
+      outlineTransform.scale *= 1.05f;
+      for (const size_t meshIndex : model.meshIndices) {
+        draws.push_back(Draw {
+          .meshIndex = meshIndex,
+          .shaderProgramIndex = model.outlineShaderProgramIndex.value(),
+          .transform = outlineTransform,
+          .bStencilTest = true,
+          .bDepthTest = false,
+        });
+      }
     }
   }
 

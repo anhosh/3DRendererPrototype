@@ -10,12 +10,12 @@ namespace fs = std::filesystem;
 
 static fs::path sTexturesDir = "textures";
 
-bool locateTextures() {
+std::expected<void, std::string> locateTextures() {
   if (std::optional<fs::path> texturesDir = locateDirectory("textures")) {
     sTexturesDir = texturesDir.value();
-    return true;
+    return {};
   }
-  return false;
+  return std::unexpected("Could not locate texture directory");
 }
 
 std::expected<Bitmap, std::string> Bitmap::fromFile(const fs::path& fileName) {

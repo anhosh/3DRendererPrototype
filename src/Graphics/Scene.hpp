@@ -22,7 +22,7 @@ class aiMesh;
 class aiNode;
 class aiScene;
 
-bool locateModels();
+std::expected<void, std::string> locateModels();
 
 class Scene {
 public:
