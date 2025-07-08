@@ -420,7 +420,6 @@ void Engine::drawFrame() {
   glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
   glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
   glStencilMask(0xff);
-  glStencilFunc(GL_ALWAYS, 1, 0xff);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
   mState.lastSceneRenderTime = timedBlock([this] {
