@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Graphics/ShaderPrograms/ShaderProgram.hpp>
+#include <Graphics/ShaderProgram.hpp>
 
 class LightSourceShaderProgram : public ShaderProgram {
 public:

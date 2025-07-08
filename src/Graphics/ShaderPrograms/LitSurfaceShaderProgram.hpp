@@ -2,7 +2,7 @@
 
 #include <Graphics/Light.hpp>
 #include <Graphics/Material.hpp>
-#include <Graphics/ShaderPrograms/ShaderProgram.hpp>
+#include <Graphics/ShaderProgram.hpp>
 
 class LitSurfaceShaderProgram : public ShaderProgram {
 public:

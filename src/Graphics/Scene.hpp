@@ -6,7 +6,7 @@
 #include <Graphics/Mesh.hpp>
 #include <Graphics/Model.hpp>
 #include <Graphics/Scene.hpp>
-#include <Graphics/ShaderPrograms/ShaderProgram.hpp>
+#include <Graphics/ShaderProgram.hpp>
 #include <Graphics/Texture.hpp>
 
 #include <assimp/material.h>

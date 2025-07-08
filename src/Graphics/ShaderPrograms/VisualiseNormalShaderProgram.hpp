@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Graphics/ShaderPrograms/ShaderProgram.hpp>
+#include <Graphics/ShaderProgram.hpp>
 
 class VisualiseNormalShaderProgram : public ShaderProgram {
 public:

@@ -3,7 +3,7 @@
 #include <Graphics/DrawContext.hpp>
 #include <Graphics/Mesh.hpp>
 #include <Graphics/Scene.hpp>
-#include <Graphics/ShaderPrograms/ShaderProgram.hpp>
+#include <Graphics/ShaderProgram.hpp>
 
 void SceneRenderer::render(const Scene& scene, glm::uvec2 windowSize) {
   const std::vector<Draw> draws = scene.draw();

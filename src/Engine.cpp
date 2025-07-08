@@ -5,10 +5,13 @@
 #include <Graphics/Meshes.hpp>
 #include <Graphics/Scene.hpp>
 #include <Graphics/Shader.hpp>
+#include <Graphics/ShaderProgram.hpp>
 #include <Graphics/ShaderPrograms/LightSourceShaderProgram.hpp>
 #include <Graphics/ShaderPrograms/LitSurfaceShaderProgram.hpp>
-#include <Graphics/ShaderPrograms/ShaderProgram.hpp>
+#include <Graphics/ShaderPrograms/VisualiseDepthShaderProgram.hpp>
+#include <Graphics/ShaderPrograms/VisualiseNormalShaderProgram.hpp>
 #include <Util/Macros.hpp>
+#include <Util/NotNull.hpp>
 #include <Util/Timers/TimedBlock.hpp>
 
 #include <imgui.h>
@@ -18,8 +21,6 @@
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.inl>
-#include <Graphics/ShaderPrograms/VisualiseDepthShaderProgram.hpp>
-#include <Graphics/ShaderPrograms/VisualiseNormalShaderProgram.hpp>
 
 static Engine* gApp = nullptr;
 
@@ -108,15 +109,13 @@ std::expected<void, std::string> Engine::createContext(std::string_view title, g
   glViewport(0, 0, static_cast<int32_t>(mState.windowSize.x), static_cast<int32_t>(mState.windowSize.y));
   glfwSetFramebufferSizeCallback(mState.window, [](GLFWwindow*, int32_t width, int32_t height) {
     glViewport(0, 0, width, height);
-    assert(gApp != nullptr);
-    gApp->mState.windowSize = glm::uvec2(width, height);
-    gApp->mState.lastMousePosition = glm::vec2(gApp->mState.windowSize) * 0.5f;
-    gApp->mState.firstMouse = true;
+    NotNull(gApp)->mState.windowSize = glm::uvec2(width, height);
+    NotNull(gApp)->mState.lastMousePosition = glm::vec2(NotNull(gApp)->mState.windowSize) * 0.5f;
+    NotNull(gApp)->mState.firstMouse = true;
   });
 
   glfwSetCursorPosCallback(mState.window, [](GLFWwindow*, double xpos, double ypos) {
-    assert(gApp != nullptr);
-    gApp->processMousePosition(glm::vec2(xpos, ypos));
+    NotNull(gApp)->processMousePosition(glm::vec2(xpos, ypos));
   });
 
   return {};
@@ -144,8 +143,7 @@ std::expected<void, std::string> Engine::loadShaders() {
   {
     auto program = ShaderPrograms::fromShaders<TShaderProgram>(stages);
     RETURN_ERROR_IF_UNEXPECTED(program);
-    outShader = dynamic_cast<TShaderProgram*>(program.value().get());
-    assert(outShader != nullptr);
+    outShader = NotNull(dynamic_cast<TShaderProgram*>(program.value().get()));
     outShaderProgramIndex = mState.scene.addShaderProgram(std::move(program.value()));
     return {};
   };
@@ -305,7 +303,7 @@ void Engine::gui() {
 
       ImGui::Text("Lit surface material");
       assert(mState.litSurfaceShaderProgram != nullptr);
-      ImGui::DragFloat("Shininess", &mState.litSurfaceShaderProgram->material.shininess, 1.0f, 1.0f, 256.0f);
+      ImGui::DragFloat("Shininess", &NotNull(mState.litSurfaceShaderProgram)->material.shininess, 1.0f, 1.0f, 256.0f);
 
       ImGui::Unindent();
     }
@@ -379,20 +377,17 @@ void Engine::updateScene() {
   }
 
   // Shaders
-  assert(mState.lightShaderProgram != nullptr);
-  mState.lightShaderProgram->emittedColor = mState.scene.pointLight.colors.specular;
+  NotNull(mState.lightShaderProgram)->emittedColor = mState.scene.pointLight.colors.specular;
 
-  assert(mState.visualiseDepthShaderProgram != nullptr);
-  mState.visualiseDepthShaderProgram->frustumNear = mState.scene.camera.near;
-  mState.visualiseDepthShaderProgram->frustumFar = mState.scene.camera.far;
+  NotNull(mState.visualiseDepthShaderProgram)->frustumNear = mState.scene.camera.near;
+  NotNull(mState.visualiseDepthShaderProgram)->frustumFar = mState.scene.camera.far;
 
-  assert(mState.litSurfaceShaderProgram != nullptr);
-  mState.litSurfaceShaderProgram->viewPos = mState.scene.camera.position;
-  mState.litSurfaceShaderProgram->directionalLight = mState.scene.directionalLight;
-  mState.litSurfaceShaderProgram->pointLight = mState.scene.pointLight;
-  mState.litSurfaceShaderProgram->spotlight = mState.scene.spotlight;
-  mState.litSurfaceShaderProgram->spotlight.cutOff = glm::cos(glm::radians(mState.scene.spotlight.cutOff));
-  mState.litSurfaceShaderProgram->spotlight.outerCutOff = glm::cos(glm::radians(mState.scene.spotlight.outerCutOff));
+  NotNull(mState.litSurfaceShaderProgram)->viewPos = mState.scene.camera.position;
+  NotNull(mState.litSurfaceShaderProgram)->directionalLight = mState.scene.directionalLight;
+  NotNull(mState.litSurfaceShaderProgram)->pointLight = mState.scene.pointLight;
+  NotNull(mState.litSurfaceShaderProgram)->spotlight = mState.scene.spotlight;
+  NotNull(mState.litSurfaceShaderProgram)->spotlight.cutOff = glm::cos(glm::radians(mState.scene.spotlight.cutOff));
+  NotNull(mState.litSurfaceShaderProgram)->spotlight.outerCutOff = glm::cos(glm::radians(mState.scene.spotlight.outerCutOff));
 }
 
 void Engine::drawFrame() {
