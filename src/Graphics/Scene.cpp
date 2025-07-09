@@ -1,3 +1,4 @@
+#include <map>
 #include <Graphics/Scene.hpp>
 
 #include <Graphics/Bitmap.hpp>
@@ -12,7 +13,7 @@ static fs::path sModelsDir = "models";
 
 std::expected<void, std::string> locateModels() {
   if (std::optional<fs::path> modelsDir = locateDirectory("models")) {
-    sModelsDir = modelsDir.value();
+    sModelsDir = std::move(modelsDir.value());
     return {};
   }
   return std::unexpected("Could not locate model directory");
@@ -21,7 +22,7 @@ std::expected<void, std::string> locateModels() {
 namespace fs = std::filesystem;
 
 void Scene::destroy() {
-  for (Mesh& mesh : meshes) {
+  for (VertexArray& mesh : meshes) {
     mesh.destroy();
   }
   for (const std::unique_ptr<ShaderProgram>& material : shaderPrograms) {
@@ -39,32 +40,71 @@ void Scene::destroy() {
 std::vector<Draw> Scene::draw() const {
   std::vector<Draw> draws;
 
-  for (const Model& model: models) {
-    for (const MeshData& meshData : model.meshes) {
-      draws.push_back(Draw {
-        .transform = model.transform,
-        .shaderProgramIndex = model.shaderProgramIndex,
-        .meshIndex = meshData.meshIndex,
-        .diffuseMapIndex = meshData.diffuseMapIndex,
-        .specularMapIndex = meshData.specularMapIndex,
-        .emissionMapIndex = meshData.emissionMapIndex,
-        .bBackfaceCulling = model.bBackfaceCulling,
-        .bWriteToStencil = model.outlineShaderProgramIndex.has_value(),
-      });
+  // Opaque objects
+  for (const MeshGroup& meshGroup: meshGroups) {
+    for (const MeshData& meshData : meshGroup.meshes) {
+      if (!meshData.bTransparent) {
+        draws.push_back(Draw {
+          .transform = meshGroup.transform,
+          .shaderProgramIndex = meshGroup.shaderProgramIndex,
+          .vertexArrayIndex = meshData.vertexArrayIndex,
+          .diffuseMapIndex = meshData.diffuseMapIndex,
+          .specularMapIndex = meshData.specularMapIndex,
+          .emissionMapIndex = meshData.emissionMapIndex,
+          .bBackfaceCulling = meshData.bBackfaceCulling,
+          .bWriteToStencil = meshGroup.outlineShaderProgramIndex.has_value(),
+        });
+      }
     }
   }
 
+  // Transparent objects
+  struct SortedMesh {
+    const MeshData* meshData;
+    const Transform* transform;
+    size_t shaderProgramIndex;
+    std::optional<size_t> outlineShaderProgramIndex;
+  };
+  std::map<float, SortedMesh> sorted;
+  for (const MeshGroup& meshGroup: meshGroups) {
+    for (const MeshData& meshData : meshGroup.meshes) {
+      if (meshData.bTransparent) {
+        const float distance = glm::length(camera.position - meshGroup.transform.translation);
+        sorted[distance] = SortedMesh {
+          .meshData = &meshData,
+          .transform = &meshGroup.transform,
+          .shaderProgramIndex = meshGroup.shaderProgramIndex,
+          .outlineShaderProgramIndex = meshGroup.outlineShaderProgramIndex,
+        };
+      }
+    }
+  }
+  for (auto it = sorted.rbegin(); it != sorted.rend(); ++it) {
+    const SortedMesh& sortedMesh = it->second;
+    draws.push_back(Draw {
+      .transform = *sortedMesh.transform,
+      .shaderProgramIndex = sortedMesh.shaderProgramIndex,
+      .vertexArrayIndex = sortedMesh.meshData->vertexArrayIndex,
+      .diffuseMapIndex = sortedMesh.meshData->diffuseMapIndex,
+      .specularMapIndex = sortedMesh.meshData->specularMapIndex,
+      .emissionMapIndex = sortedMesh.meshData->emissionMapIndex,
+      .bBackfaceCulling = sortedMesh.meshData->bBackfaceCulling,
+      .bWriteToStencil = sortedMesh.outlineShaderProgramIndex.has_value(),
+      .bTransparent = true,
+    });
+  }
+
   // Object outlines
-  for (const Model& model: models) {
-    if (model.outlineShaderProgramIndex.has_value()) {
-      Transform outlineTransform = model.transform;
+  for (const MeshGroup& meshGroup: meshGroups) {
+    if (meshGroup.outlineShaderProgramIndex.has_value()) {
+      Transform outlineTransform = meshGroup.transform;
       outlineTransform.scale *= 1.05f;
-      for (const MeshData& meshData : model.meshes) {
+      for (const MeshData& meshData : meshGroup.meshes) {
         draws.push_back(Draw {
           .transform = outlineTransform,
-          .shaderProgramIndex = model.outlineShaderProgramIndex.value(),
-          .meshIndex = meshData.meshIndex,
-          .bBackfaceCulling = model.bBackfaceCulling,
+          .shaderProgramIndex = meshGroup.outlineShaderProgramIndex.value(),
+          .vertexArrayIndex = meshData.vertexArrayIndex,
+          .bBackfaceCulling = meshData.bBackfaceCulling,
           .bStencilTest = true,
           .bDepthTest = false,
         });
@@ -75,22 +115,22 @@ std::vector<Draw> Scene::draw() const {
   return draws;
 }
 
-size_t Scene::addModel(Model&& model) {
-  models.push_back(std::move(model));
-  return models.size() - 1;
+size_t Scene::addMeshGroup(MeshGroup model) {
+  meshGroups.push_back(std::move(model));
+  return meshGroups.size() - 1;
 }
 
-size_t Scene::addMesh(Mesh&& mesh) {
+size_t Scene::addMesh(VertexArray mesh) {
   meshes.push_back(mesh);
   return meshes.size() - 1;
 }
 
-size_t Scene::addTexture(Texture&& texture) {
+size_t Scene::addTexture(Texture texture) {
   textures.push_back(texture);
   return textures.size() - 1;
 }
 
-size_t Scene::addShaderProgram(std::unique_ptr<ShaderProgram>&& material) {
+size_t Scene::addShaderProgram(std::unique_ptr<ShaderProgram> material) {
   shaderPrograms.push_back(std::move(material));
   return shaderPrograms.size() - 1;
 }
@@ -103,26 +143,26 @@ std::expected<void, std::string> Scene::loadModel(const fs::path& path) {
     return std::unexpected(std::format("Assimp: {}", importer.GetErrorString()));
   }
 
-  Model model;
-  RETURN_ERROR_IF_UNEXPECTED(processNode(model, scene->mRootNode, scene));
-  this->addModel(std::move(model));
+  MeshGroup meshGroup;
+  RETURN_ERROR_IF_UNEXPECTED(processNode(meshGroup, scene->mRootNode, scene));
+  this->addMeshGroup(std::move(meshGroup));
   return {};
 }
 
-std::expected<void, std::string> Scene::processNode(Model& model, aiNode* node, const aiScene* scene) {
+std::expected<void, std::string> Scene::processNode(MeshGroup& meshGroup, aiNode* node, const aiScene* scene) {
   for (size_t i = 0; i < node->mNumMeshes; ++i) {
     aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-    RETURN_ERROR_IF_UNEXPECTED(processMesh(model, mesh, scene));
+    RETURN_ERROR_IF_UNEXPECTED(processMesh(meshGroup, mesh, scene));
   }
 
   for (size_t i = 0; i < node->mNumChildren; ++i) {
-    RETURN_ERROR_IF_UNEXPECTED(processNode(model, node->mChildren[i], scene));
+    RETURN_ERROR_IF_UNEXPECTED(processNode(meshGroup, node->mChildren[i], scene));
   }
 
   return {};
 }
 
-std::expected<void, std::string> Scene::processMesh(Model& model, aiMesh* mesh, const aiScene* scene) {
+std::expected<void, std::string> Scene::processMesh(MeshGroup& meshGroup, aiMesh* mesh, const aiScene* scene) {
   std::vector<Vertex> vertices;
   std::vector<uint32_t> indices;
 
@@ -147,15 +187,15 @@ std::expected<void, std::string> Scene::processMesh(Model& model, aiMesh* mesh, 
     }
   }
 
-  const size_t newMeshIndex = this->addMesh(Mesh(vertices, indices));
-  MeshData newMeshData = { .meshIndex = newMeshIndex };
+  const size_t newMeshIndex = this->addMesh(VertexArray(vertices, indices));
+  MeshData newMeshData = { .vertexArrayIndex = newMeshIndex };
   if (mesh->mMaterialIndex < scene->mNumMaterials) {
     aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
     ASSIGN_EXPECTED_OR_IGNORE(newMeshData.diffuseMapIndex, loadTexture(material, aiTextureType_DIFFUSE));
     ASSIGN_EXPECTED_OR_IGNORE(newMeshData.specularMapIndex, loadTexture(material, aiTextureType_SPECULAR));
     ASSIGN_EXPECTED_OR_IGNORE(newMeshData.emissionMapIndex, loadTexture(material, aiTextureType_EMISSIVE));
   }
-  model.meshes.push_back(newMeshData);
+  meshGroup.meshes.push_back(newMeshData);
 
   return {};
 }

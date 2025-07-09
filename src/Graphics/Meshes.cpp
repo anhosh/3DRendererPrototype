@@ -2,7 +2,7 @@
 
 #include <vector>
 
-Mesh createCubeMesh() {
+VertexArray createCubeMesh() {
   constexpr auto positions = std::array {
     glm::vec3(-0.5f, +0.5f, +0.5f), // 0: left  top    front
     glm::vec3(-0.5f, +0.5f, -0.5f), // 1: left  top    back
@@ -64,7 +64,7 @@ Mesh createCubeMesh() {
   return {vertices, indices};
 }
 
-Mesh createQuadMesh() {
+VertexArray createQuadMesh() {
   constexpr auto vertices = std::array {
     Vertex {
       .position = glm::vec3(-0.5f, 0.0f, -0.5f),

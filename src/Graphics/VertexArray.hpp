@@ -1,14 +1,13 @@
 #pragma once
 
-#include <Graphics/Transform.hpp>
 #include <Graphics/Vertex.hpp>
 
 #include <span>
 
-class Mesh {
+class VertexArray {
 public:
-  Mesh();
-  Mesh(std::span<const Vertex> vertices, std::span<const GLuint> indices);
+  VertexArray();
+  VertexArray(std::span<const Vertex> vertices, std::span<const GLuint> indices);
 
   void init();
   void destroy();
@@ -18,9 +17,6 @@ public:
   void unbind() const;
   void bindAndDraw() const;
   void draw() const;
-
-public:
-  Transform transform;
 
 private:
   GLuint mVAO = 0;

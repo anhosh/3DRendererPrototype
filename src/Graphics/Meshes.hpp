@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Graphics/Mesh.hpp>
+#include <Graphics/VertexArray.hpp>
 
-Mesh createCubeMesh();
-Mesh createQuadMesh();
+VertexArray createCubeMesh();
+VertexArray createQuadMesh();

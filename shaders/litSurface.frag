@@ -99,10 +99,6 @@ LightColors spotlight(in Spotlight light, vec3 normal) {
 
 void main() {
   vec4 materialDiffuse = texture(uMaterial.diffuse, fsIn.texCoord);
-  if (materialDiffuse.a < 0.01) {
-    discard;
-  }
-
   vec3 materialSpecular = texture(uMaterial.specular, fsIn.texCoord).rgb;
   vec3 materialEmission = texture(uMaterial.emission, fsIn.texCoord).rgb;
 
@@ -121,7 +117,7 @@ void main() {
 
   vec4 result = materialDiffuse * vec4(combinedAmbient, 1) +
                 materialDiffuse * vec4(combinedDiffuse, 1) +
-                vec4(materialSpecular * combinedSpecular, 1) +
-                vec4(materialEmission * step(1, 1 - materialSpecular), 1);
+                vec4(materialSpecular * combinedSpecular, 0) +
+                vec4(materialEmission * step(1, 1 - materialSpecular), 0);
   outColor = result;
 }

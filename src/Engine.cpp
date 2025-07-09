@@ -173,38 +173,66 @@ std::expected<void, std::string> Engine::createScene() {
   RETURN_ERROR_IF_UNEXPECTED(locateTextures());
 
   RETURN_ERROR_IF_UNEXPECTED(mState.scene.loadModel("backpack/backpack.obj"));
-  mState.scene.models.back().shaderProgramIndex = mState.litSurfaceShaderProgramIndex;
+  mState.scene.meshGroups.back().shaderProgramIndex = mState.litSurfaceShaderProgramIndex;
 
   const size_t quadMeshIndex = mState.scene.addMesh(createQuadMesh());
   const size_t cubeMeshIndex = mState.scene.addMesh(createCubeMesh());
 
-  mState.lightModelIndex = mState.scene.addModel(Model {
+  mState.lightModelIndex = mState.scene.addMeshGroup(MeshGroup {
     .transform = Transform {
       .scale = glm::vec3(0.1f),
     },
-    .meshes = { MeshData { .meshIndex = cubeMeshIndex } },
+    .meshes = { MeshData { .vertexArrayIndex = cubeMeshIndex } },
     .shaderProgramIndex = mState.lightShaderProgramIndex,
   });
 
   const std::expected<Bitmap, std::string> grassBitmap = Bitmap::fromFile("grass/diffuse.png");
+  const std::expected<Bitmap, std::string> windowBitmap = Bitmap::fromFile("window/diffuse.png");
+
   RETURN_ERROR_IF_UNEXPECTED(grassBitmap);
+  RETURN_ERROR_IF_UNEXPECTED(windowBitmap);
+
   constexpr SamplerOptions samplerOptionsClampToEdge = { .wrapS = GL_CLAMP_TO_EDGE, .wrapT = GL_CLAMP_TO_EDGE };
   const size_t grassTextureIndex = mState.scene.addTexture(Texture(grassBitmap.value(), samplerOptionsClampToEdge));
+  const size_t windowTextureIndex = mState.scene.addTexture(Texture(windowBitmap.value(), samplerOptionsClampToEdge));
 
-  mState.grassModelIndex = mState.scene.addModel(Model {
+  mState.grassModelIndex = mState.scene.addMeshGroup(MeshGroup {
     .transform = Transform {
       .translation = glm::vec3(0.0f, 0.0f, 1.0f),
       .rotation = glm::vec3(-90.0f, 0.0f, 0.0f),
     },
     .meshes = {
       MeshData {
-        .meshIndex = quadMeshIndex,
+        .vertexArrayIndex = quadMeshIndex,
         .diffuseMapIndex = grassTextureIndex,
+        .bBackfaceCulling = false,
+        .bTransparent = true,
       },
     },
     .shaderProgramIndex = mState.litSurfaceShaderProgramIndex,
-    .bBackfaceCulling = false,
   });
+
+  MeshGroup windowMeshGroup = {
+    .transform = Transform {
+      .rotation = glm::vec3(-90.0f, 0.0f, 0.0f),
+    },
+    .meshes = {
+      MeshData {
+        .vertexArrayIndex = quadMeshIndex,
+        .diffuseMapIndex = windowTextureIndex,
+        .bBackfaceCulling = false,
+        .bTransparent = true,
+      },
+    },
+    .shaderProgramIndex = mState.litSurfaceShaderProgramIndex,
+  };
+
+  windowMeshGroup.transform.translation = glm::vec3(-0.25f, 0.0f, 1.5f);
+  mState.scene.addMeshGroup(windowMeshGroup);
+  windowMeshGroup.transform.translation = glm::vec3(0.25f, 0.0f, 1.75f);
+  mState.scene.addMeshGroup(windowMeshGroup);
+  windowMeshGroup.transform.translation = glm::vec3(0.0f, 0.0f, 2.0f);
+  mState.scene.addMeshGroup(windowMeshGroup);
 
   return {};
 }
@@ -284,8 +312,8 @@ void Engine::runImGui() {
 void Engine::gui() {
   constexpr ImGuiColorEditFlags lightColorEditFlags = ImGuiColorEditFlags_Float | ImGuiColorEditFlags_HDR;
   if (ImGui::Begin("Test")) {
-    Model& backpackModel = mState.scene.models[mState.backpackModelIndex];
-    Model& lightModel = mState.scene.models[mState.lightModelIndex];
+    MeshGroup& backpackModel = mState.scene.meshGroups[mState.backpackModelIndex];
+    MeshGroup& lightModel = mState.scene.meshGroups[mState.lightModelIndex];
 
     ImGui::Text("FPS: %.03f", 1.0 / (mState.currentFrameTime - mState.lastFrameTime));
     ImGui::Text("Frame duration: %.03f ms", (mState.currentFrameTime - mState.lastFrameTime) * 1000.0);
@@ -384,7 +412,7 @@ void Engine::gui() {
     if (ImGui::CollapsingHeader("Grass")) {
       ImGui::Indent();
 
-      Transform& grassTransform = mState.scene.models[mState.grassModelIndex].transform;
+      Transform& grassTransform = mState.scene.meshGroups[mState.grassModelIndex].transform;
       ImGui::DragFloat3("Translation##grass", glm::value_ptr(grassTransform.translation), 0.01f);
       ImGui::DragFloat3("Rotation##grass", glm::value_ptr(grassTransform.rotation), 0.01f);
       ImGui::DragFloat3("Scale##grass", glm::value_ptr(grassTransform.scale), 0.01f);
@@ -427,7 +455,7 @@ void Engine::updateScene() {
     glm::cos(mState.currentFrameTime * 0.075f),
     glm::sin(mState.currentFrameTime * 0.05f),
   };
-  mState.scene.models[mState.lightModelIndex].transform.translation = mState.scene.pointLight.position;
+  mState.scene.meshGroups[mState.lightModelIndex].transform.translation = mState.scene.pointLight.position;
 
   // Flashlight
   if (mState.bFlashlightFollowCamera) {

@@ -1,7 +1,7 @@
 #include <Graphics/SceneRenderer.hpp>
 
 #include <Graphics/DrawContext.hpp>
-#include <Graphics/Mesh.hpp>
+#include <Graphics/VertexArray.hpp>
 #include <Graphics/Scene.hpp>
 #include <Graphics/ShaderProgram.hpp>
 
@@ -41,9 +41,17 @@ void SceneRenderer::render(const Scene& scene, glm::uvec2 windowSize) {
     if (i == 0 || currDraw->bWriteToStencil != lastDraw->bWriteToStencil) {
       glStencilMask(currDraw->bWriteToStencil ? 0xff : 0x00);
     }
+    if (i == 0 || currDraw->bTransparent != lastDraw->bTransparent) {
+      if (currDraw->bTransparent) {
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+      } else {
+        glDisable(GL_BLEND);
+      }
+    }
 
-    const Mesh& currMesh = scene.meshes[currDraw->meshIndex];
-    if (i == 0 || lastDraw->meshIndex != currDraw->meshIndex) {
+    const VertexArray& currMesh = scene.meshes[currDraw->vertexArrayIndex];
+    if (i == 0 || lastDraw->vertexArrayIndex != currDraw->vertexArrayIndex) {
       currMesh.bind();
     }
     if (i == 0 || currDraw->shaderProgramIndex != lastDraw->shaderProgramIndex) {
@@ -75,7 +83,7 @@ void SceneRenderer::render(const Scene& scene, glm::uvec2 windowSize) {
     lastDraw = currDraw;
   }
 
-  scene.meshes[lastDraw->meshIndex].unbind();
+  scene.meshes[lastDraw->vertexArrayIndex].unbind();
   scene.shaderPrograms[lastDraw->shaderProgramIndex]->stopUsing();
   for (const GLuint slot : mBoundTextureSlots) {
     glActiveTexture(slot);

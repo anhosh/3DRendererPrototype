@@ -3,8 +3,8 @@
 #include <Graphics/Camera.hpp>
 #include <Graphics/DrawContext.hpp>
 #include <Graphics/Light.hpp>
-#include <Graphics/Mesh.hpp>
-#include <Graphics/Model.hpp>
+#include <Graphics/VertexArray.hpp>
+#include <Graphics/MeshGroup.hpp>
 #include <Graphics/Scene.hpp>
 #include <Graphics/ShaderProgram.hpp>
 #include <Graphics/Texture.hpp>
@@ -30,10 +30,10 @@ public:
 
   [[nodiscard]] std::vector<Draw> draw() const;
 
-  size_t addModel(Model&& model);
-  size_t addMesh(Mesh&& mesh);
-  size_t addTexture(Texture&& texture);
-  size_t addShaderProgram(std::unique_ptr<ShaderProgram>&& material);
+  size_t addMeshGroup(MeshGroup model);
+  size_t addMesh(VertexArray mesh);
+  size_t addTexture(Texture texture);
+  size_t addShaderProgram(std::unique_ptr<ShaderProgram> material);
 
   template <std::derived_from<ShaderProgram> ShaderProgramClass = ShaderProgram>
   [[nodiscard]] ShaderProgramClass& shaderProgramAt(const size_t index) {
@@ -44,8 +44,8 @@ public:
   std::expected<void, std::string> loadModel(const std::filesystem::path& path);
 
 public:
-  std::vector<Model> models;
-  std::vector<Mesh> meshes;
+  std::vector<MeshGroup> meshGroups;
+  std::vector<VertexArray> meshes;
   std::vector<std::unique_ptr<ShaderProgram>> shaderPrograms;
   std::vector<Texture> textures;
 
@@ -56,8 +56,8 @@ public:
   Spotlight spotlight;
 
 private:
-  std::expected<void, std::string> processNode(Model& model, aiNode* node, const aiScene* scene);
-  std::expected<void, std::string> processMesh(Model& model, aiMesh* mesh, const aiScene* scene);
+  std::expected<void, std::string> processNode(MeshGroup& meshGroup, aiNode* node, const aiScene* scene);
+  std::expected<void, std::string> processMesh(MeshGroup& meshGroup, aiMesh* mesh, const aiScene* scene);
   std::expected<size_t, std::string> loadTexture(const aiMaterial* material, aiTextureType type);
 
 private:

@@ -1,25 +1,25 @@
-#include <Graphics/Mesh.hpp>
+#include <Graphics/VertexArray.hpp>
 
 #include <glm/gtc/type_ptr.hpp>
 
 #include <cassert>
 
-Mesh::Mesh() {
+VertexArray::VertexArray() {
   this->init();
 }
 
-Mesh::Mesh(std::span<const Vertex> vertices, std::span<const GLuint> indices) {
+VertexArray::VertexArray(std::span<const Vertex> vertices, std::span<const GLuint> indices) {
   this->init();
   this->generateMesh(vertices, indices);
 }
 
-void Mesh::init() {
+void VertexArray::init() {
   glGenVertexArrays(1, &mVAO);
   glGenBuffers(1, &mVBO);
   glGenBuffers(1, &mEBO);
 }
 
-void Mesh::destroy() {
+void VertexArray::destroy() {
   glDeleteBuffers(1, &mVBO);
   glDeleteBuffers(1, &mEBO);
   glDeleteVertexArrays(1, &mVAO);
@@ -29,7 +29,7 @@ void Mesh::destroy() {
   mEBO = 0;
 }
 
-void Mesh::generateMesh(std::span<const Vertex> vertices, std::span<const GLuint> indices) {
+void VertexArray::generateMesh(std::span<const Vertex> vertices, std::span<const GLuint> indices) {
   assert(indices.size() % 3 == 0);
 
   glGenVertexArrays(1, &mVAO);
@@ -53,21 +53,21 @@ void Mesh::generateMesh(std::span<const Vertex> vertices, std::span<const GLuint
   mIndexCount = static_cast<GLsizei>(indices.size());
 }
 
-void Mesh::bind() const {
+void VertexArray::bind() const {
   glBindVertexArray(mVAO);
 }
 
-void Mesh::unbind() const {
+void VertexArray::unbind() const {
   (void)mVAO;
   glBindVertexArray(0);
 }
 
-void Mesh::bindAndDraw() const {
+void VertexArray::bindAndDraw() const {
   this->bind();
   this->draw();
   this->unbind();
 }
 
-void Mesh::draw() const {
+void VertexArray::draw() const {
   glDrawElements(GL_TRIANGLES, mIndexCount, GL_UNSIGNED_INT, nullptr);
 }
