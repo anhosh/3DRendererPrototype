@@ -98,11 +98,18 @@ LightColors spotlight(in Spotlight light, vec3 normal) {
 }
 
 void main() {
-  vec3 materialDiffuse = texture(uMaterial.diffuse, fsIn.texCoord).rgb;
+  vec4 materialDiffuse = texture(uMaterial.diffuse, fsIn.texCoord);
+  if (materialDiffuse.a < 0.01) {
+    discard;
+  }
+
   vec3 materialSpecular = texture(uMaterial.specular, fsIn.texCoord).rgb;
   vec3 materialEmission = texture(uMaterial.emission, fsIn.texCoord).rgb;
 
   vec3 normal = normalize(fsIn.normal);
+  if (!gl_FrontFacing) {
+    normal = -normal;
+  }
 
   LightColors directionalLightColors = directionalLight(uDirectionalLight, normal);
   LightColors pointLightColors = pointLight(uPointLight, normal);
@@ -112,9 +119,9 @@ void main() {
   vec3 combinedDiffuse = directionalLightColors.diffuse + pointLightColors.diffuse + spotlightColors.diffuse;
   vec3 combinedSpecular = directionalLightColors.specular + pointLightColors.specular + spotlightColors.specular;
 
-  vec3 result = materialDiffuse * combinedAmbient +
-                materialDiffuse * combinedDiffuse +
-                materialSpecular * combinedSpecular +
-                materialEmission * step(1, 1 - materialSpecular);
-  outColor = vec4(result, 1);
+  vec4 result = materialDiffuse * vec4(combinedAmbient, 1) +
+                materialDiffuse * vec4(combinedDiffuse, 1) +
+                vec4(materialSpecular * combinedSpecular, 1) +
+                vec4(materialEmission * step(1, 1 - materialSpecular), 1);
+  outColor = result;
 }

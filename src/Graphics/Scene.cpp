@@ -40,11 +40,15 @@ std::vector<Draw> Scene::draw() const {
   std::vector<Draw> draws;
 
   for (const Model& model: models) {
-    for (const size_t meshIndex : model.meshIndices) {
+    for (const MeshData& meshData : model.meshes) {
       draws.push_back(Draw {
-        .meshIndex = meshIndex,
-        .shaderProgramIndex = model.shaderProgramIndex,
         .transform = model.transform,
+        .shaderProgramIndex = model.shaderProgramIndex,
+        .meshIndex = meshData.meshIndex,
+        .diffuseMapIndex = meshData.diffuseMapIndex,
+        .specularMapIndex = meshData.specularMapIndex,
+        .emissionMapIndex = meshData.emissionMapIndex,
+        .bBackfaceCulling = model.bBackfaceCulling,
         .bWriteToStencil = model.outlineShaderProgramIndex.has_value(),
       });
     }
@@ -53,13 +57,14 @@ std::vector<Draw> Scene::draw() const {
   // Object outlines
   for (const Model& model: models) {
     if (model.outlineShaderProgramIndex.has_value()) {
-      ModelTransform outlineTransform = model.transform;
+      Transform outlineTransform = model.transform;
       outlineTransform.scale *= 1.05f;
-      for (const size_t meshIndex : model.meshIndices) {
+      for (const MeshData& meshData : model.meshes) {
         draws.push_back(Draw {
-          .meshIndex = meshIndex,
-          .shaderProgramIndex = model.outlineShaderProgramIndex.value(),
           .transform = outlineTransform,
+          .shaderProgramIndex = model.outlineShaderProgramIndex.value(),
+          .meshIndex = meshData.meshIndex,
+          .bBackfaceCulling = model.bBackfaceCulling,
           .bStencilTest = true,
           .bDepthTest = false,
         });
@@ -68,20 +73,6 @@ std::vector<Draw> Scene::draw() const {
   }
 
   return draws;
-}
-
-std::expected<void, std::string> Scene::loadModel(const fs::path& path) {
-  Assimp::Importer importer;
-  const aiScene* scene = importer.ReadFile(sModelsDir / path.string(), aiProcess_Triangulate | aiProcess_FlipUVs);
-
-  if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
-    return std::unexpected(std::format("Assimp: {}", importer.GetErrorString()));
-  }
-
-  Model model;
-  RETURN_ERROR_IF_UNEXPECTED(processNode(model, scene->mRootNode, scene));
-  this->addModel(std::move(model));
-  return {};
 }
 
 size_t Scene::addModel(Model&& model) {
@@ -102,6 +93,20 @@ size_t Scene::addTexture(Texture&& texture) {
 size_t Scene::addShaderProgram(std::unique_ptr<ShaderProgram>&& material) {
   shaderPrograms.push_back(std::move(material));
   return shaderPrograms.size() - 1;
+}
+
+std::expected<void, std::string> Scene::loadModel(const fs::path& path) {
+  Assimp::Importer importer;
+  const aiScene* scene = importer.ReadFile(sModelsDir / path.string(), aiProcess_Triangulate | aiProcess_FlipUVs);
+
+  if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
+    return std::unexpected(std::format("Assimp: {}", importer.GetErrorString()));
+  }
+
+  Model model;
+  RETURN_ERROR_IF_UNEXPECTED(processNode(model, scene->mRootNode, scene));
+  this->addModel(std::move(model));
+  return {};
 }
 
 std::expected<void, std::string> Scene::processNode(Model& model, aiNode* node, const aiScene* scene) {
@@ -142,42 +147,34 @@ std::expected<void, std::string> Scene::processMesh(Model& model, aiMesh* mesh, 
     }
   }
 
-  auto newMesh = Mesh(vertices, indices);
+  const size_t newMeshIndex = this->addMesh(Mesh(vertices, indices));
+  MeshData newMeshData = { .meshIndex = newMeshIndex };
   if (mesh->mMaterialIndex < scene->mNumMaterials) {
     aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
-    std::expected<std::vector<size_t>, std::string> diffuseMaps = loadTextures(material, aiTextureType_DIFFUSE);
-    std::expected<std::vector<size_t>, std::string> specularMaps = loadTextures(material, aiTextureType_SPECULAR);
-    std::expected<std::vector<size_t>, std::string> emissionMaps = loadTextures(material, aiTextureType_EMISSIVE);
-    RETURN_ERROR_IF_UNEXPECTED(diffuseMaps);
-    RETURN_ERROR_IF_UNEXPECTED(specularMaps);
-    RETURN_ERROR_IF_UNEXPECTED(emissionMaps);
-    newMesh.diffuseMapIndices = std::move(diffuseMaps.value());
-    newMesh.specularMapIndices = std::move(specularMaps.value());
-    newMesh.emissionMapIndices = std::move(emissionMaps.value());
+    ASSIGN_EXPECTED_OR_IGNORE(newMeshData.diffuseMapIndex, loadTexture(material, aiTextureType_DIFFUSE));
+    ASSIGN_EXPECTED_OR_IGNORE(newMeshData.specularMapIndex, loadTexture(material, aiTextureType_SPECULAR));
+    ASSIGN_EXPECTED_OR_IGNORE(newMeshData.emissionMapIndex, loadTexture(material, aiTextureType_EMISSIVE));
   }
-  meshes.push_back(newMesh);
-  model.meshIndices.push_back(meshes.size() - 1);
+  model.meshes.push_back(newMeshData);
 
   return {};
 }
 
-std::expected<std::vector<size_t>, std::string> Scene::loadTextures(const aiMaterial* material, aiTextureType type) {
-  std::vector<size_t> textureIndices;
-  for (size_t i = 0; i < material->GetTextureCount(type); i++) {
-    aiString pathStr;
-    material->GetTexture(type, static_cast<uint32_t>(i), &pathStr);
-    if (const auto found = mLoadedTextureIndices.find(pathStr.C_Str()); found != mLoadedTextureIndices.end()) {
-      const auto& [path, index] = *found;
-      textureIndices.emplace_back(index);
-    } else {
-      std::expected<Bitmap, std::string> bitmap = Bitmap::fromFile(pathStr.C_Str());
-      RETURN_ERROR_IF_UNEXPECTED(bitmap);
-      textures.emplace_back(bitmap.value());
-
-      const size_t index = textures.size() - 1;
-      mLoadedTextureIndices[pathStr.C_Str()] = index;
-      textureIndices.push_back(index);
-    }
+std::expected<size_t, std::string> Scene::loadTexture(const aiMaterial* material, aiTextureType type) {
+  if (material->GetTextureCount(type) == 0) {
+    return std::unexpected(std::format("Could not find a {} texture", aiTextureTypeToString(type)));
   }
-  return textureIndices;
+
+  aiString pathStr;
+  material->GetTexture(type, 0, &pathStr);
+  if (const auto found = mLoadedTextureIndices.find(pathStr.C_Str()); found != mLoadedTextureIndices.end()) {
+    const auto& [path, index] = *found;
+    return index;
+  }
+
+  std::expected<Bitmap, std::string> bitmap = Bitmap::fromFile(pathStr.C_Str());
+  RETURN_ERROR_IF_UNEXPECTED(bitmap);
+  const size_t newTextureIndex = this->addTexture(Texture(bitmap.value()));
+  mLoadedTextureIndices[pathStr.C_Str()] = newTextureIndex;
+  return newTextureIndex;
 }

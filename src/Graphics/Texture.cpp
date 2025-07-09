@@ -30,7 +30,7 @@ void Texture::generateTextures(const Bitmap& bitmap, const SamplerOptions& optio
   const GLenum format = formats[bitmap.channels() - 1];
   const glm::ivec2 size = bitmap.size();
 
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, size.x, size.y,
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, size.x, size.y,
                0, format, GL_UNSIGNED_BYTE, bitmap.data.data());
   glGenerateMipmap(GL_TEXTURE_2D);
 

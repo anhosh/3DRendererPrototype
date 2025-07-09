@@ -30,8 +30,6 @@ public:
 
   [[nodiscard]] std::vector<Draw> draw() const;
 
-  std::expected<void, std::string> loadModel(const std::filesystem::path& path);
-
   size_t addModel(Model&& model);
   size_t addMesh(Mesh&& mesh);
   size_t addTexture(Texture&& texture);
@@ -42,6 +40,8 @@ public:
     assert(shaderPrograms.size() > index);
     return shaderPrograms[index]->as<ShaderProgramClass>();
   }
+
+  std::expected<void, std::string> loadModel(const std::filesystem::path& path);
 
 public:
   std::vector<Model> models;
@@ -58,7 +58,7 @@ public:
 private:
   std::expected<void, std::string> processNode(Model& model, aiNode* node, const aiScene* scene);
   std::expected<void, std::string> processMesh(Model& model, aiMesh* mesh, const aiScene* scene);
-  std::expected<std::vector<size_t>, std::string> loadTextures(const aiMaterial* material, aiTextureType type);
+  std::expected<size_t, std::string> loadTexture(const aiMaterial* material, aiTextureType type);
 
 private:
   std::unordered_map<fs::path, size_t> mLoadedTextureIndices;

@@ -52,9 +52,7 @@ std::expected<GLuint, std::string> createShaderProgram(const ShaderStages& shade
 
   const auto addShader = [&](GLenum shaderType, const fs::path& sourcePath) -> std::expected<void, std::string> {
     const std::expected<GLuint, std::string> shader = createShader(shaderType, sourcePath);
-    if (!shader.has_value()) {
-      return std::unexpected(std::move(shader.error()));
-    }
+    RETURN_ERROR_IF_UNEXPECTED(shader);
     shaders.push_back(shader.value());
     return {};
   };

@@ -1,5 +1,7 @@
 #include <Graphics/Meshes.hpp>
 
+#include <vector>
+
 Mesh createCubeMesh() {
   constexpr auto positions = std::array {
     glm::vec3(-0.5f, +0.5f, +0.5f), // 0: left  top    front
@@ -61,3 +63,34 @@ Mesh createCubeMesh() {
 
   return {vertices, indices};
 }
+
+Mesh createQuadMesh() {
+  constexpr auto vertices = std::array {
+    Vertex {
+      .position = glm::vec3(-0.5f, 0.0f, -0.5f),
+      .normal = glm::vec3(0.0f, 1.0f, 0.0f),
+      .texCoord = glm::vec2(0.0f, 0.0f),
+    },
+    Vertex {
+      .position = glm::vec3(-0.5f, 0.0f, +0.5f),
+      .normal = glm::vec3(0.0f, 1.0f, 0.0f),
+      .texCoord = glm::vec2(0.0f, 1.0f),
+    },
+    Vertex {
+      .position = glm::vec3(+0.5f, 0.0f, +0.5f),
+      .normal = glm::vec3(0.0f, 1.0f, 0.0f),
+      .texCoord = glm::vec2(1.0f, 1.0f),
+    },
+    Vertex {
+      .position = glm::vec3(+0.5f, 0.0f, -0.5f),
+      .normal = glm::vec3(0.0f, 1.0f, 0.0f),
+      .texCoord = glm::vec2(1.0f, 0.0f),
+    },
+  };
+  constexpr auto indices = std::array {
+    0u, 1u, 2u,
+    0u, 2u, 3u,
+  };
+  return {vertices, indices};
+}
+

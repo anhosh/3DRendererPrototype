@@ -1,10 +1,9 @@
 #pragma once
 
-#include <Graphics/ModelTransform.hpp>
+#include <Graphics/Transform.hpp>
 #include <Graphics/Vertex.hpp>
 
 #include <span>
-#include <vector>
 
 class Mesh {
 public:
@@ -21,10 +20,7 @@ public:
   void draw() const;
 
 public:
-  ModelTransform transform;
-  std::vector<size_t> diffuseMapIndices;
-  std::vector<size_t> specularMapIndices;
-  std::vector<size_t> emissionMapIndices;
+  Transform transform;
 
 private:
   GLuint mVAO = 0;

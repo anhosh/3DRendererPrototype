@@ -32,9 +32,9 @@ struct AppState {
   Scene scene;
   SceneRenderer sceneRenderer;
 
-  size_t cubeMeshIndex = 0;
   size_t lightModelIndex = 0;
   size_t backpackModelIndex = 0;
+  size_t grassModelIndex = 0;
 
   enum class FragmentShader : int32_t {
     LitSurface,

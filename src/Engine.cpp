@@ -175,13 +175,35 @@ std::expected<void, std::string> Engine::createScene() {
   RETURN_ERROR_IF_UNEXPECTED(mState.scene.loadModel("backpack/backpack.obj"));
   mState.scene.models.back().shaderProgramIndex = mState.litSurfaceShaderProgramIndex;
 
-  mState.cubeMeshIndex = mState.scene.addMesh(createCubeMesh());
+  const size_t quadMeshIndex = mState.scene.addMesh(createQuadMesh());
+  const size_t cubeMeshIndex = mState.scene.addMesh(createCubeMesh());
+
   mState.lightModelIndex = mState.scene.addModel(Model {
-    .meshIndices = { mState.cubeMeshIndex },
-    .transform = ModelTransform {
+    .transform = Transform {
       .scale = glm::vec3(0.1f),
     },
+    .meshes = { MeshData { .meshIndex = cubeMeshIndex } },
     .shaderProgramIndex = mState.lightShaderProgramIndex,
+  });
+
+  const std::expected<Bitmap, std::string> grassBitmap = Bitmap::fromFile("grass/diffuse.png");
+  RETURN_ERROR_IF_UNEXPECTED(grassBitmap);
+  constexpr SamplerOptions samplerOptionsClampToEdge = { .wrapS = GL_CLAMP_TO_EDGE, .wrapT = GL_CLAMP_TO_EDGE };
+  const size_t grassTextureIndex = mState.scene.addTexture(Texture(grassBitmap.value(), samplerOptionsClampToEdge));
+
+  mState.grassModelIndex = mState.scene.addModel(Model {
+    .transform = Transform {
+      .translation = glm::vec3(0.0f, 0.0f, 1.0f),
+      .rotation = glm::vec3(-90.0f, 0.0f, 0.0f),
+    },
+    .meshes = {
+      MeshData {
+        .meshIndex = quadMeshIndex,
+        .diffuseMapIndex = grassTextureIndex,
+      },
+    },
+    .shaderProgramIndex = mState.litSurfaceShaderProgramIndex,
+    .bBackfaceCulling = false,
   });
 
   return {};
@@ -355,6 +377,17 @@ void Engine::gui() {
 
         ImGui::Unindent();
       }
+
+      ImGui::Unindent();
+    }
+
+    if (ImGui::CollapsingHeader("Grass")) {
+      ImGui::Indent();
+
+      Transform& grassTransform = mState.scene.models[mState.grassModelIndex].transform;
+      ImGui::DragFloat3("Translation##grass", glm::value_ptr(grassTransform.translation), 0.01f);
+      ImGui::DragFloat3("Rotation##grass", glm::value_ptr(grassTransform.rotation), 0.01f);
+      ImGui::DragFloat3("Scale##grass", glm::value_ptr(grassTransform.scale), 0.01f);
 
       ImGui::Unindent();
     }

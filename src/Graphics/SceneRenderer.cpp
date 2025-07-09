@@ -51,24 +51,28 @@ void SceneRenderer::render(const Scene& scene, glm::uvec2 windowSize) {
     }
 
     GLuint slot = GL_TEXTURE0;
-    const auto bindTextures = [&, this](std::span<const size_t> textureIndices) {
-      for (const size_t index : textureIndices) {
-        scene.textures[index].bind(slot);
+    const auto bindTextures = [&, this](const size_t textureIndex) {
+      if (textureIndex == SIZE_MAX) {
+        glActiveTexture(slot);
+        glBindTexture(GL_TEXTURE_2D, 0);
+        mBoundTextureSlots.erase(slot);
+      } else {
+        scene.textures[textureIndex].bind(slot);
         mBoundTextureSlots.insert(slot);
-        ++slot;
       }
+      ++slot;
     };
-    bindTextures(currMesh.diffuseMapIndices);
-    bindTextures(currMesh.specularMapIndices);
-    bindTextures(currMesh.emissionMapIndices);
-
-    lastDraw = currDraw;
+    bindTextures(currDraw->diffuseMapIndex);
+    bindTextures(currDraw->specularMapIndex);
+    bindTextures(currDraw->emissionMapIndex);
 
     transforms.model = currDraw->transform.matrix();
     transforms.normal = glm::transpose(glm::inverse(transforms.model));
 
     scene.shaderPrograms[currDraw->shaderProgramIndex]->bindUniforms(transforms);
     currMesh.draw();
+
+    lastDraw = currDraw;
   }
 
   scene.meshes[lastDraw->meshIndex].unbind();

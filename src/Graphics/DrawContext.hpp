@@ -1,11 +1,14 @@
 #pragma once
 
-#include <Graphics/ModelTransform.hpp>
+#include <Graphics/Transform.hpp>
 
 struct Draw {
-  size_t meshIndex = 0;
+  Transform transform = {};
   size_t shaderProgramIndex = 0;
-  ModelTransform transform = {};
+  size_t meshIndex = 0;
+  size_t diffuseMapIndex = SIZE_MAX;
+  size_t specularMapIndex = SIZE_MAX;
+  size_t emissionMapIndex = SIZE_MAX;
   bool bBackfaceCulling = true;
   bool bWriteToStencil = false;
   bool bStencilTest = false;
