@@ -1,12 +1,28 @@
 #pragma once
 
+#include <print>
+
 #define TO_STATEMENT(code) \
   do { code } while (false)
+
+#define PANIC(fmt, ...) \
+  TO_STATEMENT( \
+    std::println(stderr, "Program panicked at {}:{}, {}:", __FILE__, __LINE__, __FUNCTION__); \
+    std::println(stderr, fmt __VA_OPT__(,) __VA_ARGS__); \
+    assert(false); \
+  )
 
 #define RETURN_ERROR_IF_UNEXPECTED(expr) \
   TO_STATEMENT( \
     if (const auto& result = (expr); !result.has_value()) { \
       return std::unexpected(std::move(result.error())); \
+    } \
+  )
+
+#define PANIC_IF_UNEXPECTED(expr) \
+  TO_STATEMENT( \
+    if (const auto& result = (expr); !result.has_value()) { \
+      PANIC("{}", result.error()); \
     } \
   )
 

@@ -8,41 +8,41 @@ VertexArray::VertexArray() {
   this->init();
 }
 
-VertexArray::VertexArray(std::span<const Vertex> vertices, std::span<const GLuint> indices) {
+VertexArray::VertexArray(const Mesh& mesh) {
   this->init();
-  this->generateMesh(vertices, indices);
+  this->generateMesh(mesh);
 }
 
 void VertexArray::init() {
-  glGenVertexArrays(1, &mVAO);
-  glGenBuffers(1, &mVBO);
-  glGenBuffers(1, &mEBO);
+  glGenVertexArrays(1, &vao);
+  glGenBuffers(1, &vbo);
+  glGenBuffers(1, &ebo);
 }
 
 void VertexArray::destroy() {
-  glDeleteBuffers(1, &mVBO);
-  glDeleteBuffers(1, &mEBO);
-  glDeleteVertexArrays(1, &mVAO);
+  glDeleteBuffers(1, &vbo);
+  glDeleteBuffers(1, &ebo);
+  glDeleteVertexArrays(1, &vao);
 
-  mVAO = 0;
-  mVBO = 0;
-  mEBO = 0;
+  vao = 0;
+  vbo = 0;
+  ebo = 0;
 }
 
-void VertexArray::generateMesh(std::span<const Vertex> vertices, std::span<const GLuint> indices) {
-  assert(indices.size() % 3 == 0);
+void VertexArray::generateMesh(const Mesh& mesh) {
+  assert(mesh.indices.size() % 3 == 0);
 
-  glGenVertexArrays(1, &mVAO);
-  glGenBuffers(1, &mVBO);
-  glGenBuffers(1, &mEBO);
+  glGenVertexArrays(1, &vao);
+  glGenBuffers(1, &vbo);
+  glGenBuffers(1, &ebo);
 
-  glBindVertexArray(mVAO);
+  glBindVertexArray(vao);
 
-  glBindBuffer(GL_ARRAY_BUFFER, mVBO);
-  glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(vertices.size_bytes()), vertices.data(), GL_STATIC_DRAW);
+  glBindBuffer(GL_ARRAY_BUFFER, vbo);
+  glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(mesh.vertices.size() * sizeof(Vertex)), mesh.vertices.data(), GL_STATIC_DRAW);
 
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mEBO);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizeiptr>(indices.size_bytes()), indices.data(), GL_STATIC_DRAW);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizeiptr>(mesh.indices.size() * sizeof(uint32_t)), mesh.indices.data(), GL_STATIC_DRAW);
 
   Vertex::setupAttributes();
 
@@ -50,24 +50,5 @@ void VertexArray::generateMesh(std::span<const Vertex> vertices, std::span<const
   glBindBuffer(GL_ARRAY_BUFFER, 0);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
-  mIndexCount = static_cast<GLsizei>(indices.size());
-}
-
-void VertexArray::bind() const {
-  glBindVertexArray(mVAO);
-}
-
-void VertexArray::unbind() const {
-  (void)mVAO;
-  glBindVertexArray(0);
-}
-
-void VertexArray::bindAndDraw() const {
-  this->bind();
-  this->draw();
-  this->unbind();
-}
-
-void VertexArray::draw() const {
-  glDrawElements(GL_TRIANGLES, mIndexCount, GL_UNSIGNED_INT, nullptr);
+  indexCount = static_cast<GLsizei>(mesh.indices.size());
 }

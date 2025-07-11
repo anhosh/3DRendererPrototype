@@ -1,26 +1,19 @@
 #pragma once
 
-#include <Graphics/Vertex.hpp>
-
-#include <span>
+#include <Graphics/Mesh.hpp>
 
 class VertexArray {
 public:
   VertexArray();
-  VertexArray(std::span<const Vertex> vertices, std::span<const GLuint> indices);
+  VertexArray(const Mesh& mesh);
 
   void init();
   void destroy();
-  void generateMesh(std::span<const Vertex> vertices, std::span<const GLuint> indices);
+  void generateMesh(const Mesh& mesh);
 
-  void bind() const;
-  void unbind() const;
-  void bindAndDraw() const;
-  void draw() const;
-
-private:
-  GLuint mVAO = 0;
-  GLuint mVBO = 0;
-  GLuint mEBO = 0;
-  GLsizei mIndexCount = 0;
+public:
+  GLuint vao = 0;
+  GLuint vbo = 0;
+  GLuint ebo = 0;
+  GLsizei indexCount = 0;
 };

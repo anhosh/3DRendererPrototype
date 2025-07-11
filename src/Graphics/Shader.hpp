@@ -1,11 +1,17 @@
 #pragma once
 
-#include <expected>
+#include <Util/Expected.hpp>
+
 #include <filesystem>
 
 namespace fs = std::filesystem;
 
-struct ShaderStages {
+struct Shader {
+  GLenum type = GL_NONE;
+  GLuint shader = GL_NONE;
+};
+
+struct ShaderProgramPaths {
   fs::path vertex;
   std::optional<fs::path> tesselationControl = std::nullopt;
   std::optional<fs::path> tesselationEvaluation = std::nullopt;
@@ -13,6 +19,15 @@ struct ShaderStages {
   fs::path fragment;
 };
 
+struct ShaderProgramShaders {
+  Shader vertex;
+  std::optional<Shader> tesselationControl = std::nullopt;
+  std::optional<Shader> tesselationEvaluation = std::nullopt;
+  std::optional<Shader> geometry = std::nullopt;
+  Shader fragment;
+};
+
 bool locateShaders();
 
-std::expected<GLuint, std::string> createShaderProgram(const ShaderStages& shaderStages);
+Expected<Shader> createShader(GLenum type, const fs::path& sourcePath);
+Expected<GLuint> createShaderProgram(const ShaderProgramPaths& shaderStages);

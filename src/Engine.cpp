@@ -3,14 +3,9 @@
 #include <Graphics/Bitmap.hpp>
 #include <Graphics/Camera.hpp>
 #include <Graphics/Meshes.hpp>
+#include <Graphics/Model.hpp>
 #include <Graphics/Scene.hpp>
-#include <Graphics/Shader.hpp>
 #include <Graphics/ShaderProgram.hpp>
-#include <Graphics/ShaderPrograms/LightSourceShaderProgram.hpp>
-#include <Graphics/ShaderPrograms/LitSurfaceShaderProgram.hpp>
-#include <Graphics/ShaderPrograms/OutlineShaderProgram.hpp>
-#include <Graphics/ShaderPrograms/VisualiseDepthShaderProgram.hpp>
-#include <Graphics/ShaderPrograms/VisualiseNormalShaderProgram.hpp>
 #include <Util/Macros.hpp>
 #include <Util/NotNull.hpp>
 #include <Util/Timers/TimedBlock.hpp>
@@ -18,10 +13,6 @@
 #include <imgui.h>
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_opengl3.h>
-
-#include <glm/ext/matrix_clip_space.hpp>
-#include <glm/ext/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.inl>
 
 static Engine* gApp = nullptr;
 
@@ -33,11 +24,14 @@ Engine::Engine(Engine&& other) noexcept {
   other.mState.window = nullptr;
 }
 
-std::expected<Engine, std::string> Engine::create(std::string_view title, glm::uvec2 initialWindowSize) {
+Expected<Engine> Engine::create(std::string_view title, glm::uvec2 initialWindowSize) {
   Engine app;
+  app.mState.assetManager = std::make_unique<AssetManager>();
+  app.mState.scene = std::make_unique<Scene>();
+  app.mState.sceneRenderer = std::make_unique<SceneRenderer>();
   RETURN_ERROR_IF_UNEXPECTED(app.createContext(title, initialWindowSize));
   app.initialiseImGui();
-  RETURN_ERROR_IF_UNEXPECTED(app.loadShaders());
+  RETURN_ERROR_IF_UNEXPECTED(app.mState.sceneRenderer->loadShaders());
   RETURN_ERROR_IF_UNEXPECTED(app.createScene());
   return app;
 }
@@ -68,7 +62,7 @@ void Engine::shutDown() {
   ImGui_ImplGlfw_Shutdown();
   ImGui::DestroyContext();
 
-  mState.scene.destroy();
+  mState.scene->destroy();
 
   glfwDestroyWindow(mState.window);
   mState.window = nullptr;
@@ -83,7 +77,7 @@ Engine::Engine() {
   gApp = this;
 }
 
-std::expected<void, std::string> Engine::createContext(std::string_view title, glm::uvec2 initialWindowSize) {
+Expected<void> Engine::createContext(std::string_view title, glm::uvec2 initialWindowSize) {
   glfwInit();
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
@@ -133,106 +127,95 @@ void Engine::initialiseImGui() const {
   ImGui_ImplOpenGL3_Init("#version 460");
 }
 
-std::expected<void, std::string> Engine::loadShaders() {
-  if (!locateShaders()) {
-    return std::unexpected("Could not locate shader directory");
-  }
+Expected<void> Engine::createScene() {
+  // Load assets
+  const AssetManager::Handle<Mesh> quadMesh = mState.assetManager->addMesh(createQuadMesh());
+  const AssetManager::Handle<Mesh> cubeMesh = mState.assetManager->addMesh(createCubeMesh());
 
-  const auto addShaderProgram = [this]<typename TShaderProgram>(const ShaderStages& stages,
-                                                                TShaderProgram*& outShader,
-                                                                size_t& outShaderProgramIndex) -> std::expected<void, std::string>
-  {
-    auto program = ShaderPrograms::fromShaders<TShaderProgram>(stages);
-    RETURN_ERROR_IF_UNEXPECTED(program);
-    outShader = NotNull(dynamic_cast<TShaderProgram*>(program.value().get()));
-    outShaderProgramIndex = mState.scene.addShaderProgram(std::move(program.value()));
-    return {};
-  };
+  const Expected<AssetManager::Handle<Model>> backpackModel = mState.assetManager->loadModel("backpack/backpack.obj");
+  const Expected<AssetManager::Handle<Bitmap>> grassBitmap = mState.assetManager->loadBitmap("grass/diffuse.png");
+  const Expected<AssetManager::Handle<Bitmap>> windowBitmap = mState.assetManager->loadBitmap("window/diffuse.png");
 
-  RETURN_ERROR_IF_UNEXPECTED(addShaderProgram({.vertex = "simple.vert", .fragment = "litSurface.frag"},
-                                              mState.litSurfaceShaderProgram,
-                                              mState.litSurfaceShaderProgramIndex));
-  RETURN_ERROR_IF_UNEXPECTED(addShaderProgram({.vertex = "simple.vert", .fragment = "light.frag"},
-                                              mState.lightShaderProgram,
-                                              mState.lightShaderProgramIndex));
-  RETURN_ERROR_IF_UNEXPECTED(addShaderProgram({.vertex = "simple.vert", .fragment = "visualiseDepth.frag"},
-                                              mState.visualiseDepthShaderProgram,
-                                              mState.visualiseDepthShaderProgramIndex));
-  RETURN_ERROR_IF_UNEXPECTED(addShaderProgram({.vertex = "simple.vert", .fragment = "visualiseNormal.frag"},
-                                              mState.visualiseNormalShaderProgram,
-                                              mState.visualiseNormalShaderProgramIndex));
-  RETURN_ERROR_IF_UNEXPECTED(addShaderProgram({.vertex = "simple.vert", .fragment = "outline.frag"},
-                                              mState.outlineShaderProgram,
-                                              mState.outlineShaderProgramIndex));
-
-  return {};
-}
-
-std::expected<void, std::string> Engine::createScene() {
-  RETURN_ERROR_IF_UNEXPECTED(locateModels());
-  RETURN_ERROR_IF_UNEXPECTED(locateTextures());
-
-  RETURN_ERROR_IF_UNEXPECTED(mState.scene.loadModel("backpack/backpack.obj"));
-  mState.scene.meshGroups.back().shaderProgramIndex = mState.litSurfaceShaderProgramIndex;
-
-  const size_t quadMeshIndex = mState.scene.addMesh(createQuadMesh());
-  const size_t cubeMeshIndex = mState.scene.addMesh(createCubeMesh());
-
-  mState.lightModelIndex = mState.scene.addMeshGroup(MeshGroup {
-    .transform = Transform {
-      .scale = glm::vec3(0.1f),
-    },
-    .meshes = { MeshData { .vertexArrayIndex = cubeMeshIndex } },
-    .shaderProgramIndex = mState.lightShaderProgramIndex,
-  });
-
-  const std::expected<Bitmap, std::string> grassBitmap = Bitmap::fromFile("grass/diffuse.png");
-  const std::expected<Bitmap, std::string> windowBitmap = Bitmap::fromFile("window/diffuse.png");
-
+  RETURN_ERROR_IF_UNEXPECTED(backpackModel);
   RETURN_ERROR_IF_UNEXPECTED(grassBitmap);
   RETURN_ERROR_IF_UNEXPECTED(windowBitmap);
 
-  constexpr SamplerOptions samplerOptionsClampToEdge = { .wrapS = GL_CLAMP_TO_EDGE, .wrapT = GL_CLAMP_TO_EDGE };
-  const size_t grassTextureIndex = mState.scene.addTexture(Texture(grassBitmap.value(), samplerOptionsClampToEdge));
-  const size_t windowTextureIndex = mState.scene.addTexture(Texture(windowBitmap.value(), samplerOptionsClampToEdge));
+  // Get shader instances
+  mState.litSurfaceShaderProgram = mState.sceneRenderer->createShaderProgramInstance(ShaderProgramType::LitSurface);
+  mState.lightShaderProgram = mState.sceneRenderer->createShaderProgramInstance(ShaderProgramType::Light);
+  mState.visualiseDepthShaderProgram = mState.sceneRenderer->createShaderProgramInstance(ShaderProgramType::VisualiseDepth);
+  mState.visualiseNormalShaderProgram = mState.sceneRenderer->createShaderProgramInstance(ShaderProgramType::VisualiseNormal);
+  mState.outlineShaderProgram = mState.sceneRenderer->createShaderProgramInstance(ShaderProgramType::Outline);
 
-  mState.grassModelIndex = mState.scene.addMeshGroup(MeshGroup {
+  // Upload assets to GPU
+  const SceneRenderer::Handle<VertexArray> quadVA = mState.sceneRenderer->addMesh(quadMesh);
+  const SceneRenderer::Handle<VertexArray> cubeVA = mState.sceneRenderer->addMesh(cubeMesh);
+
+  constexpr SamplerOptions samplerOptionsClampToEdge = { .wrapS = GL_CLAMP_TO_EDGE, .wrapT = GL_CLAMP_TO_EDGE };
+  const SceneRenderer::Handle<Texture> grassTexture = mState.sceneRenderer->addTexture(grassBitmap.value(), samplerOptionsClampToEdge);
+  const SceneRenderer::Handle<Texture> windowTexture = mState.sceneRenderer->addTexture(windowBitmap.value(), samplerOptionsClampToEdge);
+
+  constexpr SceneRenderer::RenderOptions transparentQuadOptions = { .bBackfaceCulling = false, .bTransparent = true };
+  std::vector<SceneRenderer::RenderData> backpackResources = mState.sceneRenderer->addModel(backpackModel.value(), mState.litSurfaceShaderProgram.value());
+  const std::vector lightResources = {
+    SceneRenderer::RenderData {
+      .vertexArray = cubeVA,
+      .shaderProgramInstance = mState.lightShaderProgram.value(),
+    }
+  };
+  const std::vector grassResources = {
+    SceneRenderer::RenderData {
+      .vertexArray = quadVA,
+      .shaderProgramInstance = mState.litSurfaceShaderProgram.value(),
+      .diffuseMap = grassTexture,
+      .renderOptions = transparentQuadOptions,
+    }
+  };
+  const std::vector windowResources = {
+    SceneRenderer::RenderData {
+      .vertexArray = quadVA,
+      .shaderProgramInstance = mState.litSurfaceShaderProgram.value(),
+      .diffuseMap = windowTexture,
+      .renderOptions = transparentQuadOptions
+    }
+  };
+
+  // Create actors
+  mState.backpackActor = mState.scene->addActor({
+    .transform = Transform {
+      .translation = glm::vec3(0.0f),
+    },
+    .renderData = std::move(backpackResources),
+  });
+
+  mState.lightActor = mState.scene->addActor({
+    .transform = Transform {
+      .scale = glm::vec3(0.1f),
+    },
+    .renderData = lightResources,
+  });
+
+  mState.grassActor = mState.scene->addActor({
     .transform = Transform {
       .translation = glm::vec3(0.0f, 0.0f, 1.0f),
       .rotation = glm::vec3(-90.0f, 0.0f, 0.0f),
     },
-    .meshes = {
-      MeshData {
-        .vertexArrayIndex = quadMeshIndex,
-        .diffuseMapIndex = grassTextureIndex,
-        .bBackfaceCulling = false,
-        .bTransparent = true,
-      },
-    },
-    .shaderProgramIndex = mState.litSurfaceShaderProgramIndex,
+    .renderData = grassResources,
   });
 
-  MeshGroup windowMeshGroup = {
-    .transform = Transform {
+  Actor windowActor = {
+    .transform = {
+      .translation = glm::vec3(0.0f, 0.0f, 1.0f),
       .rotation = glm::vec3(-90.0f, 0.0f, 0.0f),
     },
-    .meshes = {
-      MeshData {
-        .vertexArrayIndex = quadMeshIndex,
-        .diffuseMapIndex = windowTextureIndex,
-        .bBackfaceCulling = false,
-        .bTransparent = true,
-      },
-    },
-    .shaderProgramIndex = mState.litSurfaceShaderProgramIndex,
+    .renderData = windowResources,
   };
-
-  windowMeshGroup.transform.translation = glm::vec3(-0.25f, 0.0f, 1.5f);
-  mState.scene.addMeshGroup(windowMeshGroup);
-  windowMeshGroup.transform.translation = glm::vec3(0.25f, 0.0f, 1.75f);
-  mState.scene.addMeshGroup(windowMeshGroup);
-  windowMeshGroup.transform.translation = glm::vec3(0.0f, 0.0f, 2.0f);
-  mState.scene.addMeshGroup(windowMeshGroup);
+  windowActor.transform.translation = glm::vec3(-0.25f, 0.0f, 1.5f);
+  mState.scene->addActor(windowActor);
+  windowActor.transform.translation = glm::vec3(0.25f, 0.0f, 1.75f);
+  mState.scene->addActor(windowActor);
+  windowActor.transform.translation = glm::vec3(0.0f, 0.0f, 2.0f);
+  mState.scene->addActor(std::move(windowActor));
 
   return {};
 }
@@ -258,7 +241,7 @@ void Engine::processKeyboard() {
   }
 
   const auto deltaTime = static_cast<float>(mState.currentFrameTime - mState.lastFrameTime);
-  Camera& camera = mState.scene.camera;
+  Camera& camera = mState.scene->camera;
   if (glfwGetKey(mState.window, GLFW_KEY_W) == GLFW_PRESS) {
     camera.position += deltaTime * camera.speed * camera.forward();
   }
@@ -294,7 +277,7 @@ void Engine::processMousePosition(glm::vec2 mousePosition) {
     (mousePosition.x - mState.lastMousePosition.x) * sensitivity,
     (mState.lastMousePosition.y - mousePosition.y) * sensitivity,
   };
-  Camera& camera = mState.scene.camera;
+  Camera& camera = mState.scene->camera;
   camera.rotation.x += offset.x;
   camera.rotation.y = glm::clamp(camera.rotation.y + offset.y, -89.0f, 89.0f);
 
@@ -312,9 +295,6 @@ void Engine::runImGui() {
 void Engine::gui() {
   constexpr ImGuiColorEditFlags lightColorEditFlags = ImGuiColorEditFlags_Float | ImGuiColorEditFlags_HDR;
   if (ImGui::Begin("Test")) {
-    MeshGroup& backpackModel = mState.scene.meshGroups[mState.backpackModelIndex];
-    MeshGroup& lightModel = mState.scene.meshGroups[mState.lightModelIndex];
-
     ImGui::Text("FPS: %.03f", 1.0 / (mState.currentFrameTime - mState.lastFrameTime));
     ImGui::Text("Frame duration: %.03f ms", (mState.currentFrameTime - mState.lastFrameTime) * 1000.0);
     ImGui::Text("Scene draw: %.03f ms", mState.lastSceneRenderTime * 1000.0);
@@ -323,7 +303,7 @@ void Engine::gui() {
 
     if (ImGui::CollapsingHeader("Camera")) {
       ImGui::Indent();
-      Camera& camera = mState.scene.camera;
+      Camera& camera = mState.scene->camera;
 
       ImGui::DragFloat("Movement speed", &camera.speed, 0.001f, 0.0f, 5.0f);
       ImGui::DragFloat("FOV", &camera.fov, 0.1f, 10.0f, 120.0f);
@@ -337,25 +317,39 @@ void Engine::gui() {
       ImGui::Indent();
 
       static constexpr const char* fsTypeNames[] = {
+        "Light",
         "Lit surface",
+        "Outline",
         "Visualise depth",
         "Visualise normal",
       };
-      if (ImGui::Combo("Fragment shader", reinterpret_cast<int32_t*>(&mState.fsType), fsTypeNames, std::size(fsTypeNames))) {
-        switch (mState.fsType) {
-          case AppState::FragmentShader::LitSurface:
-            backpackModel.shaderProgramIndex = mState.litSurfaceShaderProgramIndex;
+      if (ImGui::Combo("Fragment shader", reinterpret_cast<int32_t*>(&mState.backpackShaderProgramType), fsTypeNames,
+                       std::size(fsTypeNames)))
+      {
+        switch (mState.backpackShaderProgramType) {
+          case ShaderProgramType::Light:
+            mState.backpackActor->get().setShaderProgramInstance(mState.lightShaderProgram.value());
             break;
-          case AppState::FragmentShader::VisualiseDepth:
-            backpackModel.shaderProgramIndex = mState.visualiseDepthShaderProgramIndex;
+          case ShaderProgramType::LitSurface:
+            mState.backpackActor->get().setShaderProgramInstance(mState.litSurfaceShaderProgram.value());
             break;
-          case AppState::FragmentShader::VisualiseNormal:
-            backpackModel.shaderProgramIndex = mState.visualiseNormalShaderProgramIndex;
+          case ShaderProgramType::Outline:
+            mState.backpackActor->get().setShaderProgramInstance(mState.outlineShaderProgram.value());
             break;
+          case ShaderProgramType::VisualiseDepth:
+            mState.backpackActor->get().setShaderProgramInstance(mState.visualiseDepthShaderProgram.value());
+            break;
+          case ShaderProgramType::VisualiseNormal:
+            mState.backpackActor->get().setShaderProgramInstance(mState.visualiseNormalShaderProgram.value());
+            break;
+          default:
+            PANIC("Unexpected shader program type");
         }
       }
 
-      ImGui::DragFloat("Shininess", &NotNull(mState.litSurfaceShaderProgram)->material.shininess, 1.0f, 1.0f, 256.0f);
+      std::unordered_map<std::string, ShaderUniform>& litSurfaceUniforms = mState.litSurfaceShaderProgram->get().uniforms;
+      ImGui::DragFloat("Shininess", litSurfaceUniforms["uMaterial.shininess"].getPtr<GLfloat>(),
+                1.0f, 1.0f, 256.0f);
 
       ImGui::Unindent();
     }
@@ -365,7 +359,7 @@ void Engine::gui() {
 
       if (ImGui::CollapsingHeader("Directional light")) {
         ImGui::Indent();
-        DirectionalLight& directionalLight = mState.scene.directionalLight;
+        DirectionalLight& directionalLight = mState.scene->directionalLight;
 
         ImGui::ColorPicker3("Ambient##dl", glm::value_ptr(directionalLight.colors.ambient), lightColorEditFlags);
         ImGui::ColorPicker3("Diffuse##dl", glm::value_ptr(directionalLight.colors.diffuse), lightColorEditFlags);
@@ -376,7 +370,7 @@ void Engine::gui() {
 
       if (ImGui::CollapsingHeader("Point light")) {
         ImGui::Indent();
-        PointLight& pointLight = mState.scene.pointLight;
+        PointLight& pointLight = mState.scene->pointLight;
 
         ImGui::DragFloat("Constant", &pointLight.constant, 0.1f, 1.0f, 100.0f);
         ImGui::DragFloat("Linear", &pointLight.linear, 0.01f, 0.01f, 10.0f);
@@ -385,14 +379,16 @@ void Engine::gui() {
 
         ImGui::ColorPicker3("Ambient##pl", glm::value_ptr(pointLight.colors.ambient), lightColorEditFlags);
         ImGui::ColorPicker3("Diffuse##pl", glm::value_ptr(pointLight.colors.diffuse), lightColorEditFlags);
-        ImGui::ColorPicker3("Specular##pl", glm::value_ptr(pointLight.colors.specular), lightColorEditFlags);
+        if (ImGui::ColorPicker3("Specular##pl", glm::value_ptr(pointLight.colors.specular), lightColorEditFlags)) {
+          mState.lightShaderProgram->get().uniforms["uLightColor"] = pointLight.colors.specular;
+        }
 
         ImGui::Unindent();
       }
 
       if (ImGui::CollapsingHeader("Spotlight")) {
         ImGui::Indent();
-        Spotlight& spotlight = mState.scene.spotlight;
+        Spotlight& spotlight = mState.scene->spotlight;
 
         ImGui::Checkbox("Follow camera", &mState.bFlashlightFollowCamera);
         ImGui::DragFloat("Cut off", &spotlight.cutOff, 0.01f, 1.0f, spotlight.outerCutOff);
@@ -412,7 +408,7 @@ void Engine::gui() {
     if (ImGui::CollapsingHeader("Grass")) {
       ImGui::Indent();
 
-      Transform& grassTransform = mState.scene.meshGroups[mState.grassModelIndex].transform;
+      Transform& grassTransform = mState.grassActor->get().transform;
       ImGui::DragFloat3("Translation##grass", glm::value_ptr(grassTransform.translation), 0.01f);
       ImGui::DragFloat3("Rotation##grass", glm::value_ptr(grassTransform.rotation), 0.01f);
       ImGui::DragFloat3("Scale##grass", glm::value_ptr(grassTransform.scale), 0.01f);
@@ -423,22 +419,15 @@ void Engine::gui() {
     if (ImGui::CollapsingHeader("Object outlines")) {
       ImGui::Indent();
 
-      ImGui::ColorPicker3("Outline color", glm::value_ptr(NotNull(mState.outlineShaderProgram)->outlineColor), ImGuiColorEditFlags_Float);
+      std::unordered_map<std::string, ShaderUniform>& outlineUniforms = mState.outlineShaderProgram->get().uniforms;
+      ImGui::ColorPicker3("Outline color", outlineUniforms["uOutlineColor"].getValuePtr<glm::vec3>(), ImGuiColorEditFlags_Float);
 
       if (ImGui::Checkbox("Backpack outline", &mState.bDrawBackpackOutline)) {
-        if (mState.bDrawBackpackOutline) {
-          backpackModel.outlineShaderProgramIndex = mState.outlineShaderProgramIndex;
-        } else {
-          backpackModel.outlineShaderProgramIndex = std::nullopt;
-        }
+        mState.backpackActor->get().setOutlineShaderInstance(mState.bDrawBackpackOutline ? mState.outlineShaderProgram : std::nullopt);
       }
 
       if (ImGui::Checkbox("Light outline", &mState.bDrawLightOutline)) {
-        if (mState.bDrawLightOutline) {
-          lightModel.outlineShaderProgramIndex = mState.outlineShaderProgramIndex;
-        } else {
-          lightModel.outlineShaderProgramIndex = std::nullopt;
-        }
+        mState.lightActor->get().setOutlineShaderInstance(mState.bDrawLightOutline ? mState.outlineShaderProgram : std::nullopt);
       }
 
       ImGui::Unindent();
@@ -450,31 +439,42 @@ void Engine::gui() {
 
 void Engine::updateScene() {
   // Flying light cube
-  mState.scene.pointLight.position = {
-    glm::cos(mState.currentFrameTime * 0.05f),
-    glm::cos(mState.currentFrameTime * 0.075f),
-    glm::sin(mState.currentFrameTime * 0.05f),
+  mState.scene->pointLight.position = {
+    2.0f * glm::cos(mState.currentFrameTime * 0.05f),
+    2.0f * glm::cos(mState.currentFrameTime * 0.075f),
+    2.0f * glm::sin(mState.currentFrameTime * 0.05f),
   };
-  mState.scene.meshGroups[mState.lightModelIndex].transform.translation = mState.scene.pointLight.position;
+  mState.lightActor->get().transform.translation = mState.scene->pointLight.position;
 
   // Flashlight
   if (mState.bFlashlightFollowCamera) {
-    mState.scene.spotlight.position = mState.scene.camera.position;
-    mState.scene.spotlight.direction = mState.scene.camera.forward();
+    mState.scene->spotlight.position = mState.scene->camera.position;
+    mState.scene->spotlight.direction = mState.scene->camera.forward();
   }
 
   // Shaders
-  NotNull(mState.lightShaderProgram)->emittedColor = mState.scene.pointLight.colors.specular;
+  mState.litSurfaceShaderProgram->get().uniforms["uViewPos"] = mState.scene->camera.position;
+  mState.litSurfaceShaderProgram->get().uniforms["uDirectionalLight.colors.ambient"] = mState.scene->directionalLight.colors.ambient;
+  mState.litSurfaceShaderProgram->get().uniforms["uDirectionalLight.colors.diffuse"] = mState.scene->directionalLight.colors.diffuse;
+  mState.litSurfaceShaderProgram->get().uniforms["uDirectionalLight.colors.specular"] = mState.scene->directionalLight.colors.specular;
+  mState.litSurfaceShaderProgram->get().uniforms["uDirectionalLight.direction"] = mState.scene->directionalLight.direction;
+  mState.litSurfaceShaderProgram->get().uniforms["uPointLight.colors.ambient"] = mState.scene->pointLight.colors.ambient;
+  mState.litSurfaceShaderProgram->get().uniforms["uPointLight.colors.diffuse"] = mState.scene->pointLight.colors.diffuse;
+  mState.litSurfaceShaderProgram->get().uniforms["uPointLight.position"] = mState.scene->pointLight.position;
+  mState.litSurfaceShaderProgram->get().uniforms["uPointLight.position"] = mState.scene->pointLight.position;
+  mState.litSurfaceShaderProgram->get().uniforms["uPointLight.constant"] = mState.scene->pointLight.constant;
+  mState.litSurfaceShaderProgram->get().uniforms["uPointLight.linear"] = mState.scene->pointLight.linear;
+  mState.litSurfaceShaderProgram->get().uniforms["uPointLight.quadratic"] = mState.scene->pointLight.quadratic;
+  mState.litSurfaceShaderProgram->get().uniforms["uSpotlight.colors.ambient"] = mState.scene->spotlight.colors.ambient;
+  mState.litSurfaceShaderProgram->get().uniforms["uSpotlight.colors.diffuse"] = mState.scene->spotlight.colors.diffuse;
+  mState.litSurfaceShaderProgram->get().uniforms["uSpotlight.colors.specular"] = mState.scene->spotlight.colors.specular;
+  mState.litSurfaceShaderProgram->get().uniforms["uSpotlight.position"] = mState.scene->spotlight.position;
+  mState.litSurfaceShaderProgram->get().uniforms["uSpotlight.direction"] = mState.scene->spotlight.direction;
+  mState.litSurfaceShaderProgram->get().uniforms["uSpotlight.cutOff"] = glm::cos(glm::radians(mState.scene->spotlight.cutOff));
+  mState.litSurfaceShaderProgram->get().uniforms["uSpotlight.outerCutOff"] = glm::cos(glm::radians(mState.scene->spotlight.outerCutOff));
 
-  NotNull(mState.visualiseDepthShaderProgram)->frustumNear = mState.scene.camera.near;
-  NotNull(mState.visualiseDepthShaderProgram)->frustumFar = mState.scene.camera.far;
-
-  NotNull(mState.litSurfaceShaderProgram)->viewPos = mState.scene.camera.position;
-  NotNull(mState.litSurfaceShaderProgram)->directionalLight = mState.scene.directionalLight;
-  NotNull(mState.litSurfaceShaderProgram)->pointLight = mState.scene.pointLight;
-  NotNull(mState.litSurfaceShaderProgram)->spotlight = mState.scene.spotlight;
-  NotNull(mState.litSurfaceShaderProgram)->spotlight.cutOff = glm::cos(glm::radians(mState.scene.spotlight.cutOff));
-  NotNull(mState.litSurfaceShaderProgram)->spotlight.outerCutOff = glm::cos(glm::radians(mState.scene.spotlight.outerCutOff));
+  mState.visualiseDepthShaderProgram->get().uniforms["uCamera.near"] = mState.scene->camera.near;
+  mState.visualiseDepthShaderProgram->get().uniforms["uCamera.far"] = mState.scene->camera.far;
 }
 
 void Engine::drawFrame() {
@@ -484,7 +484,12 @@ void Engine::drawFrame() {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
   mState.lastSceneRenderTime = timedBlock([this] {
-    mState.sceneRenderer.render(mState.scene, mState.windowSize);
+    const std::vector<Draw> draws = mState.scene->draw();
+    const TransformMatrices transforms = {
+      .view = mState.scene->camera.view(),
+      .projection = mState.scene->camera.projection(mState.windowSize),
+    };
+    mState.sceneRenderer->render(draws, transforms);
   });
   mState.lastGuiRenderTime = timedBlock([] {
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

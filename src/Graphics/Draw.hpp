@@ -4,8 +4,8 @@
 
 struct Draw {
   Transform transform = {};
-  size_t shaderProgramIndex = 0;
-  size_t vertexArrayIndex = 0;
+  size_t shaderProgramInstanceIndex = SIZE_MAX;
+  size_t vertexArrayIndex = SIZE_MAX;
   size_t diffuseMapIndex = SIZE_MAX;
   size_t specularMapIndex = SIZE_MAX;
   size_t emissionMapIndex = SIZE_MAX;

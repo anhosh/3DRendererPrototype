@@ -8,7 +8,7 @@ struct LightColors {
 
 struct DirectionalLight {
   LightColors colors;
-  glm::vec3 direction = glm::normalize(glm::vec3(-0.2f, -1.0f, -0.3f));
+  glm::vec3 direction = glm::vec3(-0.2f, -1.0f, -0.3f);
 };
 
 struct PointLight {

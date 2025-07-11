@@ -1,39 +1,28 @@
 #include <Graphics/Bitmap.hpp>
 
-#include <Util/Paths.hpp>
-
 #include <stb_image.h>
 
 #include <filesystem>
 
 namespace fs = std::filesystem;
 
-static fs::path sTexturesDir = "textures";
-
-std::expected<void, std::string> locateTextures() {
-  if (std::optional<fs::path> texturesDir = locateDirectory("textures")) {
-    sTexturesDir = texturesDir.value();
-    return {};
-  }
-  return std::unexpected("Could not locate texture directory");
-}
-
-std::expected<Bitmap, std::string> Bitmap::fromFile(const fs::path& fileName) {
+Expected<Bitmap> Bitmap::fromFile(const fs::path& path) {
   stbi_set_flip_vertically_on_load(true);
   int32_t width, height, channels;
-  uint8_t* loadedData = stbi_load((sTexturesDir / fileName).c_str(), &width, &height, &channels, 0);
+  uint8_t* loadedData = stbi_load(path.c_str(), &width, &height, &channels, 0);
   if (!loadedData) {
     stbi_image_free(loadedData);
-    return std::unexpected(std::format("Bitmap file was not found: {}", (sTexturesDir / fileName).c_str()));
+    return std::unexpected(std::format("Bitmap file was not found: {}", path.c_str()));
   }
 
   auto ret = Bitmap::fromMemory(std::span(loadedData, static_cast<uint32_t>(width * height * channels)),
                                    glm::uvec2(width, height), static_cast<uint32_t>(channels));
   stbi_image_free(loadedData);
+  ret.value().filePath = path;
   return ret;
 }
 
-std::expected<Bitmap, std::string> Bitmap::fromMemory(std::span<const uint8_t> bytes, glm::uvec2 size, uint32_t channels) {
+Expected<Bitmap> Bitmap::fromMemory(std::span<const uint8_t> bytes, glm::uvec2 size, uint32_t channels) {
   if (bytes.size() != size.x * size.y * channels) {
     return std::unexpected(std::format("Bitmap size does not match data length: {} != {} * {} * {}",
                                             bytes.size(), size.x, size.y, channels));

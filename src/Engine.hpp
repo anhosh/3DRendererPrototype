@@ -1,9 +1,11 @@
 #pragma once
 
+#include <Assets/AssetManager.hpp>
 #include <Graphics/Scene.hpp>
 #include <Graphics/SceneRenderer.hpp>
+#include <Util/Expected.hpp>
+#include <Util/PtrAndIndex.hpp>
 
-#include <expected>
 #include <string_view>
 
 class OutlineShaderProgram;
@@ -29,29 +31,21 @@ struct AppState {
   bool bDrawBackpackOutline = false;
   bool bDrawLightOutline = false;
 
-  Scene scene;
-  SceneRenderer sceneRenderer;
+  std::unique_ptr<AssetManager> assetManager;
+  std::unique_ptr<Scene> scene;
+  std::unique_ptr<SceneRenderer> sceneRenderer;
 
-  size_t lightModelIndex = 0;
-  size_t backpackModelIndex = 0;
-  size_t grassModelIndex = 0;
+  std::optional<Scene::ActorHandle> backpackActor = std::nullopt;
+  std::optional<Scene::ActorHandle> lightActor = std::nullopt;
+  std::optional<Scene::ActorHandle> grassActor = std::nullopt;
 
-  enum class FragmentShader : int32_t {
-    LitSurface,
-    VisualiseDepth,
-    VisualiseNormal,
-  } fsType = FragmentShader::LitSurface;
+  ShaderProgramType backpackShaderProgramType = ShaderProgramType::LitSurface;
 
-  size_t litSurfaceShaderProgramIndex = 0;
-  size_t lightShaderProgramIndex = 0;
-  size_t visualiseDepthShaderProgramIndex = 0;
-  size_t visualiseNormalShaderProgramIndex = 0;
-  size_t outlineShaderProgramIndex = 0;
-  LitSurfaceShaderProgram* litSurfaceShaderProgram = nullptr;
-  LightSourceShaderProgram* lightShaderProgram = nullptr;
-  VisualiseDepthShaderProgram* visualiseDepthShaderProgram = nullptr;
-  VisualiseNormalShaderProgram* visualiseNormalShaderProgram = nullptr;
-  OutlineShaderProgram* outlineShaderProgram = nullptr;
+  std::optional<SceneRenderer::Handle<ShaderProgramInstance>> litSurfaceShaderProgram = std::nullopt;
+  std::optional<SceneRenderer::Handle<ShaderProgramInstance>> lightShaderProgram = std::nullopt;
+  std::optional<SceneRenderer::Handle<ShaderProgramInstance>> visualiseDepthShaderProgram = std::nullopt;
+  std::optional<SceneRenderer::Handle<ShaderProgramInstance>> visualiseNormalShaderProgram = std::nullopt;
+  std::optional<SceneRenderer::Handle<ShaderProgramInstance>> outlineShaderProgram = std::nullopt;
 };
 
 class Engine {
@@ -59,7 +53,7 @@ public:
   Engine(const Engine&) = delete;
   Engine(Engine&&) noexcept;
 
-  static std::expected<Engine, std::string> create(std::string_view title, glm::uvec2 initialWindowSize);
+  static Expected<Engine> create(std::string_view title, glm::uvec2 initialWindowSize);
 
   void run();
   void shutDown();
@@ -67,10 +61,9 @@ public:
 private:
   Engine();
 
-  std::expected<void, std::string> createContext(std::string_view title, glm::uvec2 initialWindowSize);
+  [[nodiscard]] Expected<void> createContext(std::string_view title, glm::uvec2 initialWindowSize);
   void initialiseImGui() const;
-  std::expected<void, std::string> loadShaders();
-  std::expected<void, std::string> createScene();
+  [[nodiscard]] Expected<void> createScene();
 
   void processKeyboard();
   void processMousePosition(glm::vec2 mousePosition);

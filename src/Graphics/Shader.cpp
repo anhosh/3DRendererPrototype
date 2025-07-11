@@ -16,7 +16,7 @@ bool locateShaders() {
   return false;
 }
 
-std::expected<GLuint, std::string> createShader(GLenum type, const fs::path& sourcePath) {
+Expected<Shader> createShader(GLenum type, const fs::path& sourcePath) {
   auto file = std::ifstream(sShadersDir / sourcePath, std::ios::ate);
   const std::streamsize fileSize = file.tellg();
   file.seekg(0, std::ios::beg);
@@ -43,15 +43,15 @@ std::expected<GLuint, std::string> createShader(GLenum type, const fs::path& sou
     return std::unexpected(std::format("Failed to compile shader '{}':\n{}", sourcePath.c_str(), infoLog));
   }
 
-  return shader;
+  return Shader { type, shader };
 }
 
-std::expected<GLuint, std::string> createShaderProgram(const ShaderStages& shaderStages) {
-  std::vector<GLuint> shaders;
+Expected<GLuint> createShaderProgram(const ShaderProgramPaths& shaderStages) {
+  std::vector<Shader> shaders;
   shaders.reserve(2); // mandatory vertex and fragment shaders
 
-  const auto addShader = [&](GLenum shaderType, const fs::path& sourcePath) -> std::expected<void, std::string> {
-    const std::expected<GLuint, std::string> shader = createShader(shaderType, sourcePath);
+  const auto addShader = [&](GLenum shaderType, const fs::path& sourcePath) -> Expected<void> {
+    const Expected<Shader> shader = createShader(shaderType, sourcePath);
     RETURN_ERROR_IF_UNEXPECTED(shader);
     shaders.push_back(shader.value());
     return {};
@@ -70,8 +70,8 @@ std::expected<GLuint, std::string> createShaderProgram(const ShaderStages& shade
   RETURN_ERROR_IF_UNEXPECTED(addShader(GL_FRAGMENT_SHADER, shaderStages.fragment));
 
   const GLuint program = glCreateProgram();
-  for (const GLuint shader : shaders) {
-    glAttachShader(program, shader);
+  for (const Shader shader : shaders) {
+    glAttachShader(program, shader.shader);
   }
   glLinkProgram(program);
 
@@ -88,8 +88,8 @@ std::expected<GLuint, std::string> createShaderProgram(const ShaderStages& shade
     return std::unexpected(std::format("Failed to link shader program:\n{}", infoLog));
   }
 
-  for (const GLuint shader : shaders) {
-    glDeleteShader(shader);
+  for (const Shader shader : shaders) {
+    glDeleteShader(shader.shader);
   }
 
   return program;
