@@ -1,7 +1,8 @@
 #include <Assets/AssetManager.hpp>
 
-#include <Graphics/Bitmap.hpp>
-#include <Graphics/Model.hpp>
+#include <Assets/Bitmap.hpp>
+#include <Assets/Mesh.hpp>
+#include <Assets/Model.hpp>
 #include <Graphics/Vertex.hpp>
 #include <Util/Macros.hpp>
 #include <Util/Paths.hpp>

@@ -1,9 +1,9 @@
 #include <Engine.hpp>
 
-#include <Graphics/Bitmap.hpp>
+#include <Assets/Bitmap.hpp>
 #include <Graphics/Camera.hpp>
 #include <Graphics/Meshes.hpp>
-#include <Graphics/Model.hpp>
+#include <Assets/Model.hpp>
 #include <Graphics/Scene.hpp>
 #include <Graphics/ShaderProgram.hpp>
 #include <Util/Macros.hpp>
@@ -145,7 +145,8 @@ Expected<void> Engine::createScene() {
   mState.lightShaderProgram = mState.sceneRenderer->createShaderProgramInstance(ShaderProgramType::Light);
   mState.visualiseDepthShaderProgram = mState.sceneRenderer->createShaderProgramInstance(ShaderProgramType::VisualiseDepth);
   mState.visualiseNormalShaderProgram = mState.sceneRenderer->createShaderProgramInstance(ShaderProgramType::VisualiseNormal);
-  mState.outlineShaderProgram = mState.sceneRenderer->createShaderProgramInstance(ShaderProgramType::Outline);
+  mState.backpackOutlineShaderProgram = mState.sceneRenderer->createShaderProgramInstance(ShaderProgramType::Outline);
+  mState.lightCubeOutlineShaderProgram = mState.sceneRenderer->createShaderProgramInstance(ShaderProgramType::Outline);
 
   // Upload assets to GPU
   const SceneRenderer::Handle<VertexArray> quadVA = mState.sceneRenderer->addMesh(quadMesh);
@@ -182,6 +183,7 @@ Expected<void> Engine::createScene() {
 
   // Create actors
   mState.backpackActor = mState.scene->addActor({
+    .name = "Backpack",
     .transform = Transform {
       .translation = glm::vec3(0.0f),
     },
@@ -189,6 +191,7 @@ Expected<void> Engine::createScene() {
   });
 
   mState.lightActor = mState.scene->addActor({
+    .name = "Light cube",
     .transform = Transform {
       .scale = glm::vec3(0.1f),
     },
@@ -196,6 +199,7 @@ Expected<void> Engine::createScene() {
   });
 
   mState.grassActor = mState.scene->addActor({
+    .name = "Grass",
     .transform = Transform {
       .translation = glm::vec3(0.0f, 0.0f, 1.0f),
       .rotation = glm::vec3(-90.0f, 0.0f, 0.0f),
@@ -204,16 +208,16 @@ Expected<void> Engine::createScene() {
   });
 
   Actor windowActor = {
-    .transform = {
-      .translation = glm::vec3(0.0f, 0.0f, 1.0f),
-      .rotation = glm::vec3(-90.0f, 0.0f, 0.0f),
-    },
+    .transform = { .rotation = glm::vec3(-90.0f, 0.0f, 0.0f), },
     .renderData = windowResources,
   };
+  windowActor.name = "Window 0";
   windowActor.transform.translation = glm::vec3(-0.25f, 0.0f, 1.5f);
   mState.scene->addActor(windowActor);
+  windowActor.name = "Window 1";
   windowActor.transform.translation = glm::vec3(0.25f, 0.0f, 1.75f);
   mState.scene->addActor(windowActor);
+  windowActor.name = "Window 2";
   windowActor.transform.translation = glm::vec3(0.0f, 0.0f, 2.0f);
   mState.scene->addActor(std::move(windowActor));
 
@@ -313,47 +317,6 @@ void Engine::gui() {
       ImGui::Unindent();
     }
 
-    if (ImGui::CollapsingHeader("Backpack")) {
-      ImGui::Indent();
-
-      static constexpr const char* fsTypeNames[] = {
-        "Light",
-        "Lit surface",
-        "Outline",
-        "Visualise depth",
-        "Visualise normal",
-      };
-      if (ImGui::Combo("Fragment shader", reinterpret_cast<int32_t*>(&mState.backpackShaderProgramType), fsTypeNames,
-                       std::size(fsTypeNames)))
-      {
-        switch (mState.backpackShaderProgramType) {
-          case ShaderProgramType::Light:
-            mState.backpackActor->get().setShaderProgramInstance(mState.lightShaderProgram.value());
-            break;
-          case ShaderProgramType::LitSurface:
-            mState.backpackActor->get().setShaderProgramInstance(mState.litSurfaceShaderProgram.value());
-            break;
-          case ShaderProgramType::Outline:
-            mState.backpackActor->get().setShaderProgramInstance(mState.outlineShaderProgram.value());
-            break;
-          case ShaderProgramType::VisualiseDepth:
-            mState.backpackActor->get().setShaderProgramInstance(mState.visualiseDepthShaderProgram.value());
-            break;
-          case ShaderProgramType::VisualiseNormal:
-            mState.backpackActor->get().setShaderProgramInstance(mState.visualiseNormalShaderProgram.value());
-            break;
-          default:
-            PANIC("Unexpected shader program type");
-        }
-      }
-
-      std::unordered_map<std::string, ShaderUniform>& litSurfaceUniforms = mState.litSurfaceShaderProgram->get().uniforms;
-      ImGui::DragFloat("Shininess", litSurfaceUniforms["uMaterial.shininess"].getPtr<GLfloat>(),
-                1.0f, 1.0f, 256.0f);
-
-      ImGui::Unindent();
-    }
-
     if (ImGui::CollapsingHeader("Light")) {
       ImGui::Indent();
 
@@ -405,29 +368,74 @@ void Engine::gui() {
       ImGui::Unindent();
     }
 
-    if (ImGui::CollapsingHeader("Grass")) {
+    if (ImGui::CollapsingHeader("Actors")) {
       ImGui::Indent();
 
-      Transform& grassTransform = mState.grassActor->get().transform;
-      ImGui::DragFloat3("Translation##grass", glm::value_ptr(grassTransform.translation), 0.01f);
-      ImGui::DragFloat3("Rotation##grass", glm::value_ptr(grassTransform.rotation), 0.01f);
-      ImGui::DragFloat3("Scale##grass", glm::value_ptr(grassTransform.scale), 0.01f);
+      for (Actor& actor : mState.scene->actors) {
+        if (ImGui::CollapsingHeader(actor.name.c_str())) {
+          ImGui::Indent();
 
-      ImGui::Unindent();
-    }
+          ImGui::Text("Transform");
+          Transform& grassTransform = actor.transform;
+          ImGui::DragFloat3(("Translation##" + actor.name).c_str(), glm::value_ptr(grassTransform.translation), 0.01f);
+          ImGui::DragFloat3(("Rotation##" + actor.name).c_str(), glm::value_ptr(grassTransform.rotation), 0.01f);
+          ImGui::DragFloat3(("Scale##" + actor.name).c_str(), glm::value_ptr(grassTransform.scale), 0.01f);
 
-    if (ImGui::CollapsingHeader("Object outlines")) {
-      ImGui::Indent();
+          if (actor.name.contains("Backpack")) {
+            static constexpr const char* fsTypeNames[] = {
+              "Light",
+              "Lit surface",
+              "Outline",
+              "Visualise depth",
+              "Visualise normal",
+            };
+            if (ImGui::Combo("Fragment shader",
+                             reinterpret_cast<int32_t*>(&mState.backpackShaderProgramType),
+                             fsTypeNames,
+                             std::size(fsTypeNames)))
+            {
+              switch (mState.backpackShaderProgramType) {
+                case ShaderProgramType::Light:
+                  actor.setShaderProgramInstance(mState.lightShaderProgram.value());
+                  break;
+                case ShaderProgramType::LitSurface:
+                  actor.setShaderProgramInstance(mState.litSurfaceShaderProgram.value());
+                  break;
+                case ShaderProgramType::Outline:
+                  actor.setShaderProgramInstance(mState.backpackOutlineShaderProgram.value());
+                  break;
+                case ShaderProgramType::VisualiseDepth:
+                  actor.setShaderProgramInstance(mState.visualiseDepthShaderProgram.value());
+                  break;
+                case ShaderProgramType::VisualiseNormal:
+                  actor.setShaderProgramInstance(mState.visualiseNormalShaderProgram.value());
+                  break;
+                default:
+                  PANIC("Unexpected shader program type");
+              }
+            }
 
-      std::unordered_map<std::string, ShaderUniform>& outlineUniforms = mState.outlineShaderProgram->get().uniforms;
-      ImGui::ColorPicker3("Outline color", outlineUniforms["uOutlineColor"].getValuePtr<glm::vec3>(), ImGuiColorEditFlags_Float);
+            if (ImGui::Checkbox("Draw outline##backpack", &mState.bDrawBackpackOutline)) {
+              actor.setOutlineShaderInstance(mState.bDrawBackpackOutline ? mState.backpackOutlineShaderProgram : std::nullopt);
+            }
 
-      if (ImGui::Checkbox("Backpack outline", &mState.bDrawBackpackOutline)) {
-        mState.backpackActor->get().setOutlineShaderInstance(mState.bDrawBackpackOutline ? mState.outlineShaderProgram : std::nullopt);
-      }
+            ImGui::BeginDisabled(!mState.bDrawBackpackOutline);
+            std::unordered_map<std::string, ShaderUniform>& outlineUniforms = mState.backpackOutlineShaderProgram->get().uniforms;
+            ImGui::ColorPicker3("Outline color##backpack", outlineUniforms["uOutlineColor"].getValuePtr<glm::vec3>(), ImGuiColorEditFlags_Float);
+            ImGui::EndDisabled();
+          } else if (actor.name.contains("Light cube")) {
+            if (ImGui::Checkbox("Draw outline##lightCube", &mState.bDrawLightOutline)) {
+              actor.setOutlineShaderInstance(mState.bDrawLightOutline ? mState.lightCubeOutlineShaderProgram : std::nullopt);
+            }
 
-      if (ImGui::Checkbox("Light outline", &mState.bDrawLightOutline)) {
-        mState.lightActor->get().setOutlineShaderInstance(mState.bDrawLightOutline ? mState.outlineShaderProgram : std::nullopt);
+            ImGui::BeginDisabled(!mState.bDrawLightOutline);
+            std::unordered_map<std::string, ShaderUniform>& outlineUniforms = mState.lightCubeOutlineShaderProgram->get().uniforms;
+            ImGui::ColorPicker3("Outline color##lightCube", outlineUniforms["uOutlineColor"].getValuePtr<glm::vec3>(), ImGuiColorEditFlags_Float);
+            ImGui::EndDisabled();
+          }
+
+          ImGui::Unindent();
+        }
       }
 
       ImGui::Unindent();

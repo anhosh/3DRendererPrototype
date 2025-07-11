@@ -1,6 +1,6 @@
 #include <Graphics/Texture.hpp>
 
-#include <Graphics/Bitmap.hpp>
+#include <Assets/Bitmap.hpp>
 
 Texture::Texture(const Bitmap& bitmap, const SamplerOptions& options) {
   this->generateTextures(bitmap, options);

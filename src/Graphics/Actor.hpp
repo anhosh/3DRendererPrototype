@@ -7,6 +7,7 @@
 #include <vector>
 
 struct Actor {
+  std::string name = "Unnamed";
   Transform transform;
   std::vector<SceneRenderer::RenderData> renderData;
 

@@ -1,8 +1,8 @@
 #pragma once
 
 #include <Assets/AssetManager.hpp>
-#include <Graphics/Bitmap.hpp>
-#include <Graphics/Mesh.hpp>
+#include <Assets/Bitmap.hpp>
+#include <Assets/Mesh.hpp>
 
 #include <vector>
 

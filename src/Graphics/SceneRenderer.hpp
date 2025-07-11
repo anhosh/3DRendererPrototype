@@ -1,9 +1,9 @@
 #pragma once
 
 #include <Assets/AssetManager.hpp>
+#include <Assets/Mesh.hpp>
+#include <Assets/Model.hpp>
 #include <Graphics/Draw.hpp>
-#include <Graphics/Mesh.hpp>
-#include <Graphics/Model.hpp>
 #include <Graphics/ShaderProgram.hpp>
 #include <Graphics/Shaders.hpp>
 #include <Graphics/Texture.hpp>

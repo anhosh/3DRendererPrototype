@@ -30,9 +30,9 @@ public:
 
   GLuint id() const { return mID; }
 
-  void destroy();
+  void bindTransforms(const TransformMatrices& transforms) const;
 
-  virtual void bindTransforms(const TransformMatrices& transforms) const;
+  void destroy();
 
 protected:
   GLuint mID = 0;

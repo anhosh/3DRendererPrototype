@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Graphics/Mesh.hpp>
+#include <Assets/Mesh.hpp>
 
 Mesh createCubeMesh();
 Mesh createQuadMesh();

@@ -1,4 +1,4 @@
-#include <Graphics/Bitmap.hpp>
+#include <Assets/Bitmap.hpp>
 
 #include <stb_image.h>
 

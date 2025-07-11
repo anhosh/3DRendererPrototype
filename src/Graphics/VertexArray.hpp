@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Graphics/Mesh.hpp>
+#include <Assets/Mesh.hpp>
 
 class VertexArray {
 public:

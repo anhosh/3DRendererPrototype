@@ -45,7 +45,9 @@ struct AppState {
   std::optional<SceneRenderer::Handle<ShaderProgramInstance>> lightShaderProgram = std::nullopt;
   std::optional<SceneRenderer::Handle<ShaderProgramInstance>> visualiseDepthShaderProgram = std::nullopt;
   std::optional<SceneRenderer::Handle<ShaderProgramInstance>> visualiseNormalShaderProgram = std::nullopt;
-  std::optional<SceneRenderer::Handle<ShaderProgramInstance>> outlineShaderProgram = std::nullopt;
+
+  std::optional<SceneRenderer::Handle<ShaderProgramInstance>> backpackOutlineShaderProgram = std::nullopt;
+  std::optional<SceneRenderer::Handle<ShaderProgramInstance>> lightCubeOutlineShaderProgram = std::nullopt;
 };
 
 class Engine {
