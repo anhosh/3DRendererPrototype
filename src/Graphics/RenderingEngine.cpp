@@ -37,7 +37,9 @@ Expected<void> RenderingEngine::init() {
   RETURN_ERROR_IF_UNEXPECTED(addShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/invert.frag"},
                                               mPostProcessInvertShaderProgram));
 
+#if USE_SCREEN_QUAD_MESH
   mScreenQuadVA.generateMesh(createQuadMesh(glm::vec2(2.0f)));
+#endif
 
   return {};
 }
@@ -304,13 +306,21 @@ void RenderingEngine::present(const glm::uvec2 windowSize) {
   glClear(GL_COLOR_BUFFER_BIT);
 
   glUseProgram(mPostProcessCopyShaderProgram->id());
+#if USE_SCREEN_QUAD_MESH
   glBindVertexArray(mScreenQuadVA.vao);
+#endif
   mFramebuffers[mLastFramebufferIndex].colorAttachment.bind();
   glUniform1i(0, 0); // bind uScreenTexture sampler
+#if USE_SCREEN_QUAD_MESH
   glDrawElements(GL_TRIANGLE_STRIP, 6, GL_UNSIGNED_INT, nullptr);
+#else
+  glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+#endif
 
   glUseProgram(GL_NONE);
+#if USE_SCREEN_QUAD_MESH
   glBindVertexArray(GL_NONE);
+#endif
   mFramebuffers[mLastFramebufferIndex].colorAttachment.unbind();
 
   mLastFramebufferIndex = 0;

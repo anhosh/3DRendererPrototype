@@ -8,7 +8,7 @@
 
 struct Actor {
   std::string name = "Unnamed";
-  Transform transform;
+  Transform transform = {};
   std::vector<RenderingEngine::RenderData> renderData;
 
   void setShaderProgramInstance(const RenderingEngine::Handle<ShaderProgramInstance> shaderInstance) {

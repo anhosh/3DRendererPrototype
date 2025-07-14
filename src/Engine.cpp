@@ -205,7 +205,7 @@ Expected<void> Engine::createScene() {
     .renderData = grassResources,
   });
 
-  Actor windowActor = { .renderData = windowResources, };
+  Actor windowActor = { .renderData = windowResources };
   windowActor.name = "Window 0";
   windowActor.transform.translation = glm::vec3(-0.25f, 0.0f, 1.5f);
   mState.scene->addActor(windowActor);
