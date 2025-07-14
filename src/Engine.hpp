@@ -1,10 +1,9 @@
 #pragma once
 
 #include <Assets/AssetManager.hpp>
+#include <Graphics/RenderingEngine.hpp>
 #include <Graphics/Scene.hpp>
-#include <Graphics/SceneRenderer.hpp>
 #include <Util/Expected.hpp>
-#include <Util/PtrAndIndex.hpp>
 
 #include <string_view>
 
@@ -33,21 +32,21 @@ struct AppState {
 
   std::unique_ptr<AssetManager> assetManager;
   std::unique_ptr<Scene> scene;
-  std::unique_ptr<SceneRenderer> sceneRenderer;
+  std::unique_ptr<RenderingEngine> renderingEngine;
 
-  std::optional<Scene::ActorHandle> backpackActor = std::nullopt;
-  std::optional<Scene::ActorHandle> lightActor = std::nullopt;
-  std::optional<Scene::ActorHandle> grassActor = std::nullopt;
+  std::optional<ActorHandle> backpackActor = std::nullopt;
+  std::optional<ActorHandle> lightActor = std::nullopt;
+  std::optional<ActorHandle> grassActor = std::nullopt;
 
   ShaderProgramType backpackShaderProgramType = ShaderProgramType::LitSurface;
 
-  std::optional<SceneRenderer::Handle<ShaderProgramInstance>> litSurfaceShaderProgram = std::nullopt;
-  std::optional<SceneRenderer::Handle<ShaderProgramInstance>> lightShaderProgram = std::nullopt;
-  std::optional<SceneRenderer::Handle<ShaderProgramInstance>> visualiseDepthShaderProgram = std::nullopt;
-  std::optional<SceneRenderer::Handle<ShaderProgramInstance>> visualiseNormalShaderProgram = std::nullopt;
+  std::optional<RenderingEngine::Handle<ShaderProgramInstance>> litSurfaceShaderProgram = std::nullopt;
+  std::optional<RenderingEngine::Handle<ShaderProgramInstance>> lightShaderProgram = std::nullopt;
+  std::optional<RenderingEngine::Handle<ShaderProgramInstance>> visualiseDepthShaderProgram = std::nullopt;
+  std::optional<RenderingEngine::Handle<ShaderProgramInstance>> visualiseNormalShaderProgram = std::nullopt;
 
-  std::optional<SceneRenderer::Handle<ShaderProgramInstance>> backpackOutlineShaderProgram = std::nullopt;
-  std::optional<SceneRenderer::Handle<ShaderProgramInstance>> lightCubeOutlineShaderProgram = std::nullopt;
+  std::optional<RenderingEngine::Handle<ShaderProgramInstance>> backpackOutlineShaderProgram = std::nullopt;
+  std::optional<RenderingEngine::Handle<ShaderProgramInstance>> lightCubeOutlineShaderProgram = std::nullopt;
 };
 
 class Engine {

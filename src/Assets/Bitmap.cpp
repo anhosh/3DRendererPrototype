@@ -15,23 +15,23 @@ Expected<Bitmap> Bitmap::fromFile(const fs::path& path) {
     return std::unexpected(std::format("Bitmap file was not found: {}", path.c_str()));
   }
 
-  auto ret = Bitmap::fromMemory(std::span(loadedData, static_cast<uint32_t>(width * height * channels)),
-                                   glm::uvec2(width, height), static_cast<uint32_t>(channels));
+  Expected<Bitmap> ret = Bitmap::fromMemory(std::span(loadedData, static_cast<uint32_t>(width * height * channels)),
+                                            glm::uvec2(width, height), static_cast<uint32_t>(channels));
   stbi_image_free(loadedData);
-  ret.value().filePath = path;
+  ret.value().mFilePath = path;
   return ret;
 }
 
 Expected<Bitmap> Bitmap::fromMemory(std::span<const uint8_t> bytes, glm::uvec2 size, uint32_t channels) {
   if (bytes.size() != size.x * size.y * channels) {
-    return std::unexpected(std::format("Bitmap size does not match data length: {} != {} * {} * {}",
-                                            bytes.size(), size.x, size.y, channels));
+    return std::unexpected(std::format("Bitmap size does not match data length: {} != {} [width({}) * height({}) * channels({})]",
+                                            bytes.size(), size.x * size.y * channels, size.x, size.y, channels));
   }
 
   Bitmap ret;
   ret.mSize = size;
   ret.mChannels = channels;
-  ret.data.assign(bytes.begin(), bytes.end());
+  ret.mData.assign(bytes.begin(), bytes.end());
   return ret;
 }
 

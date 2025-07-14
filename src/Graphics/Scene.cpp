@@ -1,8 +1,10 @@
 #include <Graphics/Scene.hpp>
 
-#include <Graphics/SceneRenderer.hpp>
+#include <Graphics/RenderingEngine.hpp>
 
 #include <map>
+
+DEFINE_HANDLE_ITEM_GET(Scene, Actor, actors)
 
 void Scene::destroy() {
   actors.clear();
@@ -20,7 +22,7 @@ std::vector<Draw> Scene::draw() const {
   // Opaque objects
   for (const Actor& actor: actors) {
     for (size_t resIdx = 0; resIdx < actor.renderData.size(); ++resIdx) {
-      const SceneRenderer::RenderData& resources = actor.renderData[resIdx];
+      const RenderingEngine::RenderData& resources = actor.renderData[resIdx];
 
       if (!resources.renderOptions.bTransparent) {
         draws.push_back(Draw {
@@ -47,7 +49,7 @@ std::vector<Draw> Scene::draw() const {
   // Sorted transparent objects
   for (auto it = transparentMeshes.rbegin(); it != transparentMeshes.rend(); ++it) {
     const auto& [actor, resIdx] = it->second;
-    const SceneRenderer::RenderData& resources = actor->renderData[resIdx];
+    const RenderingEngine::RenderData& resources = actor->renderData[resIdx];
     draws.push_back(Draw {
       .transform = actor->transform,
       .shaderProgramInstanceIndex = resources.shaderProgramInstance.index,
@@ -63,7 +65,7 @@ std::vector<Draw> Scene::draw() const {
 
   // Object outlines
   for (const auto& [actor, resIdx]: meshesWithOutlines) {
-    const SceneRenderer::RenderData& resources = actor->renderData[resIdx];
+    const RenderingEngine::RenderData& resources = actor->renderData[resIdx];
     Transform outlineTransform = actor->transform;
     outlineTransform.scale *= 1.05f;
     draws.push_back(Draw {
@@ -79,7 +81,7 @@ std::vector<Draw> Scene::draw() const {
   return draws;
 }
 
-Scene::ActorHandle Scene::addActor(Actor actor) {
+Scene::Handle<Actor> Scene::addActor(Actor actor) {
   actors.push_back(std::move(actor));
   return { actors.size() - 1, this };
 }

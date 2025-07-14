@@ -2,23 +2,21 @@
 
 #include <Assets/Bitmap.hpp>
 
-Texture::Texture(const Bitmap& bitmap, const SamplerOptions& options) {
-  this->generateTextures(bitmap, options);
+Texture::Texture() {
+  this->init();
 }
 
-bool Texture::destroy() {
-  if (mID == 0) {
-    return false;
-  }
-
-  glDeleteTextures(1, &mID);
-  mID = 0;
-  return true;
+Texture::Texture(const Bitmap& bitmap, const SamplerOptions& options)
+  : Texture()
+{
+  this->generateColorTexture(bitmap, options);
 }
 
-void Texture::generateTextures(const Bitmap& bitmap, const SamplerOptions& options) {
+void Texture::init() {
   glGenTextures(1, &mID);
+}
 
+void Texture::generateColorTexture(const Bitmap& bitmap, const SamplerOptions& options) const {
   this->bind();
 
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, options.wrapS);
@@ -31,10 +29,20 @@ void Texture::generateTextures(const Bitmap& bitmap, const SamplerOptions& optio
   const glm::ivec2 size = bitmap.size();
 
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, size.x, size.y,
-               0, format, GL_UNSIGNED_BYTE, bitmap.data.data());
+               0, format, GL_UNSIGNED_BYTE, bitmap.bytes());
   glGenerateMipmap(GL_TEXTURE_2D);
 
   this->unbind();
+}
+
+bool Texture::destroy() {
+  if (mID == GL_NONE) {
+    return false;
+  }
+
+  glDeleteTextures(1, &mID);
+  mID = GL_NONE;
+  return true;
 }
 
 void Texture::bind() const {
@@ -48,7 +56,7 @@ void Texture::bind(const GLuint slot) const {
 
 void Texture::unbind() const {
   (void)mID;
-  glBindTexture(GL_TEXTURE_2D, 0);
+  glBindTexture(GL_TEXTURE_2D, GL_NONE);
 }
 
 void Texture::unbind(const GLuint slot) const {

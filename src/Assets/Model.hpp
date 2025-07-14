@@ -7,8 +7,8 @@
 #include <vector>
 
 struct Model {
-  std::vector<AssetManager::Handle<Mesh>> meshes;
-  std::vector<std::optional<AssetManager::Handle<Bitmap>>> diffuseMaps;
-  std::vector<std::optional<AssetManager::Handle<Bitmap>>> specularMaps;
-  std::vector<std::optional<AssetManager::Handle<Bitmap>>> emissionMaps;
+  std::vector<AssetHandle<Mesh>> meshes;
+  std::vector<std::optional<AssetHandle<Bitmap>>> diffuseMaps;
+  std::vector<std::optional<AssetHandle<Bitmap>>> specularMaps;
+  std::vector<std::optional<AssetHandle<Bitmap>>> emissionMaps;
 };

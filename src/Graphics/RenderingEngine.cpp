@@ -1,40 +1,27 @@
-#include <ranges>
-#include <glm/gtc/type_ptr.hpp>
-#include <Graphics/SceneRenderer.hpp>
+#include <Graphics/RenderingEngine.hpp>
 
 #include <Graphics/Draw.hpp>
-#include <Graphics/Material.hpp>
 #include <Graphics/Scene.hpp>
 #include <Graphics/ShaderProgram.hpp>
 #include <Graphics/VertexArray.hpp>
 
-template<>
-VertexArray& SceneRenderer::Handle<VertexArray>::get() {
-  return renderer->mVertexArrays[index];
-}
+#include <glm/gtc/type_ptr.hpp>
 
-template<>
-ShaderProgramInstance& SceneRenderer::Handle<ShaderProgramInstance>::get() {
-  return renderer->mShaderProgramInstances[index];
-}
+#include <ranges>
+#include <Graphics/Meshes.hpp>
 
-template<>
-Texture& SceneRenderer::Handle<Texture>::get() {
-  return renderer->mTextures[index];
-}
+DEFINE_HANDLE_ITEM_GET(RenderingEngine, VertexArray, mVertexArrays)
+DEFINE_HANDLE_ITEM_GET(RenderingEngine, ShaderProgramInstance, mShaderProgramInstances)
+DEFINE_HANDLE_ITEM_GET(RenderingEngine, Texture, mTextures)
 
-Expected<void> SceneRenderer::loadShaders() {
-  if (!locateShaders()) {
-    return std::unexpected("Could not locate shader directory");
-  }
+Expected<void> addShaderProgram(const ShaderProgramPaths& stages, std::unique_ptr<ShaderProgram>& outShader) {
+  Expected<std::unique_ptr<ShaderProgram>> program = ShaderPrograms::fromShaders(stages);
+  RETURN_ERROR_IF_UNEXPECTED(program);
+  outShader = std::move(program.value());
+  return {};
+};
 
-  const auto addShaderProgram = [](const ShaderProgramPaths& stages, std::unique_ptr<ShaderProgram>& outShader) -> Expected<void> {
-    auto program = ShaderPrograms::fromShaders(stages);
-    RETURN_ERROR_IF_UNEXPECTED(program);
-    outShader = std::move(program.value());
-    return {};
-  };
-
+Expected<void> RenderingEngine::init() {
   RETURN_ERROR_IF_UNEXPECTED(addShaderProgram({.vertex = "simple.vert", .fragment = "litSurface.frag"},
                                               mLitSurfaceShaderProgram));
   RETURN_ERROR_IF_UNEXPECTED(addShaderProgram({.vertex = "simple.vert", .fragment = "light.frag"},
@@ -45,12 +32,44 @@ Expected<void> SceneRenderer::loadShaders() {
                                               mVisualiseNormalShaderProgram));
   RETURN_ERROR_IF_UNEXPECTED(addShaderProgram({.vertex = "simple.vert", .fragment = "outline.frag"},
                                               mOutlineShaderProgram));
+  RETURN_ERROR_IF_UNEXPECTED(addShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/copy.frag"},
+                                              mPostProcessCopyShaderProgram));
+  RETURN_ERROR_IF_UNEXPECTED(addShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/invert.frag"},
+                                              mPostProcessInvertShaderProgram));
+
+  mScreenQuadVA.generateMesh(createQuadMesh(glm::vec2(2.0f)));
 
   return {};
 }
 
-const std::vector<SceneRenderer::RenderData>& SceneRenderer::addModel(AssetManager::Handle<Model> model,
-                                                                      Handle<ShaderProgramInstance> initialShaderProgramInstance)
+RenderingEngine::Handle<ShaderProgramInstance> RenderingEngine::createShaderProgramInstance(ShaderProgramType type) {
+  switch (type) {
+    case ShaderProgramType::LitSurface:
+      return this->addShaderProgramInstance(ShaderProgramInstance::newLitSurface(mLitSurfaceShaderProgram.get()));
+    case ShaderProgramType::Light:
+      return this->addShaderProgramInstance(ShaderProgramInstance::newLight(mLightShaderProgram.get()));
+    case ShaderProgramType::Outline:
+      return this->addShaderProgramInstance(ShaderProgramInstance::newOutline(mOutlineShaderProgram.get()));
+    case ShaderProgramType::VisualiseDepth:
+      return this->addShaderProgramInstance(ShaderProgramInstance::newVisualiseDepth(mVisualiseDepthShaderProgram.get()));
+    case ShaderProgramType::VisualiseNormal:
+      return this->addShaderProgramInstance(ShaderProgramInstance::newVisualiseNormal(mVisualiseNormalShaderProgram.get()));
+    case ShaderProgramType::PostProcessCopy:
+      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingCopy(mPostProcessCopyShaderProgram.get()));
+    case ShaderProgramType::PostProcessInvert:
+      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingInvert(mPostProcessInvertShaderProgram.get()));
+    default:
+      PANIC("Unsupported shader program type");
+  }
+}
+
+RenderingEngine::Handle<ShaderProgramInstance> RenderingEngine::addShaderProgramInstance(ShaderProgramInstance instance) {
+  mShaderProgramInstances.push_back(std::move(instance));
+  const size_t index = mShaderProgramInstances.size() - 1;
+  return {index, this};
+}
+
+const std::vector<RenderingEngine::RenderData>& RenderingEngine::addModel(AssetHandle<Model> model, Handle<ShaderProgramInstance> initialShaderProgramInstance)
 {
   if (mUploadedModels.contains(model.index)) {
     return mUploadedModels.at(model.index);
@@ -72,10 +91,10 @@ const std::vector<SceneRenderer::RenderData>& SceneRenderer::addModel(AssetManag
   modelResources.reserve(vertexArrays.size());
   for (size_t meshRes = 0; meshRes < vertexArrays.size(); ++meshRes) {
     RenderData resources { .vertexArray = vertexArrays[meshRes], .shaderProgramInstance = initialShaderProgramInstance };
-    resources.diffuseMap = std::move(diffuseMaps[meshRes]);
-    resources.specularMap = std::move(specularMaps[meshRes]);
-    resources.emissionMap = std::move(emissionMaps[meshRes]);
-    modelResources.push_back(std::move(resources));
+    resources.diffuseMap = diffuseMaps[meshRes];
+    resources.specularMap = specularMaps[meshRes];
+    resources.emissionMap = emissionMaps[meshRes];
+    modelResources.push_back(resources);
   }
 
   const auto [it, inserted] = mUploadedModels.emplace(model.index, std::move(modelResources));
@@ -83,80 +102,13 @@ const std::vector<SceneRenderer::RenderData>& SceneRenderer::addModel(AssetManag
   return resource;
 }
 
-SceneRenderer::Handle<VertexArray> SceneRenderer::addMesh(AssetManager::Handle<Mesh> mesh) {
+RenderingEngine::Handle<VertexArray> RenderingEngine::addMesh(AssetHandle<Mesh> mesh) {
   mVertexArrays.emplace_back(mesh.get());
   const size_t index = mVertexArrays.size() - 1;
-  return { index, this };
+  return {index, this};
 }
 
-SceneRenderer::Handle<ShaderProgramInstance> SceneRenderer::createShaderProgramInstance(ShaderProgramType type) {
-  ShaderProgramInstance newInstance;
-  const auto setUniform = [&](const GLchar* name, auto value) {
-    newInstance.uniforms[name] = ShaderUniform {
-      .location = glGetUniformLocation(newInstance.shaderProgram->id(), name),
-      .value = value,
-    };
-  };
-
-  switch (type) {
-    case ShaderProgramType::LitSurface: {
-      newInstance.shaderProgram = mLitSurfaceShaderProgram.get();
-      setUniform("uViewPos", glm::vec3(0.0f));
-      constexpr Material material;
-      setUniform("uMaterial.diffuse", material.diffuse);
-      setUniform("uMaterial.specular", material.specular);
-      setUniform("uMaterial.emission", material.emission);
-      setUniform("uMaterial.shininess", material.shininess);
-      constexpr DirectionalLight directionalLight;
-      setUniform("uDirectionalLight.colors.ambient", directionalLight.colors.ambient);
-      setUniform("uDirectionalLight.colors.diffuse", directionalLight.colors.diffuse);
-      setUniform("uDirectionalLight.colors.specular", directionalLight.colors.specular);
-      setUniform("uDirectionalLight.direction", directionalLight.direction);
-      constexpr PointLight pointLight;
-      setUniform("uPointLight.colors.ambient", pointLight.colors.ambient);
-      setUniform("uPointLight.colors.diffuse", pointLight.colors.diffuse);
-      setUniform("uPointLight.colors.specular", pointLight.colors.specular);
-      setUniform("uPointLight.position", pointLight.position);
-      setUniform("uPointLight.constant", pointLight.constant);
-      setUniform("uPointLight.linear", pointLight.linear);
-      setUniform("uPointLight.quadratic", pointLight.quadratic);
-      constexpr Spotlight spotlight;
-      setUniform("uSpotlight.colors.ambient", spotlight.colors.ambient);
-      setUniform("uSpotlight.colors.diffuse", spotlight.colors.diffuse);
-      setUniform("uSpotlight.colors.specular", spotlight.colors.specular);
-      setUniform("uSpotlight.position", spotlight.position);
-      setUniform("uSpotlight.direction", spotlight.direction);
-      setUniform("uSpotlight.cutOff", spotlight.cutOff);
-      setUniform("uSpotlight.outerCutOff", spotlight.outerCutOff);
-      break;
-    }
-
-    case ShaderProgramType::Light:
-      newInstance.shaderProgram = mLightShaderProgram.get();
-      setUniform("uLightColor", glm::vec3(1.0f));
-      break;
-
-    case ShaderProgramType::Outline:
-      newInstance.shaderProgram = mOutlineShaderProgram.get();
-      setUniform("uOutlineColor", glm::vec3(1.0f));
-      break;
-
-    case ShaderProgramType::VisualiseDepth:
-      newInstance.shaderProgram = mVisualiseDepthShaderProgram.get();
-      setUniform("uCamera.near", 0.01f);
-      setUniform("uCamera.far", 30.0f);
-      break;
-
-    case ShaderProgramType::VisualiseNormal:
-      newInstance.shaderProgram = mVisualiseNormalShaderProgram.get();
-      break;
-  }
-  mShaderProgramInstances.push_back(newInstance);
-  const size_t index = mShaderProgramInstances.size() - 1;
-  return { index, this };
-}
-
-SceneRenderer::Handle<Texture> SceneRenderer::addTexture(AssetManager::Handle<Bitmap> bitmap, const SamplerOptions& options) {
+RenderingEngine::Handle<Texture> RenderingEngine::addTexture(AssetHandle<Bitmap> bitmap, const SamplerOptions& options) {
   if (mUploadedBitmaps.contains(bitmap.index)) {
     return mUploadedBitmaps.at(bitmap.index);
   }
@@ -168,24 +120,24 @@ SceneRenderer::Handle<Texture> SceneRenderer::addTexture(AssetManager::Handle<Bi
   return handle;
 }
 
-std::vector<SceneRenderer::Handle<VertexArray>> SceneRenderer::addMeshes(std::span<const AssetManager::Handle<Mesh>> meshes) {
+std::vector<RenderingEngine::Handle<VertexArray>> RenderingEngine::addMeshes(std::span<const AssetHandle<Mesh>> meshes) {
   std::vector<Handle<VertexArray>> refs;
   refs.reserve(meshes.size());
-  for (const AssetManager::Handle<Mesh>& mesh : meshes) {
+  for (const AssetHandle<Mesh>& mesh : meshes) {
     const Handle<VertexArray> ref = this->addMesh(mesh);
     refs.push_back(ref);
   }
   return refs;
 }
 
-std::vector<std::optional<SceneRenderer::Handle<Texture>>> SceneRenderer::addTextures(std::span<const std::optional<AssetManager::Handle<Bitmap>>> bitmaps,
-                                                                                      std::span<const SamplerOptions> options)
+auto RenderingEngine::addTextures(std::span<const std::optional<AssetHandle<Bitmap>>> bitmaps, std::span<const SamplerOptions> options)
+  -> std::vector<std::optional<Handle<Texture>>>
 {
   assert(bitmaps.size() == options.size());
   std::vector<std::optional<Handle<Texture>>> refs;
   refs.reserve(bitmaps.size());
   for (size_t i = 0; i < bitmaps.size(); ++i) {
-    if (const std::optional<AssetManager::Handle<Bitmap>> bitmap = bitmaps[i]; bitmap.has_value()) {
+    if (const std::optional<AssetHandle<Bitmap>> bitmap = bitmaps[i]; bitmap.has_value()) {
       const SamplerOptions& option = options[i];
       const Handle<Texture> ref = this->addTexture(bitmap.value(), option);
       refs.emplace_back(ref);
@@ -196,10 +148,33 @@ std::vector<std::optional<SceneRenderer::Handle<Texture>>> SceneRenderer::addTex
   return refs;
 }
 
-void SceneRenderer::render(std::span<const Draw> draws, TransformMatrices transforms) {
+#define RENDER_TO_TEXTURE 1
+
+void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, const glm::uvec2 windowSize) {
+#if RENDER_TO_TEXTURE
+  if (mFramebuffers.empty()) {
+    mFramebuffers.emplace_back(windowSize);
+    mLastFramebufferSize = windowSize;
+  } else if (mLastFramebufferSize != windowSize) {
+    mFramebuffers.front().destroy();
+    mFramebuffers.front().init(windowSize);
+    mLastFramebufferSize = windowSize;
+  }
+  mFramebuffers.front().bind();
+#endif
+
+  glViewport(0, 0, static_cast<GLint>(windowSize.x), static_cast<GLint>(windowSize.y));
+  glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+  glStencilMask(0xff);
+  glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+  const std::vector<Draw> draws = scene.draw();
   if (draws.empty()) {
     return;
   }
+
+  TransformMatrices transforms = { .view = camera.view(), .projection = camera.projection(windowSize) };
 
   const Draw* lastDraw = &draws.front();
   for (size_t i = 0; i < draws.size(); i++) {
@@ -270,25 +245,29 @@ void SceneRenderer::render(std::span<const Draw> draws, TransformMatrices transf
       }
     }
 
-    transforms.model = currDraw->transform.matrix();
-    transforms.normal = glm::transpose(glm::inverse(transforms.model));
-    currShader.shaderProgram->bindTransforms(transforms);
+    if (i == 0 || currDraw->shaderProgramInstanceIndex != lastDraw->shaderProgramInstanceIndex || currDraw->transform != lastDraw->transform) {
+      transforms.model = currDraw->transform.matrix();
+      transforms.normal = glm::transpose(glm::inverse(transforms.model));
+      currShader.shaderProgram->bindTransforms(transforms);
+    }
 
     GLuint slot = GL_TEXTURE0;
-    const auto bindTextures = [&, this](const size_t textureIndex) {
-      if (textureIndex == SIZE_MAX) {
-        glActiveTexture(slot);
-        glBindTexture(GL_TEXTURE_2D, 0);
-        mBoundTextureSlots.erase(slot);
-      } else {
-        mTextures[textureIndex].bind(slot);
-        mBoundTextureSlots.insert(slot);
+    const auto bindTextures = [&, this](const size_t currTextureIndex, const size_t lastTextureIndex) {
+      if (i == 0 || currTextureIndex != lastTextureIndex) {
+        if (currTextureIndex == SIZE_MAX) {
+          glActiveTexture(slot);
+          glBindTexture(GL_TEXTURE_2D, 0);
+          mBoundTextureSlots.erase(slot);
+        } else {
+          mTextures[currTextureIndex].bind(slot);
+          mBoundTextureSlots.insert(slot);
+        }
       }
       ++slot;
     };
-    bindTextures(currDraw->diffuseMapIndex);
-    bindTextures(currDraw->specularMapIndex);
-    bindTextures(currDraw->emissionMapIndex);
+    bindTextures(currDraw->diffuseMapIndex, lastDraw->diffuseMapIndex);
+    bindTextures(currDraw->specularMapIndex, lastDraw->specularMapIndex);
+    bindTextures(currDraw->emissionMapIndex, lastDraw->emissionMapIndex);
 
     const VertexArray& currVA = mVertexArrays[currDraw->vertexArrayIndex];
     if (i == 0 || currDraw->vertexArrayIndex != lastDraw->vertexArrayIndex) {
@@ -299,11 +278,41 @@ void SceneRenderer::render(std::span<const Draw> draws, TransformMatrices transf
     lastDraw = currDraw;
   }
 
-  glBindVertexArray(0);
-  glUseProgram(0);
+  glBindVertexArray(GL_NONE);
+  glUseProgram(GL_NONE);
   for (const GLuint slot : mBoundTextureSlots) {
     glActiveTexture(slot);
-    glBindTexture(GL_TEXTURE_2D, 0);
+    glBindTexture(GL_TEXTURE_2D, GL_NONE);
   }
   mBoundTextureSlots.clear();
+}
+
+void RenderingEngine::postProcess() {
+  // TODO
+}
+
+void RenderingEngine::present(const glm::uvec2 windowSize) {
+#if RENDER_TO_TEXTURE
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  glViewport(0, 0, static_cast<GLint>(windowSize.x), static_cast<GLint>(windowSize.y));
+  glDisable(GL_BLEND);
+  glDisable(GL_CULL_FACE);
+  glDisable(GL_DEPTH_TEST);
+  glDisable(GL_STENCIL_TEST);
+
+  glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+  glClear(GL_COLOR_BUFFER_BIT);
+
+  glUseProgram(mPostProcessCopyShaderProgram->id());
+  glBindVertexArray(mScreenQuadVA.vao);
+  mFramebuffers[mLastFramebufferIndex].colorAttachment.bind();
+  glUniform1i(0, 0); // bind uScreenTexture sampler
+  glDrawElements(GL_TRIANGLE_STRIP, 6, GL_UNSIGNED_INT, nullptr);
+
+  glUseProgram(GL_NONE);
+  glBindVertexArray(GL_NONE);
+  mFramebuffers[mLastFramebufferIndex].colorAttachment.unbind();
+
+  mLastFramebufferIndex = 0;
+#endif
 }

@@ -12,8 +12,8 @@ public:
   void generateMesh(const Mesh& mesh);
 
 public:
-  GLuint vao = 0;
-  GLuint vbo = 0;
-  GLuint ebo = 0;
+  GLuint vao = GL_NONE;
+  GLuint vbo = GL_NONE;
+  GLuint ebo = GL_NONE;
   GLsizei indexCount = 0;
 };

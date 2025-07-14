@@ -65,26 +65,26 @@ Mesh createCubeMesh() {
   return {vertices, indices};
 }
 
-Mesh createQuadMesh() {
+Mesh createQuadMesh(glm::vec2 size) {
   const auto vertices = std::vector {
     Vertex {
-      .position = glm::vec3(-0.5f, 0.0f, -0.5f),
-      .normal = glm::vec3(0.0f, 1.0f, 0.0f),
+      .position = glm::vec3(-size.x * 0.5f, -size.y * 0.5f, 0.0f),
+      .normal = glm::vec3(0.0f, 0.0f, -1.0f),
       .texCoord = glm::vec2(0.0f, 0.0f),
     },
     Vertex {
-      .position = glm::vec3(-0.5f, 0.0f, +0.5f),
-      .normal = glm::vec3(0.0f, 1.0f, 0.0f),
+      .position = glm::vec3(-size.x * 0.5f, +size.y * 0.5f, 0.0f),
+      .normal = glm::vec3(0.0f, 0.0f, -1.0f),
       .texCoord = glm::vec2(0.0f, 1.0f),
     },
     Vertex {
-      .position = glm::vec3(+0.5f, 0.0f, +0.5f),
-      .normal = glm::vec3(0.0f, 1.0f, 0.0f),
+      .position = glm::vec3(+size.x * 0.5f, +size.y * 0.5f, 0.0f),
+      .normal = glm::vec3(0.0f, 0.0f, -1.0f),
       .texCoord = glm::vec2(1.0f, 1.0f),
     },
     Vertex {
-      .position = glm::vec3(+0.5f, 0.0f, -0.5f),
-      .normal = glm::vec3(0.0f, 1.0f, 0.0f),
+      .position = glm::vec3(+size.x * 0.5f, -size.y * 0.5f, 0.0f),
+      .normal = glm::vec3(0.0f, 0.0f, -1.0f),
       .texCoord = glm::vec2(1.0f, 0.0f),
     },
   };

@@ -6,7 +6,7 @@
 #include <Assets/Model.hpp>
 #include <Graphics/Scene.hpp>
 #include <Graphics/ShaderProgram.hpp>
-#include <Util/Macros.hpp>
+#include <Util/Macros/Errors.hpp>
 #include <Util/NotNull.hpp>
 #include <Util/Timers/TimedBlock.hpp>
 
@@ -26,12 +26,12 @@ Engine::Engine(Engine&& other) noexcept {
 
 Expected<Engine> Engine::create(std::string_view title, glm::uvec2 initialWindowSize) {
   Engine app;
+  RETURN_ERROR_IF_UNEXPECTED(app.createContext(title, initialWindowSize));
   app.mState.assetManager = std::make_unique<AssetManager>();
   app.mState.scene = std::make_unique<Scene>();
-  app.mState.sceneRenderer = std::make_unique<SceneRenderer>();
-  RETURN_ERROR_IF_UNEXPECTED(app.createContext(title, initialWindowSize));
+  app.mState.renderingEngine = std::make_unique<RenderingEngine>();
   app.initialiseImGui();
-  RETURN_ERROR_IF_UNEXPECTED(app.mState.sceneRenderer->loadShaders());
+  RETURN_ERROR_IF_UNEXPECTED(app.mState.renderingEngine->init());
   RETURN_ERROR_IF_UNEXPECTED(app.createScene());
   return app;
 }
@@ -103,7 +103,6 @@ Expected<void> Engine::createContext(std::string_view title, glm::uvec2 initialW
 
   glViewport(0, 0, static_cast<int32_t>(mState.windowSize.x), static_cast<int32_t>(mState.windowSize.y));
   glfwSetFramebufferSizeCallback(mState.window, [](GLFWwindow*, int32_t width, int32_t height) {
-    glViewport(0, 0, width, height);
     NotNull(gApp)->mState.windowSize = glm::uvec2(width, height);
     NotNull(gApp)->mState.lastMousePosition = glm::vec2(NotNull(gApp)->mState.windowSize) * 0.5f;
     NotNull(gApp)->mState.bFirstMouse = true;
@@ -124,48 +123,48 @@ void Engine::initialiseImGui() const {
   ImGui::StyleColorsDark();
 
   ImGui_ImplGlfw_InitForOpenGL(mState.window, true);
-  ImGui_ImplOpenGL3_Init("#version 460");
+  ImGui_ImplOpenGL3_Init("#version 460 core");
 }
 
 Expected<void> Engine::createScene() {
   // Load assets
-  const AssetManager::Handle<Mesh> quadMesh = mState.assetManager->addMesh(createQuadMesh());
-  const AssetManager::Handle<Mesh> cubeMesh = mState.assetManager->addMesh(createCubeMesh());
+  const AssetHandle<Mesh> quadMesh = mState.assetManager->addMesh(createQuadMesh());
+  const AssetHandle<Mesh> cubeMesh = mState.assetManager->addMesh(createCubeMesh());
 
-  const Expected<AssetManager::Handle<Model>> backpackModel = mState.assetManager->loadModel("backpack/backpack.obj");
-  const Expected<AssetManager::Handle<Bitmap>> grassBitmap = mState.assetManager->loadBitmap("grass/diffuse.png");
-  const Expected<AssetManager::Handle<Bitmap>> windowBitmap = mState.assetManager->loadBitmap("window/diffuse.png");
+  const Expected<AssetHandle<Model>> backpackModel = mState.assetManager->loadModel("backpack/backpack.obj");
+  const Expected<AssetHandle<Bitmap>> grassBitmap = mState.assetManager->loadBitmap("grass/diffuse.png");
+  const Expected<AssetHandle<Bitmap>> windowBitmap = mState.assetManager->loadBitmap("window/diffuse.png");
 
   RETURN_ERROR_IF_UNEXPECTED(backpackModel);
   RETURN_ERROR_IF_UNEXPECTED(grassBitmap);
   RETURN_ERROR_IF_UNEXPECTED(windowBitmap);
 
   // Get shader instances
-  mState.litSurfaceShaderProgram = mState.sceneRenderer->createShaderProgramInstance(ShaderProgramType::LitSurface);
-  mState.lightShaderProgram = mState.sceneRenderer->createShaderProgramInstance(ShaderProgramType::Light);
-  mState.visualiseDepthShaderProgram = mState.sceneRenderer->createShaderProgramInstance(ShaderProgramType::VisualiseDepth);
-  mState.visualiseNormalShaderProgram = mState.sceneRenderer->createShaderProgramInstance(ShaderProgramType::VisualiseNormal);
-  mState.backpackOutlineShaderProgram = mState.sceneRenderer->createShaderProgramInstance(ShaderProgramType::Outline);
-  mState.lightCubeOutlineShaderProgram = mState.sceneRenderer->createShaderProgramInstance(ShaderProgramType::Outline);
+  mState.litSurfaceShaderProgram = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::LitSurface);
+  mState.lightShaderProgram = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::Light);
+  mState.visualiseDepthShaderProgram = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::VisualiseDepth);
+  mState.visualiseNormalShaderProgram = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::VisualiseNormal);
+  mState.backpackOutlineShaderProgram = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::Outline);
+  mState.lightCubeOutlineShaderProgram = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::Outline);
 
   // Upload assets to GPU
-  const SceneRenderer::Handle<VertexArray> quadVA = mState.sceneRenderer->addMesh(quadMesh);
-  const SceneRenderer::Handle<VertexArray> cubeVA = mState.sceneRenderer->addMesh(cubeMesh);
+  const RenderingEngine::Handle<VertexArray> quadVA = mState.renderingEngine->addMesh(quadMesh);
+  const RenderingEngine::Handle<VertexArray> cubeVA = mState.renderingEngine->addMesh(cubeMesh);
 
   constexpr SamplerOptions samplerOptionsClampToEdge = { .wrapS = GL_CLAMP_TO_EDGE, .wrapT = GL_CLAMP_TO_EDGE };
-  const SceneRenderer::Handle<Texture> grassTexture = mState.sceneRenderer->addTexture(grassBitmap.value(), samplerOptionsClampToEdge);
-  const SceneRenderer::Handle<Texture> windowTexture = mState.sceneRenderer->addTexture(windowBitmap.value(), samplerOptionsClampToEdge);
+  const RenderingEngine::Handle<Texture> grassTexture = mState.renderingEngine->addTexture(grassBitmap.value(), samplerOptionsClampToEdge);
+  const RenderingEngine::Handle<Texture> windowTexture = mState.renderingEngine->addTexture(windowBitmap.value(), samplerOptionsClampToEdge);
 
-  constexpr SceneRenderer::RenderOptions transparentQuadOptions = { .bBackfaceCulling = false, .bTransparent = true };
-  std::vector<SceneRenderer::RenderData> backpackResources = mState.sceneRenderer->addModel(backpackModel.value(), mState.litSurfaceShaderProgram.value());
+  constexpr RenderingEngine::RenderOptions transparentQuadOptions = { .bBackfaceCulling = false, .bTransparent = true };
+  std::vector<RenderingEngine::RenderData> backpackResources = mState.renderingEngine->addModel(backpackModel.value(), mState.litSurfaceShaderProgram.value());
   const std::vector lightResources = {
-    SceneRenderer::RenderData {
+    RenderingEngine::RenderData {
       .vertexArray = cubeVA,
       .shaderProgramInstance = mState.lightShaderProgram.value(),
     }
   };
   const std::vector grassResources = {
-    SceneRenderer::RenderData {
+    RenderingEngine::RenderData {
       .vertexArray = quadVA,
       .shaderProgramInstance = mState.litSurfaceShaderProgram.value(),
       .diffuseMap = grassTexture,
@@ -173,11 +172,11 @@ Expected<void> Engine::createScene() {
     }
   };
   const std::vector windowResources = {
-    SceneRenderer::RenderData {
+    RenderingEngine::RenderData {
       .vertexArray = quadVA,
       .shaderProgramInstance = mState.litSurfaceShaderProgram.value(),
       .diffuseMap = windowTexture,
-      .renderOptions = transparentQuadOptions
+      .renderOptions = transparentQuadOptions,
     }
   };
 
@@ -202,15 +201,11 @@ Expected<void> Engine::createScene() {
     .name = "Grass",
     .transform = Transform {
       .translation = glm::vec3(0.0f, 0.0f, 1.0f),
-      .rotation = glm::vec3(-90.0f, 0.0f, 0.0f),
     },
     .renderData = grassResources,
   });
 
-  Actor windowActor = {
-    .transform = { .rotation = glm::vec3(-90.0f, 0.0f, 0.0f), },
-    .renderData = windowResources,
-  };
+  Actor windowActor = { .renderData = windowResources, };
   windowActor.name = "Window 0";
   windowActor.transform.translation = glm::vec3(-0.25f, 0.0f, 1.5f);
   mState.scene->addActor(windowActor);
@@ -486,19 +481,12 @@ void Engine::updateScene() {
 }
 
 void Engine::drawFrame() {
-  glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-  glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
-  glStencilMask(0xff);
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-
   mState.lastSceneRenderTime = timedBlock([this] {
-    const std::vector<Draw> draws = mState.scene->draw();
-    const TransformMatrices transforms = {
-      .view = mState.scene->camera.view(),
-      .projection = mState.scene->camera.projection(mState.windowSize),
-    };
-    mState.sceneRenderer->render(draws, transforms);
+    mState.renderingEngine->renderScene(*mState.scene, mState.scene->camera, mState.windowSize);
+    mState.renderingEngine->postProcess();
+    mState.renderingEngine->present(mState.windowSize);
   });
+
   mState.lastGuiRenderTime = timedBlock([] {
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
   });

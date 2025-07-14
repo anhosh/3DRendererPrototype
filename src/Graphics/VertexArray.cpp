@@ -24,9 +24,9 @@ void VertexArray::destroy() {
   glDeleteBuffers(1, &ebo);
   glDeleteVertexArrays(1, &vao);
 
-  vao = 0;
-  vbo = 0;
-  ebo = 0;
+  vao = GL_NONE;
+  vbo = GL_NONE;
+  ebo = GL_NONE;
 }
 
 void VertexArray::generateMesh(const Mesh& mesh) {
@@ -44,11 +44,11 @@ void VertexArray::generateMesh(const Mesh& mesh) {
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizeiptr>(mesh.indices.size() * sizeof(uint32_t)), mesh.indices.data(), GL_STATIC_DRAW);
 
-  Vertex::setupAttributes();
+  Vertex::enableAttributes();
 
-  glBindVertexArray(0);
-  glBindBuffer(GL_ARRAY_BUFFER, 0);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+  glBindVertexArray(GL_NONE);
+  glBindBuffer(GL_ARRAY_BUFFER, GL_NONE);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL_NONE);
 
   indexCount = static_cast<GLsizei>(mesh.indices.size());
 }

@@ -1,8 +1,9 @@
 #pragma once
 
+#include <GLFW/glfw3.h>
+
 #include <concepts>
 #include <functional>
-#include <GLFW/glfw3.h>
 
 template <std::invocable<> Fn>
 double timedBlock(Fn&& block) {

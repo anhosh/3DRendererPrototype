@@ -1,22 +1,31 @@
 #include <Graphics/Shader.hpp>
 
-#include <Util/Macros.hpp>
+#include <Util/Macros/Errors.hpp>
 #include <Util/Paths.hpp>
 
 #include <fstream>
 #include <vector>
 
 static fs::path sShadersDir = "shaders";
+static bool sLocatedShaders = false;
 
 bool locateShaders() {
+  if (sLocatedShaders) {
+    return true;
+  }
   if (std::optional<fs::path> shadersDir = locateDirectory("shaders")) {
     sShadersDir = shadersDir.value();
+    sLocatedShaders = true;
     return true;
   }
   return false;
 }
 
 Expected<Shader> createShader(GLenum type, const fs::path& sourcePath) {
+  if (!locateShaders()) {
+    PANIC("Could not locate shaders directory");
+  }
+
   auto file = std::ifstream(sShadersDir / sourcePath, std::ios::ate);
   const std::streamsize fileSize = file.tellg();
   file.seekg(0, std::ios::beg);

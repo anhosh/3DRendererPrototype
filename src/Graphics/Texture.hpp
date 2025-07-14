@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Util/NoInit.hpp>
+
 class Bitmap;
 
 struct SamplerOptions {
@@ -11,15 +13,20 @@ struct SamplerOptions {
 
 class Texture {
 public:
+  Texture();
+  Texture(NoInit) {}
   explicit Texture(const Bitmap& bitmap, const SamplerOptions& options = {});
 
-  void generateTextures(const Bitmap& bitmap, const SamplerOptions& options = {});
+  void init();
+  void generateColorTexture(const Bitmap& bitmap, const SamplerOptions& options = {}) const;
   bool destroy();
 
   void bind() const;
   void bind(GLuint slot) const;
   void unbind() const;
   void unbind(GLuint slot) const;
+
+  [[nodiscard]] GLuint id() const { return mID; }
 
 private:
   GLuint mID = 0;

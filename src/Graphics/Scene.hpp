@@ -5,38 +5,20 @@
 #include <Graphics/Draw.hpp>
 #include <Graphics/Light.hpp>
 #include <Graphics/Scene.hpp>
-#include <Util/PtrAndIndex.hpp>
+#include <Util/Macros/Classes.hpp>
 
 #include <vector>
 
 class Scene {
 public:
-  class ActorHandle {
-    friend class Scene;
-
-    ActorHandle(size_t index, Scene* scene)
-      : index(index)
-      , scene(scene)
-    {}
-
-  public:
-    ActorHandle(const ActorHandle& other) = default;
-    ActorHandle& operator=(const ActorHandle& other) = default;
-
-    Actor& get() { return scene->actors[index]; }
-
-    size_t index = SIZE_MAX;
-
-  private:
-    NotNull<Scene> scene;
-  };
+  DECLARE_ITEM_HANDLE(Scene)
 
 public:
   void destroy();
 
   [[nodiscard]] std::vector<Draw> draw() const;
 
-  ActorHandle addActor(Actor actor);
+  Handle<Actor> addActor(Actor actor);
 
 public:
   std::vector<Actor> actors;
@@ -47,3 +29,5 @@ public:
   PointLight pointLight;
   Spotlight spotlight;
 };
+
+using ActorHandle = Scene::Handle<Actor>;

@@ -6,4 +6,6 @@ struct Transform {
   glm::vec3 scale = glm::vec3(1.0f);
 
   [[nodiscard]] glm::mat4 matrix() const;
+
+  bool operator==(const Transform&) const = default;
 };

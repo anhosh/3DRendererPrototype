@@ -2,7 +2,7 @@
 
 #include <Graphics/Shader.hpp>
 #include <Util/Expected.hpp>
-#include <Util/Macros.hpp>
+#include <Util/Macros/Errors.hpp>
 
 #include <concepts>
 #include <filesystem>

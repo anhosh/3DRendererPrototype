@@ -4,7 +4,8 @@
 #include <Assets/Mesh.hpp>
 #include <Assets/Model.hpp>
 #include <Graphics/Vertex.hpp>
-#include <Util/Macros.hpp>
+#include <Util/Macros/Classes.hpp>
+#include <Util/Macros/Errors.hpp>
 #include <Util/Paths.hpp>
 
 #include <assimp/Importer.hpp>
@@ -14,24 +15,56 @@
 
 #include <print>
 
-template <>
-Bitmap& AssetManager::Handle<Bitmap>::get() {
-  return assetManager->bitmaps[index];
-}
-
-template <>
-Mesh& AssetManager::Handle<Mesh>::get() {
-  return assetManager->meshes[index];
-}
-
-template <>
-Model& AssetManager::Handle<Model>::get() {
-  return assetManager->models[index];
-}
+DEFINE_HANDLE_ITEM_GET(AssetManager, Bitmap, bitmaps)
+DEFINE_HANDLE_ITEM_GET(AssetManager, Mesh, meshes)
+DEFINE_HANDLE_ITEM_GET(AssetManager, Model, models)
 
 AssetManager::AssetManager() {
   PANIC_IF_UNEXPECTED(locateModels());
   PANIC_IF_UNEXPECTED(locateTextures());
+}
+
+AssetHandle<Mesh> AssetManager::addMesh(Mesh mesh) {
+  this->meshes.emplace_back(std::move(mesh));
+  const size_t index = this->meshes.size() - 1;
+  return Handle<Mesh>(index, this);
+}
+
+Expected<AssetHandle<Bitmap>> AssetManager::loadBitmap(const std::filesystem::path& filePath) {
+  const std::filesystem::path fullPath = mTexturesDir / filePath;
+  if (const auto found = mLoadedAssetIndices.find(fullPath); found != mLoadedAssetIndices.end()) {
+    const auto& [_, index] = *found;
+    return Handle<Bitmap>(index, this);
+  }
+
+  Bitmap bitmap;
+  ASSIGN_EXPECTED_OR_RETURN(bitmap, Bitmap::fromFile(fullPath));
+  bitmaps.push_back(std::move(bitmap));
+  const Handle<Bitmap> handle = { bitmaps.size() - 1, this };
+  mLoadedAssetIndices[fullPath] = handle.index;
+  return handle;
+}
+
+Expected<AssetHandle<Model>> AssetManager::loadModel(const std::filesystem::path& filePath) {
+  const std::filesystem::path fullPath = mModelsDir / filePath;
+  if (const auto found = mLoadedAssetIndices.find(fullPath); found != mLoadedAssetIndices.end()) {
+    const auto& [_, index] = *found;
+    return Handle<Model>(index, this);
+  }
+
+  Assimp::Importer importer;
+  const aiScene* scene = importer.ReadFile(fullPath.string(), aiProcess_Triangulate | aiProcess_FlipUVs);
+
+  if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
+    return std::unexpected(std::format("Assimp: {}", importer.GetErrorString()));
+  }
+
+  Model model;
+  RETURN_ERROR_IF_UNEXPECTED(this->processNode(model, scene->mRootNode, scene));
+  this->models.push_back(std::move(model));
+  const size_t index = this->models.size() - 1;
+  mLoadedAssetIndices[fullPath] = index;
+  return Handle<Model>(index, this);
 }
 
 Expected<void> AssetManager::locateModels() {
@@ -48,49 +81,6 @@ Expected<void> AssetManager::locateTextures() {
     return {};
   }
   return std::unexpected("Could not locate texture directory");
-}
-
-AssetManager::Handle<Mesh> AssetManager::addMesh(Mesh mesh) {
-  this->meshes.emplace_back(std::move(mesh));
-  const size_t index = this->meshes.size() - 1;
-  return Handle<Mesh> { index, this };
-}
-
-Expected<AssetManager::Handle<Bitmap>> AssetManager::loadBitmap(const std::filesystem::path& filePath) {
-  const std::filesystem::path fullPath = mTexturesDir / filePath;
-  if (const auto found = mLoadedAssetIndices.find(fullPath); found != mLoadedAssetIndices.end()) {
-    const auto& [_, index] = *found;
-    return Handle<Bitmap> { index, this };
-  }
-
-  Bitmap bitmap;
-  ASSIGN_EXPECTED_OR_RETURN(bitmap, Bitmap::fromFile(fullPath));
-  bitmaps.push_back(std::move(bitmap));
-  const Handle<Bitmap> handle = { bitmaps.size() - 1, this };
-  mLoadedAssetIndices[fullPath] = handle.index;
-  return handle;
-}
-
-Expected<AssetManager::Handle<Model>> AssetManager::loadModel(const std::filesystem::path& filePath) {
-  const std::filesystem::path fullPath = mModelsDir / filePath;
-  if (const auto found = mLoadedAssetIndices.find(fullPath); found != mLoadedAssetIndices.end()) {
-    const auto& [_, index] = *found;
-    return Handle<Model> { index, this };
-  }
-
-  Assimp::Importer importer;
-  const aiScene* scene = importer.ReadFile(fullPath.string(), aiProcess_Triangulate | aiProcess_FlipUVs);
-
-  if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
-    return std::unexpected(std::format("Assimp: {}", importer.GetErrorString()));
-  }
-
-  Model model;
-  RETURN_ERROR_IF_UNEXPECTED(this->processNode(model, scene->mRootNode, scene));
-  this->models.push_back(std::move(model));
-  const size_t index = this->models.size() - 1;
-  mLoadedAssetIndices[fullPath] = index;
-  return Handle<Model> { index, this };
 }
 
 Expected<void> AssetManager::processNode(Model& model, aiNode* node, const aiScene* scene) {
@@ -146,7 +136,7 @@ Expected<void> AssetManager::processMesh(Model& model, aiMesh* mesh, const aiSce
   return {};
 }
 
-Expected<AssetManager::Handle<Bitmap>> AssetManager::processTexture(const aiMaterial* material, aiTextureType type) {
+Expected<AssetHandle<Bitmap>> AssetManager::processTexture(const aiMaterial* material, aiTextureType type) {
   if (material->GetTextureCount(type) == 0) {
     return std::unexpected(std::format("Could not find a {} texture", aiTextureTypeToString(type)));
   }

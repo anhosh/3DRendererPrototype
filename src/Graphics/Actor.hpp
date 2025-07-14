@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Graphics/SceneRenderer.hpp>
+#include <Graphics/RenderingEngine.hpp>
 #include <Graphics/Transform.hpp>
 
 #include <optional>
@@ -9,16 +9,16 @@
 struct Actor {
   std::string name = "Unnamed";
   Transform transform;
-  std::vector<SceneRenderer::RenderData> renderData;
+  std::vector<RenderingEngine::RenderData> renderData;
 
-  void setShaderProgramInstance(const SceneRenderer::Handle<ShaderProgramInstance> shaderInstance) {
-    for (SceneRenderer::RenderData& videoResource : renderData) {
+  void setShaderProgramInstance(const RenderingEngine::Handle<ShaderProgramInstance> shaderInstance) {
+    for (RenderingEngine::RenderData& videoResource : renderData) {
       videoResource.shaderProgramInstance = shaderInstance;
     }
   }
 
-  void setOutlineShaderInstance(std::optional<SceneRenderer::Handle<ShaderProgramInstance>> outlineShaderInstance) {
-    for (SceneRenderer::RenderData& videoResource : renderData) {
+  void setOutlineShaderInstance(std::optional<RenderingEngine::Handle<ShaderProgramInstance>> outlineShaderInstance) {
+    for (RenderingEngine::RenderData& videoResource : renderData) {
       videoResource.renderOptions.outlineShaderInstance = outlineShaderInstance;
     }
   }
