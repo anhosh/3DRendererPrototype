@@ -14,6 +14,8 @@ public:
   DECLARE_ITEM_HANDLE(Scene)
 
 public:
+  ~Scene() { this->destroy(); }
+
   void destroy();
 
   [[nodiscard]] std::vector<Draw> draw() const;

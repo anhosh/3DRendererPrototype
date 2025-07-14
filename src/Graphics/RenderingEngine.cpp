@@ -37,11 +37,42 @@ Expected<void> RenderingEngine::init() {
   RETURN_ERROR_IF_UNEXPECTED(addShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/invert.frag"},
                                               mPostProcessInvertShaderProgram));
 
-#if USE_SCREEN_QUAD_MESH
-  mScreenQuadVA.generateMesh(createQuadMesh(glm::vec2(2.0f)));
-#endif
+  glGenVertexArrays(1, &mScreenQuadVAO);
 
   return {};
+}
+
+void RenderingEngine::destroy() {
+  mLitSurfaceShaderProgram->destroy();
+  mLightShaderProgram->destroy();
+  mOutlineShaderProgram->destroy();
+  mVisualiseDepthShaderProgram->destroy();
+  mVisualiseNormalShaderProgram->destroy();
+  mPostProcessCopyShaderProgram->destroy();
+  mPostProcessInvertShaderProgram->destroy();
+
+  for (VertexArray& vertexArray : mVertexArrays) {
+    vertexArray.destroy();
+  }
+  for (Texture& texture : mTextures) {
+    texture.destroy();
+  }
+  mShaderProgramInstances.clear();
+  mVertexArrays.clear();
+  mTextures.clear();
+
+  glDeleteVertexArrays(1, &mScreenQuadVAO);
+  mScreenQuadVAO = GL_NONE;
+
+  for (Framebuffer& framebuffer : mFramebuffers) {
+    framebuffer.destroy();
+  }
+  mFramebuffers.clear();
+
+  mUploadedTextures.clear();
+  mUploadedModels.clear();
+
+  mBoundTextureSlots.clear();
 }
 
 RenderingEngine::Handle<ShaderProgramInstance> RenderingEngine::createShaderProgramInstance(ShaderProgramType type) {
@@ -111,13 +142,13 @@ RenderingEngine::Handle<VertexArray> RenderingEngine::addMesh(AssetHandle<Mesh> 
 }
 
 RenderingEngine::Handle<Texture> RenderingEngine::addTexture(AssetHandle<Bitmap> bitmap, const SamplerOptions& options) {
-  if (mUploadedBitmaps.contains(bitmap.index)) {
-    return mUploadedBitmaps.at(bitmap.index);
+  if (mUploadedTextures.contains(bitmap.index)) {
+    return mUploadedTextures.at(bitmap.index);
   }
 
   mTextures.emplace_back(bitmap.get(), options);
   const size_t index = mTextures.size() - 1;
-  const auto [it, inserted] = mUploadedBitmaps.emplace(bitmap.index, Handle<Texture>(index, this));
+  const auto [it, inserted] = mUploadedTextures.emplace(bitmap.index, Handle<Texture>(index, this));
   const auto& [i, handle] = *it;
   return handle;
 }
@@ -306,21 +337,13 @@ void RenderingEngine::present(const glm::uvec2 windowSize) {
   glClear(GL_COLOR_BUFFER_BIT);
 
   glUseProgram(mPostProcessCopyShaderProgram->id());
-#if USE_SCREEN_QUAD_MESH
-  glBindVertexArray(mScreenQuadVA.vao);
-#endif
+  glBindVertexArray(mScreenQuadVAO);
   mFramebuffers[mLastFramebufferIndex].colorAttachment.bind();
   glUniform1i(0, 0); // bind uScreenTexture sampler
-#if USE_SCREEN_QUAD_MESH
-  glDrawElements(GL_TRIANGLE_STRIP, 6, GL_UNSIGNED_INT, nullptr);
-#else
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-#endif
 
   glUseProgram(GL_NONE);
-#if USE_SCREEN_QUAD_MESH
   glBindVertexArray(GL_NONE);
-#endif
   mFramebuffers[mLastFramebufferIndex].colorAttachment.unbind();
 
   mLastFramebufferIndex = 0;

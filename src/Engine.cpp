@@ -63,6 +63,7 @@ void Engine::shutDown() {
   ImGui::DestroyContext();
 
   mState.scene->destroy();
+  mState.renderingEngine->destroy();
 
   glfwDestroyWindow(mState.window);
   mState.window = nullptr;

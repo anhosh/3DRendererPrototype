@@ -16,8 +16,6 @@
 #include <unordered_set>
 #include <vector>
 
-#define USE_SCREEN_QUAD_MESH 1
-
 class Camera;
 class Scene;
 
@@ -40,7 +38,10 @@ public:
     RenderOptions renderOptions = {};
   };
 
+  ~RenderingEngine() { this->destroy(); }
+
   Expected<void> init();
+  void destroy();
 
   Handle<ShaderProgramInstance> createShaderProgramInstance(ShaderProgramType type);
   Handle<ShaderProgramInstance> addShaderProgramInstance(ShaderProgramInstance instance);
@@ -70,14 +71,12 @@ private:
   std::vector<VertexArray> mVertexArrays;
   std::vector<Texture> mTextures;
 
-#if USE_SCREEN_QUAD_MESH
-  VertexArray mScreenQuadVA;
-#endif
+  GLuint mScreenQuadVAO = GL_NONE;
   std::vector<Framebuffer> mFramebuffers;
   glm::uvec2 mLastFramebufferSize = glm::uvec2(0);
   size_t mLastFramebufferIndex = 0;
 
-  std::unordered_map<size_t, Handle<Texture>> mUploadedBitmaps;
+  std::unordered_map<size_t, Handle<Texture>> mUploadedTextures;
   std::unordered_map<size_t, std::vector<RenderData>> mUploadedModels;
 
   std::unordered_set<GLuint> mBoundTextureSlots;
