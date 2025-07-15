@@ -151,27 +151,23 @@ Expected<void> Engine::createScene() {
   mState.backpackOutlineShaderProgram = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::Outline);
   mState.lightCubeOutlineShaderProgram = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::Outline);
 
-  mState.postProcessCopyShaderProgram = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::PostProcessCopy);
-  mState.postProcessGrayscaleShaderProgram = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::PostProcessGrayscale);
-  mState.postProcessInvertShaderProgram = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::PostProcessInvert);
-
   // Upload assets to GPU
-  const RenderingEngine::Handle<VertexArray> quadVA = mState.renderingEngine->addMesh(quadMesh);
-  const RenderingEngine::Handle<VertexArray> cubeVA = mState.renderingEngine->addMesh(cubeMesh);
+  const VertexArrayHandle quadVA = mState.renderingEngine->addMesh(quadMesh);
+  const VertexArrayHandle cubeVA = mState.renderingEngine->addMesh(cubeMesh);
 
   constexpr SamplerOptions samplerOptionsClampToEdge = { .wrapS = GL_CLAMP_TO_EDGE, .wrapT = GL_CLAMP_TO_EDGE };
-  const RenderingEngine::Handle<Texture> grassTexture = mState.renderingEngine->addTexture(grassBitmap.value(), samplerOptionsClampToEdge);
-  const RenderingEngine::Handle<Texture> windowTexture = mState.renderingEngine->addTexture(windowBitmap.value(), samplerOptionsClampToEdge);
+  const TextureHandle grassTexture = mState.renderingEngine->addTexture(grassBitmap.value(), samplerOptionsClampToEdge);
+  const TextureHandle windowTexture = mState.renderingEngine->addTexture(windowBitmap.value(), samplerOptionsClampToEdge);
 
   constexpr RenderingEngine::RenderOptions transparentQuadOptions = { .bBackfaceCulling = false, .bTransparent = true };
   std::vector<RenderingEngine::RenderData> backpackResources = mState.renderingEngine->addModel(backpackModel.value(), mState.litSurfaceShaderProgram.value());
-  const std::vector lightResources = {
+  std::vector lightResources = {
     RenderingEngine::RenderData {
       .vertexArray = cubeVA,
       .shaderProgramInstance = mState.lightShaderProgram.value(),
     }
   };
-  const std::vector grassResources = {
+  std::vector grassResources = {
     RenderingEngine::RenderData {
       .vertexArray = quadVA,
       .shaderProgramInstance = mState.litSurfaceShaderProgram.value(),
@@ -179,7 +175,7 @@ Expected<void> Engine::createScene() {
       .renderOptions = transparentQuadOptions,
     }
   };
-  const std::vector windowResources = {
+  std::vector windowResources = {
     RenderingEngine::RenderData {
       .vertexArray = quadVA,
       .shaderProgramInstance = mState.litSurfaceShaderProgram.value(),
@@ -189,7 +185,7 @@ Expected<void> Engine::createScene() {
   };
 
   // Create actors
-  mState.backpackActor = mState.scene->addActor({
+  mState.backpackActor = mState.scene->addActor(Actor {
     .name = "Backpack",
     .transform = Transform {
       .translation = glm::vec3(0.0f),
@@ -197,29 +193,29 @@ Expected<void> Engine::createScene() {
     .renderData = std::move(backpackResources),
   });
 
-  mState.lightActor = mState.scene->addActor({
+  mState.lightActor = mState.scene->addActor(Actor {
     .name = "Light cube",
     .transform = Transform {
       .scale = glm::vec3(0.1f),
     },
-    .renderData = lightResources,
+    .renderData = std::move(lightResources),
   });
 
-  mState.grassActor = mState.scene->addActor({
+  mState.grassActor = mState.scene->addActor(Actor {
     .name = "Grass",
     .transform = Transform {
       .translation = glm::vec3(0.0f, 0.0f, 1.0f),
     },
-    .renderData = grassResources,
+    .renderData = std::move(grassResources),
   });
 
   Actor windowActor = { .renderData = windowResources };
   windowActor.name = "Window 0";
   windowActor.transform.translation = glm::vec3(-0.25f, 0.0f, 1.5f);
-  mState.scene->addActor(windowActor);
+  mState.scene->addActor(Actor(windowActor));
   windowActor.name = "Window 1";
   windowActor.transform.translation = glm::vec3(0.25f, 0.0f, 1.75f);
-  mState.scene->addActor(windowActor);
+  mState.scene->addActor(Actor(windowActor));
   windowActor.name = "Window 2";
   windowActor.transform.translation = glm::vec3(0.0f, 0.0f, 2.0f);
   mState.scene->addActor(std::move(windowActor));
@@ -472,7 +468,6 @@ void Engine::gui() {
         }
 
         ImGui::SameLine();
-
         if (ImGui::Button(("Delete##" + std::to_string(effectIndex)).c_str())) {
           effectToDelete = static_cast<int32_t>(effectIndex);
         }

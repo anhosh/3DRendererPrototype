@@ -4,7 +4,6 @@
 #include <Assets/Mesh.hpp>
 #include <Assets/Model.hpp>
 #include <Graphics/Vertex.hpp>
-#include <Util/Macros/Classes.hpp>
 #include <Util/Macros/Errors.hpp>
 #include <Util/Paths.hpp>
 
@@ -15,39 +14,34 @@
 
 #include <print>
 
-DEFINE_HANDLE_ITEM_FUNCTIONS(AssetManager, Bitmap, mBitmaps)
-DEFINE_HANDLE_ITEM_FUNCTIONS(AssetManager, Mesh, mMeshes)
-DEFINE_HANDLE_ITEM_FUNCTIONS(AssetManager, Model, mModels)
-
 AssetManager::AssetManager() {
   PANIC_IF_UNEXPECTED(locateModels());
   PANIC_IF_UNEXPECTED(locateTextures());
 }
 
-AssetHandle<Mesh> AssetManager::addMesh(Mesh mesh) {
-  this->mMeshes[mNextMeshID] = std::move(mesh);
-  return Handle<Mesh>(mNextMeshID++, this);
+AssetHandle<Mesh> AssetManager::addMesh(Mesh&& mesh) {
+  return mMeshes.add(std::forward<Mesh>(mesh));
 }
 
 Expected<AssetHandle<Bitmap>> AssetManager::loadBitmap(const std::filesystem::path& filePath) {
   const std::filesystem::path fullPath = mTexturesDir / filePath;
-  if (const auto found = mLoadedAssetIndices.find(fullPath); found != mLoadedAssetIndices.end()) {
-    const auto& [_, index] = *found;
-    return Handle<Bitmap>(index, this);
+  if (const auto found = mLoadedBitmaps.find(fullPath); found != mLoadedBitmaps.end()) {
+    const auto& [_, handle] = *found;
+    return handle;
   }
 
   Bitmap bitmap;
   ASSIGN_EXPECTED_OR_RETURN(bitmap, Bitmap::fromFile(fullPath));
-  mBitmaps[mNextBitmapID] = std::move(bitmap);
-  mLoadedAssetIndices[fullPath] = mNextBitmapID;
-  return Handle<Bitmap>(mNextBitmapID++, this);
+  const AssetHandle<Bitmap> handle = mBitmaps.add(std::move(bitmap));
+  mLoadedBitmaps.emplace(fullPath, handle);
+  return handle;
 }
 
 Expected<AssetHandle<Model>> AssetManager::loadModel(const std::filesystem::path& filePath) {
   const std::filesystem::path fullPath = mModelsDir / filePath;
-  if (const auto found = mLoadedAssetIndices.find(fullPath); found != mLoadedAssetIndices.end()) {
-    const auto& [_, index] = *found;
-    return Handle<Model>(index, this);
+  if (const auto found = mLoadedModels.find(fullPath); found != mLoadedModels.end()) {
+    const auto& [_, handle] = *found;
+    return handle;
   }
 
   Assimp::Importer importer;
@@ -59,9 +53,9 @@ Expected<AssetHandle<Model>> AssetManager::loadModel(const std::filesystem::path
 
   Model model;
   RETURN_ERROR_IF_UNEXPECTED(this->processNode(model, scene->mRootNode, scene));
-  mModels[mNextModelID] = std::move(model);
-  mLoadedAssetIndices[fullPath] = mNextModelID;
-  return Handle<Model>(mNextModelID++, this);
+  const AssetHandle<Model> handle = mModels.add(std::move(model));
+  mLoadedModels.emplace(fullPath, handle);
+  return handle;
 }
 
 Expected<void> AssetManager::locateModels() {
@@ -140,7 +134,7 @@ Expected<AssetHandle<Bitmap>> AssetManager::processTexture(const aiMaterial* mat
 
   aiString pathStr;
   material->GetTexture(type, 0, &pathStr);
-  Expected<Handle<Bitmap>> bitmap = this->loadBitmap(pathStr.C_Str());
+  Expected<AssetHandle<Bitmap>> bitmap = this->loadBitmap(pathStr.C_Str());
   RETURN_ERROR_IF_UNEXPECTED(bitmap);
   return bitmap.value();
 }

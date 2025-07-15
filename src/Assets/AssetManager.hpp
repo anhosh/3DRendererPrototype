@@ -1,13 +1,12 @@
 #pragma once
 
 #include <Util/Expected.hpp>
-#include <Util/Macros/Classes.hpp>
+#include <Util/Registry.hpp>
 
 #include <assimp/material.h>
 
 #include <filesystem>
 #include <unordered_map>
-#include <vector>
 
 class aiMesh;
 class aiNode;
@@ -16,17 +15,18 @@ class Bitmap;
 struct Mesh;
 struct Model;
 
+template <typename Asset>
+using AssetHandle = typename Registry<Asset>::Handle;
+
 class AssetManager {
 public:
-  DECLARE_ITEM_HANDLE(AssetManager)
-
   AssetManager();
 
 public:
-  Handle<Mesh> addMesh(Mesh mesh);
+  AssetHandle<Mesh> addMesh(Mesh&& mesh);
 
-  [[nodiscard]] Expected<Handle<Bitmap>> loadBitmap(const std::filesystem::path& filePath);
-  [[nodiscard]] Expected<Handle<Model>> loadModel(const std::filesystem::path& filePath);
+  [[nodiscard]] Expected<AssetHandle<Bitmap>> loadBitmap(const std::filesystem::path& filePath);
+  [[nodiscard]] Expected<AssetHandle<Model>> loadModel(const std::filesystem::path& filePath);
 
 private:
   [[nodiscard]] Expected<void> locateModels();
@@ -34,21 +34,16 @@ private:
 
   [[nodiscard]] Expected<void> processNode(Model& model, aiNode* node, const aiScene* scene);
   [[nodiscard]] Expected<void> processMesh(Model& model, aiMesh* mesh, const aiScene* scene);
-  [[nodiscard]] Expected<Handle<Bitmap>> processTexture(const aiMaterial* material, aiTextureType type);
+  [[nodiscard]] Expected<AssetHandle<Bitmap>> processTexture(const aiMaterial* material, aiTextureType type);
 
 private:
-  std::unordered_map<size_t, Bitmap> mBitmaps;
-  std::unordered_map<size_t, Model> mModels;
-  std::unordered_map<size_t, Mesh> mMeshes;
+  Registry<Bitmap> mBitmaps;
+  Registry<Model> mModels;
+  Registry<Mesh> mMeshes;
 
-  size_t mNextBitmapID = 0;
-  size_t mNextModelID = 0;
-  size_t mNextMeshID = 0;
+  std::unordered_map<std::filesystem::path, AssetHandle<Bitmap>> mLoadedBitmaps;
+  std::unordered_map<std::filesystem::path, AssetHandle<Model>> mLoadedModels;
 
-  std::unordered_map<std::filesystem::path, size_t> mLoadedAssetIndices;
   std::filesystem::path mModelsDir = "models";
   std::filesystem::path mTexturesDir = "textures";
 };
-
-template <typename Asset>
-using AssetHandle = AssetManager::Handle<Asset>;

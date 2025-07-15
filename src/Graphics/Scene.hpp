@@ -5,15 +5,13 @@
 #include <Graphics/Draw.hpp>
 #include <Graphics/Light.hpp>
 #include <Graphics/Scene.hpp>
-#include <Util/Macros/Classes.hpp>
+#include <Util/Registry.hpp>
 
-#include <unordered_map>
 #include <vector>
 
-class Scene {
-public:
-  DECLARE_ITEM_HANDLE(Scene)
+using ActorHandle = Registry<Actor>::Handle;
 
+class Scene {
 public:
   ~Scene() { this->destroy(); }
 
@@ -21,19 +19,14 @@ public:
 
   [[nodiscard]] std::vector<Draw> draw() const;
 
-  Handle<Actor> addActor(Actor actor);
+  ActorHandle addActor(Actor&& actor);
 
 public:
-  std::unordered_map<size_t, Actor> actors;
+  Registry<Actor> actors;
 
   Camera camera;
 
   DirectionalLight directionalLight;
   PointLight pointLight;
   Spotlight spotlight;
-
-private:
-  size_t mNextActorID = 0;
 };
-
-using ActorHandle = Scene::Handle<Actor>;

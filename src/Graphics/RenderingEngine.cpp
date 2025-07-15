@@ -9,10 +9,6 @@
 
 #include <glm/gtc/type_ptr.hpp>
 
-DEFINE_HANDLE_ITEM_FUNCTIONS(RenderingEngine, VertexArray, mVertexArrays)
-DEFINE_HANDLE_ITEM_FUNCTIONS(RenderingEngine, ShaderProgramInstance, mShaderProgramInstances)
-DEFINE_HANDLE_ITEM_FUNCTIONS(RenderingEngine, Texture, mTextures)
-
 Expected<void> addShaderProgram(const ShaderProgramPaths& stages, std::unique_ptr<ShaderProgram>& outShader) {
   Expected<std::unique_ptr<ShaderProgram>> program = ShaderPrograms::fromShaders(stages);
   RETURN_ERROR_IF_UNEXPECTED(program);
@@ -76,7 +72,7 @@ void RenderingEngine::destroy() {
   mBoundTextureSlots.clear();
 }
 
-RenderingEngine::Handle<ShaderProgramInstance> RenderingEngine::createShaderProgramInstance(ShaderProgramType type) {
+ShaderProgramInstanceHandle RenderingEngine::createShaderProgramInstance(ShaderProgramType type) {
   switch (type) {
     case ShaderProgramType::LitSurface:
       return this->addShaderProgramInstance(ShaderProgramInstance::newLitSurface(mLitSurfaceShaderProgram.get()));
@@ -99,16 +95,15 @@ RenderingEngine::Handle<ShaderProgramInstance> RenderingEngine::createShaderProg
   }
 }
 
-RenderingEngine::Handle<ShaderProgramInstance> RenderingEngine::addShaderProgramInstance(ShaderProgramInstance instance) {
-  mShaderProgramInstances.emplace(mNextShaderProgramInstanceID, std::move(instance));
-  const size_t id = mNextShaderProgramInstanceID++;
-  return {id, this};
+ShaderProgramInstanceHandle RenderingEngine::addShaderProgramInstance(ShaderProgramInstance instance) {
+  return mShaderProgramInstances.add(std::move(instance));
 }
 
-const std::vector<RenderingEngine::RenderData>& RenderingEngine::addModel(AssetHandle<Model> model, Handle<ShaderProgramInstance> initialShaderProgramInstance)
+const std::vector<RenderingEngine::RenderData>& RenderingEngine::addModel(AssetHandle<Model> model,
+                                                                          ShaderProgramInstanceHandle initialShaderProgramInstance)
 {
-  if (mUploadedModels.contains(model.index)) {
-    return mUploadedModels.at(model.index);
+  if (mUploadedModels.contains(model.id())) {
+    return mUploadedModels.at(model.id());
   }
 
   std::vector<SamplerOptions> diffuseSamplers;
@@ -118,10 +113,10 @@ const std::vector<RenderingEngine::RenderData>& RenderingEngine::addModel(AssetH
   specularSamplers.resize(model.get().specularMaps.size());
   emissionSamplers.resize(model.get().emissionMaps.size());
 
-  const std::vector<Handle<VertexArray>> vertexArrays = this->addMeshes(model.get().meshes);
-  const std::vector<std::optional<Handle<Texture>>> diffuseMaps = this->addTextures(model.get().diffuseMaps, diffuseSamplers);
-  const std::vector<std::optional<Handle<Texture>>> specularMaps = this->addTextures(model.get().specularMaps, specularSamplers);
-  const std::vector<std::optional<Handle<Texture>>> emissionMaps = this->addTextures(model.get().emissionMaps, emissionSamplers);
+  const std::vector<VertexArrayHandle> vertexArrays = this->addMeshes(model.get().meshes);
+  const std::vector<std::optional<TextureHandle>> diffuseMaps = this->addTextures(model.get().diffuseMaps, diffuseSamplers);
+  const std::vector<std::optional<TextureHandle>> specularMaps = this->addTextures(model.get().specularMaps, specularSamplers);
+  const std::vector<std::optional<TextureHandle>> emissionMaps = this->addTextures(model.get().emissionMaps, emissionSamplers);
 
   std::vector<RenderData> modelResources;
   modelResources.reserve(vertexArrays.size());
@@ -133,47 +128,45 @@ const std::vector<RenderingEngine::RenderData>& RenderingEngine::addModel(AssetH
     modelResources.push_back(resources);
   }
 
-  const auto [it, inserted] = mUploadedModels.emplace(model.index, std::move(modelResources));
-  const auto& [index, resource] = *it;
-  return resource;
+  const auto [it, inserted] = mUploadedModels.emplace(model.id(), std::move(modelResources));
+  const auto& [index, resources] = *it;
+  return resources;
 }
 
-RenderingEngine::Handle<VertexArray> RenderingEngine::addMesh(AssetHandle<Mesh> mesh) {
-  mVertexArrays.emplace(mNextVertexArrayID, mesh.get());
-  return {mNextVertexArrayID++, this};
+VertexArrayHandle RenderingEngine::addMesh(AssetHandle<Mesh> mesh) {
+  return mVertexArrays.add(mesh.get());
 }
 
-RenderingEngine::Handle<Texture> RenderingEngine::addTexture(AssetHandle<Bitmap> bitmap, const SamplerOptions& options) {
-  if (mUploadedTextures.contains(bitmap.index)) {
-    return mUploadedTextures.at(bitmap.index);
+TextureHandle RenderingEngine::addTexture(AssetHandle<Bitmap> bitmap, const SamplerOptions& options) {
+  if (mUploadedTextures.contains(bitmap.id())) {
+    return mUploadedTextures.at(bitmap.id());
   }
 
-  mTextures.emplace(mNextTextureID, Texture(bitmap.get(), options));
-  const Handle<Texture> handle = {mNextTextureID++, this};
-  mUploadedTextures.emplace(bitmap.index, handle);
+  const TextureHandle handle = mTextures.add(Texture(bitmap.get(), options));
+  mUploadedTextures.emplace(bitmap.id(), handle);
   return handle;
 }
 
-std::vector<RenderingEngine::Handle<VertexArray>> RenderingEngine::addMeshes(std::span<const AssetHandle<Mesh>> meshes) {
-  std::vector<Handle<VertexArray>> refs;
+std::vector<VertexArrayHandle> RenderingEngine::addMeshes(std::span<const AssetHandle<Mesh>> meshes) {
+  std::vector<VertexArrayHandle> refs;
   refs.reserve(meshes.size());
   for (const AssetHandle<Mesh>& mesh : meshes) {
-    const Handle<VertexArray> ref = this->addMesh(mesh);
+    const VertexArrayHandle ref = this->addMesh(mesh);
     refs.push_back(ref);
   }
   return refs;
 }
 
 auto RenderingEngine::addTextures(std::span<const std::optional<AssetHandle<Bitmap>>> bitmaps, std::span<const SamplerOptions> options)
-  -> std::vector<std::optional<Handle<Texture>>>
+  -> std::vector<std::optional<TextureHandle>>
 {
   assert(bitmaps.size() == options.size());
-  std::vector<std::optional<Handle<Texture>>> refs;
+  std::vector<std::optional<TextureHandle>> refs;
   refs.reserve(bitmaps.size());
   for (size_t i = 0; i < bitmaps.size(); ++i) {
     if (const std::optional<AssetHandle<Bitmap>> bitmap = bitmaps[i]; bitmap.has_value()) {
       const SamplerOptions& option = options[i];
-      const Handle<Texture> ref = this->addTexture(bitmap.value(), option);
+      const TextureHandle ref = this->addTexture(bitmap.value(), option);
       refs.emplace_back(ref);
     } else {
       refs.emplace_back();
@@ -196,21 +189,22 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
   mFramebuffers.front().bind();
 
   glViewport(0, 0, static_cast<GLint>(windowSize.x), static_cast<GLint>(windowSize.y));
+  glEnable(GL_STENCIL_TEST);
   glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
   glStencilMask(0xff);
   glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-  const std::vector<Draw> draws = scene.draw();
+  std::vector<Draw> draws = scene.draw();
   if (draws.empty()) {
     return;
   }
 
   TransformMatrices transforms = { .view = camera.view(), .projection = camera.projection(windowSize) };
 
-  const Draw* lastDraw = &draws.front();
+  Draw* lastDraw = &draws.front();
   for (size_t i = 0; i < draws.size(); i++) {
-    const Draw* currDraw = &draws[i];
+    Draw* currDraw = &draws[i];
 
     if (i == 0 || currDraw->bBackfaceCulling != lastDraw->bBackfaceCulling) {
       if (currDraw->bBackfaceCulling) {
@@ -243,31 +237,33 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
       }
     }
 
-    const ShaderProgramInstance& currShader = mShaderProgramInstances.at(currDraw->shaderProgramInstanceIndex);
-    if (i == 0 || currDraw->shaderProgramInstanceIndex != lastDraw->shaderProgramInstanceIndex) {
-      const ShaderProgramInstance& lastShader = mShaderProgramInstances.at(lastDraw->shaderProgramInstanceIndex);
+    const ShaderProgramInstance& currShader = currDraw->shaderProgramInstance.get();
+    if (i == 0 || currDraw->shaderProgramInstance.id() != lastDraw->shaderProgramInstance.id()) {
+      const ShaderProgramInstance& lastShader = lastDraw->shaderProgramInstance.get();
       if (i == 0 || currShader.shaderProgram != lastShader.shaderProgram) {
         currShader.use();
       }
       currShader.bindUniforms();
     }
 
-    if (i == 0 || currDraw->shaderProgramInstanceIndex != lastDraw->shaderProgramInstanceIndex || currDraw->transform != lastDraw->transform) {
+    if (i == 0 || currDraw->shaderProgramInstance.id() != lastDraw->shaderProgramInstance.id() ||
+        currDraw->transform != lastDraw->transform)
+    {
       transforms.model = currDraw->transform.matrix();
       transforms.normal = glm::transpose(glm::inverse(transforms.model));
       currShader.shaderProgram->bindTransforms(transforms);
     }
 
     GLuint slot = GL_TEXTURE0;
-    const auto bindTextures = [&, this](const size_t currTextureIndex, const size_t lastTextureIndex) {
-      if (i == 0 || currTextureIndex != lastTextureIndex) {
-        if (currTextureIndex == SIZE_MAX) {
+    const auto bindTextures = [&, this](const std::optional<TextureHandle>& currTexture, const std::optional<TextureHandle>& lastTexture) {
+      if (i == 0 || currTexture != lastTexture) {
+        if (currTexture.has_value()) {
+          currTexture->get().bind(slot);
+          mBoundTextureSlots.insert(slot);
+        } else {
           glActiveTexture(slot);
           glBindTexture(GL_TEXTURE_2D, 0);
           mBoundTextureSlots.erase(slot);
-        } else {
-          mTextures[currTextureIndex].bind(slot);
-          mBoundTextureSlots.insert(slot);
         }
       }
       ++slot;
@@ -276,8 +272,8 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
     bindTextures(currDraw->specularMapIndex, lastDraw->specularMapIndex);
     bindTextures(currDraw->emissionMapIndex, lastDraw->emissionMapIndex);
 
-    const VertexArray& currVA = mVertexArrays[currDraw->vertexArrayIndex];
-    if (i == 0 || currDraw->vertexArrayIndex != lastDraw->vertexArrayIndex) {
+    const VertexArray& currVA = currDraw->vertexArray.get();
+    if (i == 0 || currDraw->vertexArray != lastDraw->vertexArray) {
       glBindVertexArray(currVA.vao);
     }
     glDrawElements(GL_TRIANGLES, currVA.indexCount, GL_UNSIGNED_INT, nullptr);
@@ -294,7 +290,7 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
   mBoundTextureSlots.clear();
 }
 
-void RenderingEngine::postProcess(std::span<Handle<ShaderProgramInstance>> postProcessingShaders) {
+void RenderingEngine::postProcess(std::span<ShaderProgramInstanceHandle> postProcessingShaders) {
   if (mFramebuffers.size() < postProcessingShaders.size() + 1) {
     while (mFramebuffers.size() < postProcessingShaders.size() + 1) {
       mFramebuffers.emplace_back(mLastFramebufferSize);
@@ -309,7 +305,7 @@ void RenderingEngine::postProcess(std::span<Handle<ShaderProgramInstance>> postP
 
   glBindVertexArray(mScreenQuadVAO);
 
-  for (Handle effectShader : postProcessingShaders) {
+  for (ShaderProgramInstanceHandle effectShader : postProcessingShaders) {
     const Framebuffer& currFramebuffer = mFramebuffers[mLastFramebufferIndex + 1];
     currFramebuffer.bind();
 

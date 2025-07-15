@@ -4,11 +4,11 @@
 
 struct Draw {
   Transform transform = {};
-  size_t shaderProgramInstanceIndex = SIZE_MAX;
-  size_t vertexArrayIndex = SIZE_MAX;
-  size_t diffuseMapIndex = SIZE_MAX;
-  size_t specularMapIndex = SIZE_MAX;
-  size_t emissionMapIndex = SIZE_MAX;
+  ShaderProgramInstanceHandle shaderProgramInstance;
+  VertexArrayHandle vertexArray;
+  std::optional<TextureHandle> diffuseMapIndex = std::nullopt;
+  std::optional<TextureHandle> specularMapIndex = std::nullopt;
+  std::optional<TextureHandle> emissionMapIndex = std::nullopt;
   bool bBackfaceCulling = true;
   bool bWriteToStencil = false;
   bool bStencilTest = false;

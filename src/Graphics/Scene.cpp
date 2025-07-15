@@ -5,8 +5,6 @@
 #include <map>
 #include <ranges>
 
-DEFINE_HANDLE_ITEM_FUNCTIONS(Scene, Actor, actors)
-
 void Scene::destroy() {
   actors.clear();
 }
@@ -28,11 +26,11 @@ std::vector<Draw> Scene::draw() const {
       if (!resources.renderOptions.bTransparent) {
         draws.push_back(Draw {
           .transform = actor.transform,
-          .shaderProgramInstanceIndex = resources.shaderProgramInstance.index,
-          .vertexArrayIndex = resources.vertexArray.index,
-          .diffuseMapIndex = resources.diffuseMap.transform([](auto v) { return v.index; }).value_or(SIZE_MAX),
-          .specularMapIndex = resources.specularMap.transform([](auto v) { return v.index; }).value_or(SIZE_MAX),
-          .emissionMapIndex = resources.emissionMap.transform([](auto v) { return v.index; }).value_or(SIZE_MAX),
+          .shaderProgramInstance = resources.shaderProgramInstance,
+          .vertexArray = resources.vertexArray,
+          .diffuseMapIndex = resources.diffuseMap,
+          .specularMapIndex = resources.specularMap,
+          .emissionMapIndex = resources.emissionMap,
           .bBackfaceCulling = resources.renderOptions.bBackfaceCulling,
           .bWriteToStencil = resources.renderOptions.outlineShaderInstance.has_value(),
         });
@@ -48,16 +46,16 @@ std::vector<Draw> Scene::draw() const {
   }
 
   // Sorted transparent objects
-  for (auto it = transparentMeshes.rbegin(); it != transparentMeshes.rend(); ++it) {
-    const auto& [actor, resIdx] = it->second;
+  for (const auto& mesh : std::ranges::reverse_view(transparentMeshes)) {
+    const auto& [actor, resIdx] = mesh.second;
     const RenderingEngine::RenderData& resources = actor->renderData[resIdx];
     draws.push_back(Draw {
       .transform = actor->transform,
-      .shaderProgramInstanceIndex = resources.shaderProgramInstance.index,
-      .vertexArrayIndex = resources.vertexArray.index,
-      .diffuseMapIndex = resources.diffuseMap.transform([](auto v) { return v.index; }).value_or(SIZE_MAX),
-      .specularMapIndex = resources.specularMap.transform([](auto v) { return v.index; }).value_or(SIZE_MAX),
-      .emissionMapIndex = resources.emissionMap.transform([](auto v) { return v.index; }).value_or(SIZE_MAX),
+      .shaderProgramInstance = resources.shaderProgramInstance,
+      .vertexArray = resources.vertexArray,
+      .diffuseMapIndex = resources.diffuseMap,
+      .specularMapIndex = resources.specularMap,
+      .emissionMapIndex = resources.emissionMap,
       .bBackfaceCulling = resources.renderOptions.bBackfaceCulling,
       .bWriteToStencil = resources.renderOptions.outlineShaderInstance.has_value(),
       .bTransparent = true,
@@ -71,8 +69,8 @@ std::vector<Draw> Scene::draw() const {
     outlineTransform.scale *= 1.05f;
     draws.push_back(Draw {
       .transform = outlineTransform,
-      .shaderProgramInstanceIndex = resources.renderOptions.outlineShaderInstance->index,
-      .vertexArrayIndex = resources.vertexArray.index,
+      .shaderProgramInstance = resources.renderOptions.outlineShaderInstance.value(),
+      .vertexArray = resources.vertexArray,
       .bBackfaceCulling = true,
       .bStencilTest = true,
       .bDepthTest = false,
@@ -82,7 +80,6 @@ std::vector<Draw> Scene::draw() const {
   return draws;
 }
 
-Scene::Handle<Actor> Scene::addActor(Actor actor) {
-  actors[mNextActorID] = std::move(actor);
-  return { mNextActorID++, this };
+ActorHandle Scene::addActor(Actor&& actor) {
+  return actors.add(std::forward<Actor>(actor));
 }
