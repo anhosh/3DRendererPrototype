@@ -1,6 +1,41 @@
+#include <Graphics/ShaderProgramInstance.hpp>
+
 #include <Graphics/Light.hpp>
 #include <Graphics/Material.hpp>
-#include <Graphics/ShaderProgramInstance.hpp>
+
+#include <ranges>
+
+void ShaderProgramInstance::use() const {
+  glUseProgram(shaderProgram->id());
+}
+
+void ShaderProgramInstance::bindUniforms() const {
+  for (const ShaderUniform& uniform : std::ranges::views::values(this->uniforms)) {
+    if (const GLint* int_value = std::get_if<GLint>(&uniform.value)) {
+      glUniform1i(uniform.location, *int_value);
+    } else if (const GLuint* uint_value = std::get_if<GLuint>(&uniform.value)) {
+      glUniform1ui(uniform.location, *uint_value);
+    } else if (const GLfloat* float_value = std::get_if<GLfloat>(&uniform.value)) {
+      glUniform1f(uniform.location, *float_value);
+    } else if (const GLdouble* double_value = std::get_if<GLdouble>(&uniform.value)) {
+      glUniform1d(uniform.location, *double_value);
+    } else if (const glm::vec2* vec2_value = std::get_if<glm::vec2>(&uniform.value)) {
+      glUniform2f(uniform.location, vec2_value->x, vec2_value->y);
+    } else if (const glm::vec3* vec3_value = std::get_if<glm::vec3>(&uniform.value)) {
+      glUniform3f(uniform.location, vec3_value->x, vec3_value->y, vec3_value->z);
+    } else if (const glm::vec4* vec4_value = std::get_if<glm::vec4>(&uniform.value)) {
+      glUniform4f(uniform.location, vec4_value->x, vec4_value->y, vec4_value->z, vec4_value->w);
+    } else if (const glm::mat2* mat2_value = std::get_if<glm::mat2>(&uniform.value)) {
+      glUniformMatrix2fv(uniform.location, 1, GL_FALSE, glm::value_ptr(*mat2_value));
+    } else if (const glm::mat3* mat3_value = std::get_if<glm::mat3>(&uniform.value)) {
+      glUniformMatrix3fv(uniform.location, 1, GL_FALSE, glm::value_ptr(*mat3_value));
+    } else if (const glm::mat4* mat4_value = std::get_if<glm::mat4>(&uniform.value)) {
+      glUniformMatrix4fv(uniform.location, 1, GL_FALSE, glm::value_ptr(*mat4_value));
+    } else {
+      PANIC("Unsupported uniform type");
+    }
+  }
+}
 
 ShaderProgramInstance ShaderProgramInstance::newLitSurface(NotNull<ShaderProgram> program) {
   ShaderProgramInstance instance(program);
@@ -76,6 +111,14 @@ ShaderProgramInstance ShaderProgramInstance::newPostProcessingCopy(NotNull<Shade
 
   instance.setUniform("uScreenTexture", 0);
   
+  return instance;
+}
+
+ShaderProgramInstance ShaderProgramInstance::newPostProcessingGrayscale(NotNull<ShaderProgram> program) {
+  ShaderProgramInstance instance(program);
+
+  instance.setUniform("uScreenTexture", 0);
+
   return instance;
 }
 

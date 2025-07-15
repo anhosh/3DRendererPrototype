@@ -55,7 +55,7 @@ public:
                                                           std::span<const SamplerOptions> options = {});
 
   void renderScene(const Scene& scene, const Camera& camera, glm::uvec2 windowSize);
-  void postProcess();
+  void postProcess(std::span<const ShaderProgramInstance> postProcessingShaders);
   void present(glm::uvec2 windowSize);
 
 private:
@@ -65,6 +65,7 @@ private:
   std::unique_ptr<ShaderProgram> mVisualiseDepthShaderProgram;
   std::unique_ptr<ShaderProgram> mVisualiseNormalShaderProgram;
   std::unique_ptr<ShaderProgram> mPostProcessCopyShaderProgram;
+  std::unique_ptr<ShaderProgram> mPostProcessGrayscaleShaderProgram;
   std::unique_ptr<ShaderProgram> mPostProcessInvertShaderProgram;
 
   std::vector<ShaderProgramInstance> mShaderProgramInstances;

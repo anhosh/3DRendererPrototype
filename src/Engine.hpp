@@ -47,6 +47,10 @@ struct AppState {
 
   std::optional<RenderingEngine::Handle<ShaderProgramInstance>> backpackOutlineShaderProgram = std::nullopt;
   std::optional<RenderingEngine::Handle<ShaderProgramInstance>> lightCubeOutlineShaderProgram = std::nullopt;
+
+  std::optional<RenderingEngine::Handle<ShaderProgramInstance>> postProcessCopyShaderProgram = std::nullopt;
+  std::optional<RenderingEngine::Handle<ShaderProgramInstance>> postProcessGrayscaleShaderProgram = std::nullopt;
+  std::optional<RenderingEngine::Handle<ShaderProgramInstance>> postProcessInvertShaderProgram = std::nullopt;
 };
 
 class Engine {

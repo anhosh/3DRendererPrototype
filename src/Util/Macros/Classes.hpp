@@ -2,8 +2,6 @@
 
 #include <Util/NotNull.hpp>
 
-#include <cstdint>
-
 #define DECLARE_ITEM_HANDLE(OwnerClass) \
   template <typename Item> \
   class Handle { \

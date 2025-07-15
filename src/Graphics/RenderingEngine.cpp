@@ -1,14 +1,12 @@
 #include <Graphics/RenderingEngine.hpp>
 
 #include <Graphics/Draw.hpp>
+#include <Graphics/Meshes.hpp>
 #include <Graphics/Scene.hpp>
 #include <Graphics/ShaderProgram.hpp>
 #include <Graphics/VertexArray.hpp>
 
 #include <glm/gtc/type_ptr.hpp>
-
-#include <ranges>
-#include <Graphics/Meshes.hpp>
 
 DEFINE_HANDLE_ITEM_GET(RenderingEngine, VertexArray, mVertexArrays)
 DEFINE_HANDLE_ITEM_GET(RenderingEngine, ShaderProgramInstance, mShaderProgramInstances)
@@ -34,6 +32,8 @@ Expected<void> RenderingEngine::init() {
                                               mOutlineShaderProgram));
   RETURN_ERROR_IF_UNEXPECTED(addShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/copy.frag"},
                                               mPostProcessCopyShaderProgram));
+  RETURN_ERROR_IF_UNEXPECTED(addShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/grayscale.frag"},
+                                              mPostProcessGrayscaleShaderProgram));
   RETURN_ERROR_IF_UNEXPECTED(addShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/invert.frag"},
                                               mPostProcessInvertShaderProgram));
 
@@ -89,6 +89,8 @@ RenderingEngine::Handle<ShaderProgramInstance> RenderingEngine::createShaderProg
       return this->addShaderProgramInstance(ShaderProgramInstance::newVisualiseNormal(mVisualiseNormalShaderProgram.get()));
     case ShaderProgramType::PostProcessCopy:
       return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingCopy(mPostProcessCopyShaderProgram.get()));
+    case ShaderProgramType::PostProcessGrayscale:
+      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingCopy(mPostProcessGrayscaleShaderProgram.get()));
     case ShaderProgramType::PostProcessInvert:
       return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingInvert(mPostProcessInvertShaderProgram.get()));
     default:
@@ -181,20 +183,18 @@ auto RenderingEngine::addTextures(std::span<const std::optional<AssetHandle<Bitm
   return refs;
 }
 
-#define RENDER_TO_TEXTURE 1
-
 void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, const glm::uvec2 windowSize) {
-#if RENDER_TO_TEXTURE
   if (mFramebuffers.empty()) {
     mFramebuffers.emplace_back(windowSize);
     mLastFramebufferSize = windowSize;
   } else if (mLastFramebufferSize != windowSize) {
-    mFramebuffers.front().destroy();
-    mFramebuffers.front().init(windowSize);
+    for (Framebuffer& framebuffer : mFramebuffers) {
+      framebuffer.destroy();
+      framebuffer.init(windowSize);
+    }
     mLastFramebufferSize = windowSize;
   }
   mFramebuffers.front().bind();
-#endif
 
   glViewport(0, 0, static_cast<GLint>(windowSize.x), static_cast<GLint>(windowSize.y));
   glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
@@ -248,34 +248,9 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
     if (i == 0 || currDraw->shaderProgramInstanceIndex != lastDraw->shaderProgramInstanceIndex) {
       const ShaderProgramInstance& lastShader = mShaderProgramInstances[lastDraw->shaderProgramInstanceIndex];
       if (i == 0 || currShader.shaderProgram != lastShader.shaderProgram) {
-        glUseProgram(NotNull(currShader.shaderProgram)->id());
+        currShader.use();
       }
-
-      for (const ShaderUniform& uniform : std::ranges::views::values(currShader.uniforms)) {
-        if (const GLint* int_value = std::get_if<GLint>(&uniform.value)) {
-          glUniform1i(uniform.location, *int_value);
-        } else if (const GLuint* uint_value = std::get_if<GLuint>(&uniform.value)) {
-          glUniform1ui(uniform.location, *uint_value);
-        } else if (const GLfloat* float_value = std::get_if<GLfloat>(&uniform.value)) {
-          glUniform1f(uniform.location, *float_value);
-        } else if (const GLdouble* double_value = std::get_if<GLdouble>(&uniform.value)) {
-          glUniform1d(uniform.location, *double_value);
-        } else if (const glm::vec2* vec2_value = std::get_if<glm::vec2>(&uniform.value)) {
-          glUniform2f(uniform.location, vec2_value->x, vec2_value->y);
-        } else if (const glm::vec3* vec3_value = std::get_if<glm::vec3>(&uniform.value)) {
-          glUniform3f(uniform.location, vec3_value->x, vec3_value->y, vec3_value->z);
-        } else if (const glm::vec4* vec4_value = std::get_if<glm::vec4>(&uniform.value)) {
-          glUniform4f(uniform.location, vec4_value->x, vec4_value->y, vec4_value->z, vec4_value->w);
-        } else if (const glm::mat2* mat2_value = std::get_if<glm::mat2>(&uniform.value)) {
-          glUniformMatrix2fv(uniform.location, 1, GL_FALSE, glm::value_ptr(*mat2_value));
-        } else if (const glm::mat3* mat3_value = std::get_if<glm::mat3>(&uniform.value)) {
-          glUniformMatrix3fv(uniform.location, 1, GL_FALSE, glm::value_ptr(*mat3_value));
-        } else if (const glm::mat4* mat4_value = std::get_if<glm::mat4>(&uniform.value)) {
-          glUniformMatrix4fv(uniform.location, 1, GL_FALSE, glm::value_ptr(*mat4_value));
-        } else {
-          PANIC("Unsupported uniform type");
-        }
-      }
+      currShader.bindUniforms();
     }
 
     if (i == 0 || currDraw->shaderProgramInstanceIndex != lastDraw->shaderProgramInstanceIndex || currDraw->transform != lastDraw->transform) {
@@ -320,12 +295,43 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
   mBoundTextureSlots.clear();
 }
 
-void RenderingEngine::postProcess() {
-  // TODO
+void RenderingEngine::postProcess(std::span<const ShaderProgramInstance> postProcessingShaders) {
+  if (mFramebuffers.size() < postProcessingShaders.size() + 1) {
+    while (mFramebuffers.size() < postProcessingShaders.size() + 1) {
+      mFramebuffers.emplace_back(mLastFramebufferSize);
+    }
+  }
+
+  glViewport(0, 0, static_cast<GLint>(mLastFramebufferSize.x), static_cast<GLint>(mLastFramebufferSize.y));
+  glDisable(GL_BLEND);
+  glDisable(GL_CULL_FACE);
+  glDisable(GL_DEPTH_TEST);
+  glDisable(GL_STENCIL_TEST);
+
+  glBindVertexArray(mScreenQuadVAO);
+
+  for (const ShaderProgramInstance& effectShader : postProcessingShaders) {
+    const Framebuffer& currFramebuffer = mFramebuffers[mLastFramebufferIndex + 1];
+    currFramebuffer.bind();
+
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    const Framebuffer& prevFramebuffer = mFramebuffers[mLastFramebufferIndex];
+    effectShader.use();
+    effectShader.bindUniforms();
+    prevFramebuffer.colorAttachment.bind();
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+    ++mLastFramebufferIndex;
+  }
+
+  glUseProgram(GL_NONE);
+  glBindVertexArray(GL_NONE);
+  glBindTexture(GL_TEXTURE_2D, GL_NONE);
 }
 
 void RenderingEngine::present(const glm::uvec2 windowSize) {
-#if RENDER_TO_TEXTURE
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
   glViewport(0, 0, static_cast<GLint>(windowSize.x), static_cast<GLint>(windowSize.y));
   glDisable(GL_BLEND);
@@ -333,19 +339,18 @@ void RenderingEngine::present(const glm::uvec2 windowSize) {
   glDisable(GL_DEPTH_TEST);
   glDisable(GL_STENCIL_TEST);
 
-  glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+  glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT);
 
   glUseProgram(mPostProcessCopyShaderProgram->id());
-  glBindVertexArray(mScreenQuadVAO);
-  mFramebuffers[mLastFramebufferIndex].colorAttachment.bind();
   glUniform1i(0, 0); // bind uScreenTexture sampler
+  mFramebuffers[mLastFramebufferIndex].colorAttachment.bind();
+  glBindVertexArray(mScreenQuadVAO);
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
   glUseProgram(GL_NONE);
   glBindVertexArray(GL_NONE);
-  mFramebuffers[mLastFramebufferIndex].colorAttachment.unbind();
+  glBindTexture(GL_TEXTURE_2D, GL_NONE);
 
   mLastFramebufferIndex = 0;
-#endif
 }

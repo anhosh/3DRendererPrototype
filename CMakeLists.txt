@@ -27,6 +27,7 @@ target_precompile_headers(${PROJECT_NAME} PRIVATE
   <glad/glad.h>
   <GLFW/glfw3.h>
   <glm/glm.hpp>
+  <cstdint>
 )
 
 # enable including headers in 'src/'

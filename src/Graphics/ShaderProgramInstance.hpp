@@ -15,6 +15,7 @@ enum class ShaderProgramType : int32_t {
   VisualiseDepth,
   VisualiseNormal,
   PostProcessCopy,
+  PostProcessGrayscale,
   PostProcessInvert,
 };
 
@@ -85,6 +86,9 @@ public:
     };
   }
 
+  void use() const;
+  void bindUniforms() const;
+
   NotNull<ShaderProgram> shaderProgram;
   std::unordered_map<std::string, ShaderUniform> uniforms;
 
@@ -97,5 +101,6 @@ private:
   static ShaderProgramInstance newVisualiseDepth(NotNull<ShaderProgram> program);
   static ShaderProgramInstance newVisualiseNormal(NotNull<ShaderProgram> program);
   static ShaderProgramInstance newPostProcessingCopy(NotNull<ShaderProgram> program);
+  static ShaderProgramInstance newPostProcessingGrayscale(NotNull<ShaderProgram> program);
   static ShaderProgramInstance newPostProcessingInvert(NotNull<ShaderProgram> program);
 };

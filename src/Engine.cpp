@@ -145,8 +145,13 @@ Expected<void> Engine::createScene() {
   mState.lightShaderProgram = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::Light);
   mState.visualiseDepthShaderProgram = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::VisualiseDepth);
   mState.visualiseNormalShaderProgram = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::VisualiseNormal);
+
   mState.backpackOutlineShaderProgram = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::Outline);
   mState.lightCubeOutlineShaderProgram = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::Outline);
+
+  mState.postProcessCopyShaderProgram = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::PostProcessCopy);
+  mState.postProcessGrayscaleShaderProgram = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::PostProcessGrayscale);
+  mState.postProcessInvertShaderProgram = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::PostProcessInvert);
 
   // Upload assets to GPU
   const RenderingEngine::Handle<VertexArray> quadVA = mState.renderingEngine->addMesh(quadMesh);
@@ -484,7 +489,10 @@ void Engine::updateScene() {
 void Engine::drawFrame() {
   mState.lastSceneRenderTime = timedBlock([this] {
     mState.renderingEngine->renderScene(*mState.scene, mState.scene->camera, mState.windowSize);
-    mState.renderingEngine->postProcess();
+    mState.renderingEngine->postProcess(std::array {
+      mState.postProcessInvertShaderProgram.value().get(),
+      mState.postProcessGrayscaleShaderProgram.value().get(),
+    });
     mState.renderingEngine->present(mState.windowSize);
   });
 
