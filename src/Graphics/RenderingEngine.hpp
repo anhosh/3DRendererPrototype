@@ -69,6 +69,7 @@ private:
   std::unique_ptr<ShaderProgram> mPostProcessCopyShaderProgram;
   std::unique_ptr<ShaderProgram> mPostProcessGrayscaleShaderProgram;
   std::unique_ptr<ShaderProgram> mPostProcessInvertShaderProgram;
+  std::unique_ptr<ShaderProgram> mPostProcessKernel3x3ShaderProgram;
 
   Registry<ShaderProgramInstance> mShaderProgramInstances;
   Registry<VertexArray> mVertexArrays;

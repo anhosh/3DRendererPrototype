@@ -33,6 +33,8 @@ Expected<void> RenderingEngine::init() {
                                               mPostProcessGrayscaleShaderProgram));
   RETURN_ERROR_IF_UNEXPECTED(addShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/invert.frag"},
                                               mPostProcessInvertShaderProgram));
+  RETURN_ERROR_IF_UNEXPECTED(addShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/kernel3x3.frag"},
+                                              mPostProcessKernel3x3ShaderProgram));
 
   glGenVertexArrays(1, &mScreenQuadVAO);
 
@@ -72,7 +74,7 @@ void RenderingEngine::destroy() {
   mBoundTextureSlots.clear();
 }
 
-ShaderProgramInstanceHandle RenderingEngine::createShaderProgramInstance(ShaderProgramType type) {
+ShaderProgramInstanceHandle RenderingEngine::createShaderProgramInstance(const ShaderProgramType type) {
   switch (type) {
     case ShaderProgramType::LitSurface:
       return this->addShaderProgramInstance(ShaderProgramInstance::newLitSurface(mLitSurfaceShaderProgram.get()));
@@ -86,10 +88,16 @@ ShaderProgramInstanceHandle RenderingEngine::createShaderProgramInstance(ShaderP
       return this->addShaderProgramInstance(ShaderProgramInstance::newVisualiseNormal(mVisualiseNormalShaderProgram.get()));
     case ShaderProgramType::PostProcessCopy:
       return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingCopy(mPostProcessCopyShaderProgram.get()));
+    case ShaderProgramType::PostProcessBlur:
+      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingBlur(mPostProcessKernel3x3ShaderProgram.get()));
+    case ShaderProgramType::PostProcessEdgeDetection:
+      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingEdgeDetection(mPostProcessKernel3x3ShaderProgram.get()));
     case ShaderProgramType::PostProcessGrayscale:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingCopy(mPostProcessGrayscaleShaderProgram.get()));
+      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingGrayscale(mPostProcessGrayscaleShaderProgram.get()));
     case ShaderProgramType::PostProcessInvert:
       return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingInvert(mPostProcessInvertShaderProgram.get()));
+    case ShaderProgramType::PostProcessSharpen:
+      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingSharpen(mPostProcessKernel3x3ShaderProgram.get()));
     default:
       PANIC("Unsupported shader program type");
   }

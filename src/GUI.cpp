@@ -162,21 +162,24 @@ void guiPostProcessing(AppState& state) {
   if (ImGui::CollapsingHeader("Post processing")) {
     ImGui::Indent();
 
-    static constexpr const char* fsTypeNames[] = {
-      "Copy",
-      "Grayscale",
-      "Invert",
-    };
     constexpr auto firstPostProcessingEffectIndex = static_cast<int32_t>(ShaderProgramType::PostProcessCopy);
     std::optional<int32_t> effectToDelete = std::nullopt;
     for (size_t effectIndex = 0; effectIndex < state.postProcessingShaderProgramTypes.size(); effectIndex++) {
       const int32_t fsTypeNameIndex = static_cast<int32_t>(state.postProcessingShaderProgramTypes[effectIndex]) - firstPostProcessingEffectIndex;
       ShaderProgramType& shaderProgramType = state.postProcessingShaderProgramTypes[effectIndex];
       ShaderProgramInstanceHandle& shaderProgramInstance = state.postProcessingShaderProgramInstances[effectIndex];
-      const std::string label = std::format("Effect shader {}", effectIndex);
+      static constexpr const char* fsTypeNames[] = {
+        "Copy",
+        "Blur",
+        "Edge detection",
+        "Grayscale",
+        "Invert",
+        "Sharpen",
+      };
+      const std::string effectIndexStr = std::to_string(effectIndex);
 
-      if (ImGui::BeginCombo(label.c_str(), fsTypeNames[fsTypeNameIndex])) {
-        for (size_t fsTypeOptionIndex = 0; fsTypeOptionIndex < 3; fsTypeOptionIndex++) {
+      if (ImGui::BeginCombo(("##postProcessingEffect" + effectIndexStr).c_str(), fsTypeNames[fsTypeNameIndex])) {
+        for (size_t fsTypeOptionIndex = 0; fsTypeOptionIndex < std::size(fsTypeNames); fsTypeOptionIndex++) {
           if (ImGui::MenuItem(fsTypeNames[fsTypeOptionIndex])) {
             shaderProgramType = static_cast<ShaderProgramType>(fsTypeOptionIndex + firstPostProcessingEffectIndex);
             shaderProgramInstance.erase();
@@ -187,8 +190,13 @@ void guiPostProcessing(AppState& state) {
       }
 
       ImGui::SameLine();
-      if (ImGui::Button(("Delete##" + std::to_string(effectIndex)).c_str())) {
+      if (ImGui::Button(("Delete##postProcessingEffect" + effectIndexStr).c_str())) {
         effectToDelete = static_cast<int32_t>(effectIndex);
+      }
+
+      if (shaderProgramInstance.get().uniforms.contains("uOffset")) {
+        auto* uOffset = shaderProgramInstance.get().uniforms.at("uOffset").getPtr<GLfloat>();
+        ImGui::DragFloat(("Offset##postProcessingEffect" + effectIndexStr).c_str(), uOffset, 0.00001f, 0.0f, 0.01f, "%f.04");
       }
     }
 

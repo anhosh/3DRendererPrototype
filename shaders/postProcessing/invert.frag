@@ -9,5 +9,6 @@ in VS_OUT {
 out vec4 outColor;
 
 void main() {
-  outColor = vec4(1 - texture(uScreenTexture, fsIn.texCoord).rgb, 1);
+  outColor = texture(uScreenTexture, fsIn.texCoord);
+  outColor = vec4(1 - outColor.rgb, 1);
 }

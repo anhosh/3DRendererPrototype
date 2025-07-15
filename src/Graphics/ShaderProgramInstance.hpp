@@ -15,8 +15,11 @@ enum class ShaderProgramType : int32_t {
   VisualiseDepth,
   VisualiseNormal,
   PostProcessCopy,
+  PostProcessBlur,
+  PostProcessEdgeDetection,
   PostProcessGrayscale,
   PostProcessInvert,
+  PostProcessSharpen,
 };
 
 struct ShaderUniform {
@@ -101,6 +104,9 @@ private:
   static ShaderProgramInstance newVisualiseDepth(NotNull<ShaderProgram> program);
   static ShaderProgramInstance newVisualiseNormal(NotNull<ShaderProgram> program);
   static ShaderProgramInstance newPostProcessingCopy(NotNull<ShaderProgram> program);
+  static ShaderProgramInstance newPostProcessingBlur(NotNull<ShaderProgram> program);
+  static ShaderProgramInstance newPostProcessingEdgeDetection(NotNull<ShaderProgram> program);
   static ShaderProgramInstance newPostProcessingGrayscale(NotNull<ShaderProgram> program);
   static ShaderProgramInstance newPostProcessingInvert(NotNull<ShaderProgram> program);
+  static ShaderProgramInstance newPostProcessingSharpen(NotNull<ShaderProgram> program);
 };

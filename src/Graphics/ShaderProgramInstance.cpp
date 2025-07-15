@@ -114,6 +114,30 @@ ShaderProgramInstance ShaderProgramInstance::newPostProcessingCopy(NotNull<Shade
   return instance;
 }
 
+ShaderProgramInstance ShaderProgramInstance::newPostProcessingBlur(NotNull<ShaderProgram> program) {
+  ShaderProgramInstance instance(program);
+
+  instance.setUniform("uScreenTexture", 0);
+  instance.setUniform("uOffset", 1.0f / 300.0f);
+  instance.setUniform("uKernel", glm::mat3(1.0f, 2.0f, 1.0f,
+                                                      2.0f, 4.0f, 2.0f,
+                                                      1.0f, 2.0f, 1.0f) / 16.0f);
+
+  return instance;
+}
+
+ShaderProgramInstance ShaderProgramInstance::newPostProcessingEdgeDetection(NotNull<ShaderProgram> program) {
+  ShaderProgramInstance instance(program);
+
+  instance.setUniform("uScreenTexture", 0);
+  instance.setUniform("uOffset", 1.0f / 300.0f);
+  instance.setUniform("uKernel", glm::mat3(1.0f,  1.0f, 1.0f,
+                                                      1.0f, -8.0f, 1.0f,
+                                                      1.0f,  1.0f, 1.0f));
+
+  return instance;
+}
+
 ShaderProgramInstance ShaderProgramInstance::newPostProcessingGrayscale(NotNull<ShaderProgram> program) {
   ShaderProgramInstance instance(program);
 
@@ -126,6 +150,18 @@ ShaderProgramInstance ShaderProgramInstance::newPostProcessingInvert(NotNull<Sha
   ShaderProgramInstance instance(program);
 
   instance.setUniform("uScreenTexture", 0);
+
+  return instance;
+}
+
+ShaderProgramInstance ShaderProgramInstance::newPostProcessingSharpen(NotNull<ShaderProgram> program) {
+  ShaderProgramInstance instance(program);
+
+  instance.setUniform("uScreenTexture", 0);
+  instance.setUniform("uOffset", 1.0f / 300.0f);
+  instance.setUniform("uKernel", glm::mat3(-1.0f, -1.0f, -1.0f,
+                                                      -1.0f,  9.0f, -1.0f,
+                                                      -1.0f, -1.0f, -1.0f));
 
   return instance;
 }
