@@ -1,0 +1,49 @@
+#pragma once
+
+#include <Assets/AssetManager.hpp>
+#include <Graphics/RenderingEngine.hpp>
+#include <Graphics/Scene.hpp>
+
+class OutlineShaderProgram;
+class VisualiseNormalShaderProgram;
+class LitSurfaceShaderProgram;
+class LightSourceShaderProgram;
+class VisualiseDepthShaderProgram;
+
+struct AppState {
+  GLFWwindow* window = nullptr;
+  glm::uvec2 windowSize = glm::uvec2(0);
+  glm::vec2 lastMousePosition = glm::vec2(0);
+
+  double currentFrameTime = 0.0f;
+  double lastFrameTime = 0.0f;
+  double lastSceneRenderTime = 0.0f;
+  double lastGuiRenderTime = 0.0f;
+
+  bool bFreeCursorPressed = false;
+  bool bFreeCursor = true;
+  bool bFirstMouse = true;
+  bool bFlashlightFollowCamera = true;
+  bool bDrawBackpackOutline = false;
+  bool bDrawLightOutline = false;
+
+  std::unique_ptr<AssetManager> assetManager;
+  std::unique_ptr<Scene> scene;
+  std::unique_ptr<RenderingEngine> renderingEngine;
+
+  std::optional<ActorHandle> backpackActor = std::nullopt;
+  std::optional<ActorHandle> lightActor = std::nullopt;
+  std::optional<ActorHandle> grassActor = std::nullopt;
+
+  ShaderProgramType backpackShaderProgramType = ShaderProgramType::LitSurface;
+  std::vector<ShaderProgramType> postProcessingShaderProgramTypes;
+  std::vector<ShaderProgramInstanceHandle> postProcessingShaderProgramInstances;
+
+  std::optional<ShaderProgramInstanceHandle> litSurfaceShaderProgram = std::nullopt;
+  std::optional<ShaderProgramInstanceHandle> lightShaderProgram = std::nullopt;
+  std::optional<ShaderProgramInstanceHandle> visualiseDepthShaderProgram = std::nullopt;
+  std::optional<ShaderProgramInstanceHandle> visualiseNormalShaderProgram = std::nullopt;
+
+  std::optional<ShaderProgramInstanceHandle> backpackOutlineShaderProgram = std::nullopt;
+  std::optional<ShaderProgramInstanceHandle> lightCubeOutlineShaderProgram = std::nullopt;
+};

@@ -1,5 +1,7 @@
 #include <Engine.hpp>
 
+#include <GUI.hpp>
+
 #include <Assets/Bitmap.hpp>
 #include <Assets/Model.hpp>
 #include <Graphics/Camera.hpp>
@@ -10,11 +12,7 @@
 #include <Util/NotNull.hpp>
 #include <Util/Timers/TimedBlock.hpp>
 
-#include <imgui.h>
 #include <backends/imgui_impl_glfw.h>
-#include <backends/imgui_impl_opengl3.h>
-
-#include <ranges>
 
 static Engine* gApp = nullptr;
 
@@ -32,7 +30,7 @@ Expected<Engine> Engine::create(std::string_view title, glm::uvec2 initialWindow
   app.mState.assetManager = std::make_unique<AssetManager>();
   app.mState.scene = std::make_unique<Scene>();
   app.mState.renderingEngine = std::make_unique<RenderingEngine>();
-  app.initialiseImGui();
+  initialiseImGui(app.mState.window);
   RETURN_ERROR_IF_UNEXPECTED(app.mState.renderingEngine->init());
   RETURN_ERROR_IF_UNEXPECTED(app.createScene());
   return app;
@@ -51,7 +49,7 @@ void Engine::run() {
       continue;
     }
 
-    this->runImGui();
+    runImGui(mState);
     this->updateScene();
     this->drawFrame();
 
@@ -60,9 +58,7 @@ void Engine::run() {
 }
 
 void Engine::shutDown() {
-  ImGui_ImplOpenGL3_Shutdown();
-  ImGui_ImplGlfw_Shutdown();
-  ImGui::DestroyContext();
+  shutdownImGui();
 
   mState.scene->destroy();
   mState.renderingEngine->destroy();
@@ -116,17 +112,6 @@ Expected<void> Engine::createContext(std::string_view title, glm::uvec2 initialW
   });
 
   return {};
-}
-
-void Engine::initialiseImGui() const {
-  ImGui::CreateContext();
-  ImGuiIO& io = ImGui::GetIO();
-  io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-
-  ImGui::StyleColorsDark();
-
-  ImGui_ImplGlfw_InitForOpenGL(mState.window, true);
-  ImGui_ImplOpenGL3_Init("#version 460 core");
 }
 
 Expected<void> Engine::createScene() {
@@ -287,209 +272,6 @@ void Engine::processMousePosition(glm::vec2 mousePosition) {
   mState.lastMousePosition = mousePosition;
 }
 
-void Engine::runImGui() {
-  ImGui_ImplOpenGL3_NewFrame();
-  ImGui_ImplGlfw_NewFrame();
-  ImGui::NewFrame();
-  this->gui();
-  ImGui::Render();
-}
-
-void Engine::gui() {
-  constexpr ImGuiColorEditFlags lightColorEditFlags = ImGuiColorEditFlags_Float | ImGuiColorEditFlags_HDR;
-  if (ImGui::Begin("Test")) {
-    ImGui::Text("FPS: %.03f", 1.0 / (mState.currentFrameTime - mState.lastFrameTime));
-    ImGui::Text("Frame duration: %.03f ms", (mState.currentFrameTime - mState.lastFrameTime) * 1000.0);
-    ImGui::Text("Scene draw: %.03f ms", mState.lastSceneRenderTime * 1000.0);
-    ImGui::Text("GUI draw: %.03f ms", mState.lastGuiRenderTime * 1000.0);
-    ImGui::Text("Window size: %ux%u", mState.windowSize.x, mState.windowSize.y);
-
-    if (ImGui::CollapsingHeader("Camera")) {
-      ImGui::Indent();
-      Camera& camera = mState.scene->camera;
-
-      ImGui::DragFloat("Movement speed", &camera.speed, 0.001f, 0.0f, 5.0f);
-      ImGui::DragFloat("FOV", &camera.fov, 0.1f, 10.0f, 120.0f);
-      ImGui::DragFloat("Near", &camera.near, 0.01f, 0.01f, 10.0f);
-      ImGui::DragFloat("Far", &camera.far, 0.01f, 10.0f, 1000.0f);
-
-      ImGui::Unindent();
-    }
-
-    if (ImGui::CollapsingHeader("Light")) {
-      ImGui::Indent();
-
-      if (ImGui::CollapsingHeader("Directional light")) {
-        ImGui::Indent();
-        DirectionalLight& directionalLight = mState.scene->directionalLight;
-
-        ImGui::ColorPicker3("Ambient##dl", glm::value_ptr(directionalLight.colors.ambient), lightColorEditFlags);
-        ImGui::ColorPicker3("Diffuse##dl", glm::value_ptr(directionalLight.colors.diffuse), lightColorEditFlags);
-        ImGui::ColorPicker3("Specular##dl", glm::value_ptr(directionalLight.colors.specular), lightColorEditFlags);
-
-        ImGui::Unindent();
-      }
-
-      if (ImGui::CollapsingHeader("Point light")) {
-        ImGui::Indent();
-        PointLight& pointLight = mState.scene->pointLight;
-
-        ImGui::DragFloat("Constant", &pointLight.constant, 0.1f, 1.0f, 100.0f);
-        ImGui::DragFloat("Linear", &pointLight.linear, 0.01f, 0.01f, 10.0f);
-        ImGui::DragFloat("Quadratic", &pointLight.quadratic, 0.001f, 0.01f, 1.0f);
-        ImGui::Spacing();
-
-        ImGui::ColorPicker3("Ambient##pl", glm::value_ptr(pointLight.colors.ambient), lightColorEditFlags);
-        ImGui::ColorPicker3("Diffuse##pl", glm::value_ptr(pointLight.colors.diffuse), lightColorEditFlags);
-        if (ImGui::ColorPicker3("Specular##pl", glm::value_ptr(pointLight.colors.specular), lightColorEditFlags)) {
-          mState.lightShaderProgram->get().uniforms["uLightColor"] = pointLight.colors.specular;
-        }
-
-        ImGui::Unindent();
-      }
-
-      if (ImGui::CollapsingHeader("Spotlight")) {
-        ImGui::Indent();
-        Spotlight& spotlight = mState.scene->spotlight;
-
-        ImGui::Checkbox("Follow camera", &mState.bFlashlightFollowCamera);
-        ImGui::DragFloat("Cut off", &spotlight.cutOff, 0.01f, 1.0f, spotlight.outerCutOff);
-        ImGui::DragFloat("Outer cut off", &spotlight.outerCutOff, 0.01f, spotlight.cutOff, 120.0f);
-        ImGui::Spacing();
-
-        ImGui::ColorPicker3("Ambient##sl", glm::value_ptr(spotlight.colors.ambient), lightColorEditFlags);
-        ImGui::ColorPicker3("Diffuse##sl", glm::value_ptr(spotlight.colors.diffuse), lightColorEditFlags);
-        ImGui::ColorPicker3("Specular##sl", glm::value_ptr(spotlight.colors.specular), lightColorEditFlags);
-
-        ImGui::Unindent();
-      }
-
-      ImGui::Unindent();
-    }
-
-    if (ImGui::CollapsingHeader("Actors")) {
-      ImGui::Indent();
-
-      for (Actor& actor : std::ranges::views::values(mState.scene->actors)) {
-        if (ImGui::CollapsingHeader(actor.name.c_str())) {
-          ImGui::Indent();
-
-          ImGui::Text("Transform");
-          Transform& grassTransform = actor.transform;
-          ImGui::DragFloat3(("Translation##" + actor.name).c_str(), glm::value_ptr(grassTransform.translation), 0.01f);
-          ImGui::DragFloat3(("Rotation##" + actor.name).c_str(), glm::value_ptr(grassTransform.rotation), 0.01f);
-          ImGui::DragFloat3(("Scale##" + actor.name).c_str(), glm::value_ptr(grassTransform.scale), 0.01f);
-
-          if (actor.name.contains("Backpack")) {
-            static constexpr const char* fsTypeNames[] = {
-              "Light",
-              "Lit surface",
-              "Outline",
-              "Visualise depth",
-              "Visualise normal",
-            };
-            if (ImGui::Combo("Fragment shader",
-                             reinterpret_cast<int32_t*>(&mState.backpackShaderProgramType),
-                             fsTypeNames,
-                             std::size(fsTypeNames)))
-            {
-              switch (mState.backpackShaderProgramType) {
-                case ShaderProgramType::Light:
-                  actor.setShaderProgramInstance(mState.lightShaderProgram.value());
-                  break;
-                case ShaderProgramType::LitSurface:
-                  actor.setShaderProgramInstance(mState.litSurfaceShaderProgram.value());
-                  break;
-                case ShaderProgramType::Outline:
-                  actor.setShaderProgramInstance(mState.backpackOutlineShaderProgram.value());
-                  break;
-                case ShaderProgramType::VisualiseDepth:
-                  actor.setShaderProgramInstance(mState.visualiseDepthShaderProgram.value());
-                  break;
-                case ShaderProgramType::VisualiseNormal:
-                  actor.setShaderProgramInstance(mState.visualiseNormalShaderProgram.value());
-                  break;
-                default:
-                  PANIC("Unexpected shader program type");
-              }
-            }
-
-            if (ImGui::Checkbox("Draw outline##backpack", &mState.bDrawBackpackOutline)) {
-              actor.setOutlineShaderInstance(mState.bDrawBackpackOutline ? mState.backpackOutlineShaderProgram : std::nullopt);
-            }
-
-            ImGui::BeginDisabled(!mState.bDrawBackpackOutline);
-            std::unordered_map<std::string, ShaderUniform>& outlineUniforms = mState.backpackOutlineShaderProgram->get().uniforms;
-            ImGui::ColorPicker3("Outline color##backpack", outlineUniforms["uOutlineColor"].getValuePtr<glm::vec3>(), ImGuiColorEditFlags_Float);
-            ImGui::EndDisabled();
-          } else if (actor.name.contains("Light cube")) {
-            if (ImGui::Checkbox("Draw outline##lightCube", &mState.bDrawLightOutline)) {
-              actor.setOutlineShaderInstance(mState.bDrawLightOutline ? mState.lightCubeOutlineShaderProgram : std::nullopt);
-            }
-
-            ImGui::BeginDisabled(!mState.bDrawLightOutline);
-            std::unordered_map<std::string, ShaderUniform>& outlineUniforms = mState.lightCubeOutlineShaderProgram->get().uniforms;
-            ImGui::ColorPicker3("Outline color##lightCube", outlineUniforms["uOutlineColor"].getValuePtr<glm::vec3>(), ImGuiColorEditFlags_Float);
-            ImGui::EndDisabled();
-          }
-
-          ImGui::Unindent();
-        }
-      }
-
-      ImGui::Unindent();
-    }
-
-    if (ImGui::CollapsingHeader("Post processing")) {
-      ImGui::Indent();
-
-      static constexpr const char* fsTypeNames[] = {
-        "Copy",
-        "Grayscale",
-        "Invert",
-      };
-      constexpr auto firstPostProcessingEffectIndex = static_cast<int32_t>(ShaderProgramType::PostProcessCopy);
-      std::optional<int32_t> effectToDelete = std::nullopt;
-      for (size_t effectIndex = 0; effectIndex < mState.postProcessingShaderProgramTypes.size(); effectIndex++) {
-        const int32_t fsTypeNameIndex = static_cast<int32_t>(mState.postProcessingShaderProgramTypes[effectIndex]) - firstPostProcessingEffectIndex;
-        ShaderProgramType& shaderProgramType = mState.postProcessingShaderProgramTypes[effectIndex];
-        ShaderProgramInstanceHandle& shaderProgramInstance = mState.postProcessingShaderProgramInstances[effectIndex];
-        const std::string label = std::format("Effect shader {}", effectIndex);
-
-        if (ImGui::BeginCombo(label.c_str(), fsTypeNames[fsTypeNameIndex])) {
-          for (size_t fsTypeOptionIndex = 0; fsTypeOptionIndex < 3; fsTypeOptionIndex++) {
-            if (ImGui::MenuItem(fsTypeNames[fsTypeOptionIndex])) {
-              shaderProgramType = static_cast<ShaderProgramType>(fsTypeOptionIndex + firstPostProcessingEffectIndex);
-              shaderProgramInstance.erase();
-              shaderProgramInstance = mState.renderingEngine->createShaderProgramInstance(shaderProgramType);
-            }
-          }
-          ImGui::EndCombo();
-        }
-
-        ImGui::SameLine();
-        if (ImGui::Button(("Delete##" + std::to_string(effectIndex)).c_str())) {
-          effectToDelete = static_cast<int32_t>(effectIndex);
-        }
-      }
-
-      if (effectToDelete.has_value()) {
-        mState.postProcessingShaderProgramTypes.erase(mState.postProcessingShaderProgramTypes.begin() + effectToDelete.value());
-        mState.postProcessingShaderProgramInstances.erase(mState.postProcessingShaderProgramInstances.begin() + effectToDelete.value());
-      }
-
-      if (ImGui::Button("+ Add effect")) {
-        mState.postProcessingShaderProgramTypes.push_back(ShaderProgramType::PostProcessCopy);
-        mState.postProcessingShaderProgramInstances.push_back(mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::PostProcessCopy));
-      }
-
-      ImGui::Unindent();
-    }
-
-    ImGui::End();
-  }
-}
-
 void Engine::updateScene() {
   // Flying light cube
   mState.scene->pointLight.position = {
@@ -537,7 +319,5 @@ void Engine::drawFrame() {
     mState.renderingEngine->present(mState.windowSize);
   });
 
-  mState.lastGuiRenderTime = timedBlock([] {
-    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-  });
+  mState.lastGuiRenderTime = timedBlock(renderGUI);
 }
