@@ -15,9 +15,9 @@
 
 #include <print>
 
-DEFINE_HANDLE_ITEM_GET(AssetManager, Bitmap, bitmaps)
-DEFINE_HANDLE_ITEM_GET(AssetManager, Mesh, meshes)
-DEFINE_HANDLE_ITEM_GET(AssetManager, Model, models)
+DEFINE_HANDLE_ITEM_FUNCTIONS(AssetManager, Bitmap, mBitmaps)
+DEFINE_HANDLE_ITEM_FUNCTIONS(AssetManager, Mesh, mMeshes)
+DEFINE_HANDLE_ITEM_FUNCTIONS(AssetManager, Model, mModels)
 
 AssetManager::AssetManager() {
   PANIC_IF_UNEXPECTED(locateModels());
@@ -25,9 +25,8 @@ AssetManager::AssetManager() {
 }
 
 AssetHandle<Mesh> AssetManager::addMesh(Mesh mesh) {
-  this->meshes.emplace_back(std::move(mesh));
-  const size_t index = this->meshes.size() - 1;
-  return Handle<Mesh>(index, this);
+  this->mMeshes[mNextMeshID] = std::move(mesh);
+  return Handle<Mesh>(mNextMeshID++, this);
 }
 
 Expected<AssetHandle<Bitmap>> AssetManager::loadBitmap(const std::filesystem::path& filePath) {
@@ -39,10 +38,9 @@ Expected<AssetHandle<Bitmap>> AssetManager::loadBitmap(const std::filesystem::pa
 
   Bitmap bitmap;
   ASSIGN_EXPECTED_OR_RETURN(bitmap, Bitmap::fromFile(fullPath));
-  bitmaps.push_back(std::move(bitmap));
-  const Handle<Bitmap> handle = { bitmaps.size() - 1, this };
-  mLoadedAssetIndices[fullPath] = handle.index;
-  return handle;
+  mBitmaps[mNextBitmapID] = std::move(bitmap);
+  mLoadedAssetIndices[fullPath] = mNextBitmapID;
+  return Handle<Bitmap>(mNextBitmapID++, this);
 }
 
 Expected<AssetHandle<Model>> AssetManager::loadModel(const std::filesystem::path& filePath) {
@@ -61,10 +59,9 @@ Expected<AssetHandle<Model>> AssetManager::loadModel(const std::filesystem::path
 
   Model model;
   RETURN_ERROR_IF_UNEXPECTED(this->processNode(model, scene->mRootNode, scene));
-  this->models.push_back(std::move(model));
-  const size_t index = this->models.size() - 1;
-  mLoadedAssetIndices[fullPath] = index;
-  return Handle<Model>(index, this);
+  mModels[mNextModelID] = std::move(model);
+  mLoadedAssetIndices[fullPath] = mNextModelID;
+  return Handle<Model>(mNextModelID++, this);
 }
 
 Expected<void> AssetManager::locateModels() {

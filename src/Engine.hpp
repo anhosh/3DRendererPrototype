@@ -39,18 +39,20 @@ struct AppState {
   std::optional<ActorHandle> grassActor = std::nullopt;
 
   ShaderProgramType backpackShaderProgramType = ShaderProgramType::LitSurface;
+  std::vector<ShaderProgramType> postProcessingShaderProgramTypes;
+  std::vector<ShaderProgramInstanceHandle> postProcessingShaderProgramInstances;
 
-  std::optional<RenderingEngine::Handle<ShaderProgramInstance>> litSurfaceShaderProgram = std::nullopt;
-  std::optional<RenderingEngine::Handle<ShaderProgramInstance>> lightShaderProgram = std::nullopt;
-  std::optional<RenderingEngine::Handle<ShaderProgramInstance>> visualiseDepthShaderProgram = std::nullopt;
-  std::optional<RenderingEngine::Handle<ShaderProgramInstance>> visualiseNormalShaderProgram = std::nullopt;
+  std::optional<ShaderProgramInstanceHandle> litSurfaceShaderProgram = std::nullopt;
+  std::optional<ShaderProgramInstanceHandle> lightShaderProgram = std::nullopt;
+  std::optional<ShaderProgramInstanceHandle> visualiseDepthShaderProgram = std::nullopt;
+  std::optional<ShaderProgramInstanceHandle> visualiseNormalShaderProgram = std::nullopt;
 
-  std::optional<RenderingEngine::Handle<ShaderProgramInstance>> backpackOutlineShaderProgram = std::nullopt;
-  std::optional<RenderingEngine::Handle<ShaderProgramInstance>> lightCubeOutlineShaderProgram = std::nullopt;
+  std::optional<ShaderProgramInstanceHandle> backpackOutlineShaderProgram = std::nullopt;
+  std::optional<ShaderProgramInstanceHandle> lightCubeOutlineShaderProgram = std::nullopt;
 
-  std::optional<RenderingEngine::Handle<ShaderProgramInstance>> postProcessCopyShaderProgram = std::nullopt;
-  std::optional<RenderingEngine::Handle<ShaderProgramInstance>> postProcessGrayscaleShaderProgram = std::nullopt;
-  std::optional<RenderingEngine::Handle<ShaderProgramInstance>> postProcessInvertShaderProgram = std::nullopt;
+  std::optional<ShaderProgramInstanceHandle> postProcessCopyShaderProgram = std::nullopt;
+  std::optional<ShaderProgramInstanceHandle> postProcessGrayscaleShaderProgram = std::nullopt;
+  std::optional<ShaderProgramInstanceHandle> postProcessInvertShaderProgram = std::nullopt;
 };
 
 class Engine {

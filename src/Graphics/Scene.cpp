@@ -3,8 +3,9 @@
 #include <Graphics/RenderingEngine.hpp>
 
 #include <map>
+#include <ranges>
 
-DEFINE_HANDLE_ITEM_GET(Scene, Actor, actors)
+DEFINE_HANDLE_ITEM_FUNCTIONS(Scene, Actor, actors)
 
 void Scene::destroy() {
   actors.clear();
@@ -20,7 +21,7 @@ std::vector<Draw> Scene::draw() const {
   std::map<float, MeshDataReference> transparentMeshes;
 
   // Opaque objects
-  for (const Actor& actor: actors) {
+  for (const Actor& actor: std::ranges::views::values(actors)) {
     for (size_t resIdx = 0; resIdx < actor.renderData.size(); ++resIdx) {
       const RenderingEngine::RenderData& resources = actor.renderData[resIdx];
 
@@ -82,6 +83,6 @@ std::vector<Draw> Scene::draw() const {
 }
 
 Scene::Handle<Actor> Scene::addActor(Actor actor) {
-  actors.push_back(std::move(actor));
-  return { actors.size() - 1, this };
+  actors[mNextActorID] = std::move(actor);
+  return { mNextActorID++, this };
 }

@@ -1,3 +1,4 @@
+#include <ranges>
 #include <Graphics/RenderingEngine.hpp>
 
 #include <Graphics/Draw.hpp>
@@ -8,9 +9,9 @@
 
 #include <glm/gtc/type_ptr.hpp>
 
-DEFINE_HANDLE_ITEM_GET(RenderingEngine, VertexArray, mVertexArrays)
-DEFINE_HANDLE_ITEM_GET(RenderingEngine, ShaderProgramInstance, mShaderProgramInstances)
-DEFINE_HANDLE_ITEM_GET(RenderingEngine, Texture, mTextures)
+DEFINE_HANDLE_ITEM_FUNCTIONS(RenderingEngine, VertexArray, mVertexArrays)
+DEFINE_HANDLE_ITEM_FUNCTIONS(RenderingEngine, ShaderProgramInstance, mShaderProgramInstances)
+DEFINE_HANDLE_ITEM_FUNCTIONS(RenderingEngine, Texture, mTextures)
 
 Expected<void> addShaderProgram(const ShaderProgramPaths& stages, std::unique_ptr<ShaderProgram>& outShader) {
   Expected<std::unique_ptr<ShaderProgram>> program = ShaderPrograms::fromShaders(stages);
@@ -51,10 +52,10 @@ void RenderingEngine::destroy() {
   mPostProcessCopyShaderProgram->destroy();
   mPostProcessInvertShaderProgram->destroy();
 
-  for (VertexArray& vertexArray : mVertexArrays) {
+  for (VertexArray& vertexArray : std::ranges::views::values(mVertexArrays)) {
     vertexArray.destroy();
   }
-  for (Texture& texture : mTextures) {
+  for (Texture& texture : std::ranges::views::values(mTextures)) {
     texture.destroy();
   }
   mShaderProgramInstances.clear();
@@ -99,9 +100,9 @@ RenderingEngine::Handle<ShaderProgramInstance> RenderingEngine::createShaderProg
 }
 
 RenderingEngine::Handle<ShaderProgramInstance> RenderingEngine::addShaderProgramInstance(ShaderProgramInstance instance) {
-  mShaderProgramInstances.push_back(std::move(instance));
-  const size_t index = mShaderProgramInstances.size() - 1;
-  return {index, this};
+  mShaderProgramInstances.emplace(mNextShaderProgramInstanceID, std::move(instance));
+  const size_t id = mNextShaderProgramInstanceID++;
+  return {id, this};
 }
 
 const std::vector<RenderingEngine::RenderData>& RenderingEngine::addModel(AssetHandle<Model> model, Handle<ShaderProgramInstance> initialShaderProgramInstance)
@@ -138,9 +139,8 @@ const std::vector<RenderingEngine::RenderData>& RenderingEngine::addModel(AssetH
 }
 
 RenderingEngine::Handle<VertexArray> RenderingEngine::addMesh(AssetHandle<Mesh> mesh) {
-  mVertexArrays.emplace_back(mesh.get());
-  const size_t index = mVertexArrays.size() - 1;
-  return {index, this};
+  mVertexArrays.emplace(mNextVertexArrayID, mesh.get());
+  return {mNextVertexArrayID++, this};
 }
 
 RenderingEngine::Handle<Texture> RenderingEngine::addTexture(AssetHandle<Bitmap> bitmap, const SamplerOptions& options) {
@@ -148,10 +148,9 @@ RenderingEngine::Handle<Texture> RenderingEngine::addTexture(AssetHandle<Bitmap>
     return mUploadedTextures.at(bitmap.index);
   }
 
-  mTextures.emplace_back(bitmap.get(), options);
-  const size_t index = mTextures.size() - 1;
-  const auto [it, inserted] = mUploadedTextures.emplace(bitmap.index, Handle<Texture>(index, this));
-  const auto& [i, handle] = *it;
+  mTextures.emplace(mNextTextureID, Texture(bitmap.get(), options));
+  const Handle<Texture> handle = {mNextTextureID++, this};
+  mUploadedTextures.emplace(bitmap.index, handle);
   return handle;
 }
 
@@ -244,9 +243,9 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
       }
     }
 
-    const ShaderProgramInstance& currShader = mShaderProgramInstances[currDraw->shaderProgramInstanceIndex];
+    const ShaderProgramInstance& currShader = mShaderProgramInstances.at(currDraw->shaderProgramInstanceIndex);
     if (i == 0 || currDraw->shaderProgramInstanceIndex != lastDraw->shaderProgramInstanceIndex) {
-      const ShaderProgramInstance& lastShader = mShaderProgramInstances[lastDraw->shaderProgramInstanceIndex];
+      const ShaderProgramInstance& lastShader = mShaderProgramInstances.at(lastDraw->shaderProgramInstanceIndex);
       if (i == 0 || currShader.shaderProgram != lastShader.shaderProgram) {
         currShader.use();
       }
@@ -295,7 +294,7 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
   mBoundTextureSlots.clear();
 }
 
-void RenderingEngine::postProcess(std::span<const ShaderProgramInstance> postProcessingShaders) {
+void RenderingEngine::postProcess(std::span<Handle<ShaderProgramInstance>> postProcessingShaders) {
   if (mFramebuffers.size() < postProcessingShaders.size() + 1) {
     while (mFramebuffers.size() < postProcessingShaders.size() + 1) {
       mFramebuffers.emplace_back(mLastFramebufferSize);
@@ -310,7 +309,7 @@ void RenderingEngine::postProcess(std::span<const ShaderProgramInstance> postPro
 
   glBindVertexArray(mScreenQuadVAO);
 
-  for (const ShaderProgramInstance& effectShader : postProcessingShaders) {
+  for (Handle effectShader : postProcessingShaders) {
     const Framebuffer& currFramebuffer = mFramebuffers[mLastFramebufferIndex + 1];
     currFramebuffer.bind();
 
@@ -318,8 +317,8 @@ void RenderingEngine::postProcess(std::span<const ShaderProgramInstance> postPro
     glClear(GL_COLOR_BUFFER_BIT);
 
     const Framebuffer& prevFramebuffer = mFramebuffers[mLastFramebufferIndex];
-    effectShader.use();
-    effectShader.bindUniforms();
+    effectShader.get().use();
+    effectShader.get().bindUniforms();
     prevFramebuffer.colorAttachment.bind();
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 

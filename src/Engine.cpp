@@ -1,9 +1,9 @@
 #include <Engine.hpp>
 
 #include <Assets/Bitmap.hpp>
+#include <Assets/Model.hpp>
 #include <Graphics/Camera.hpp>
 #include <Graphics/Meshes.hpp>
-#include <Assets/Model.hpp>
 #include <Graphics/Scene.hpp>
 #include <Graphics/ShaderProgram.hpp>
 #include <Util/Macros/Errors.hpp>
@@ -13,6 +13,8 @@
 #include <imgui.h>
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_opengl3.h>
+
+#include <ranges>
 
 static Engine* gApp = nullptr;
 
@@ -372,7 +374,7 @@ void Engine::gui() {
     if (ImGui::CollapsingHeader("Actors")) {
       ImGui::Indent();
 
-      for (Actor& actor : mState.scene->actors) {
+      for (Actor& actor : std::ranges::views::values(mState.scene->actors)) {
         if (ImGui::CollapsingHeader(actor.name.c_str())) {
           ImGui::Indent();
 
@@ -442,6 +444,53 @@ void Engine::gui() {
       ImGui::Unindent();
     }
 
+    if (ImGui::CollapsingHeader("Post processing")) {
+      ImGui::Indent();
+
+      static constexpr const char* fsTypeNames[] = {
+        "Copy",
+        "Grayscale",
+        "Invert",
+      };
+      constexpr auto firstPostProcessingEffectIndex = static_cast<int32_t>(ShaderProgramType::PostProcessCopy);
+      std::optional<int32_t> effectToDelete = std::nullopt;
+      for (size_t effectIndex = 0; effectIndex < mState.postProcessingShaderProgramTypes.size(); effectIndex++) {
+        const int32_t fsTypeNameIndex = static_cast<int32_t>(mState.postProcessingShaderProgramTypes[effectIndex]) - firstPostProcessingEffectIndex;
+        ShaderProgramType& shaderProgramType = mState.postProcessingShaderProgramTypes[effectIndex];
+        ShaderProgramInstanceHandle& shaderProgramInstance = mState.postProcessingShaderProgramInstances[effectIndex];
+        const std::string label = std::format("Effect shader {}", effectIndex);
+
+        if (ImGui::BeginCombo(label.c_str(), fsTypeNames[fsTypeNameIndex])) {
+          for (size_t fsTypeOptionIndex = 0; fsTypeOptionIndex < 3; fsTypeOptionIndex++) {
+            if (ImGui::MenuItem(fsTypeNames[fsTypeOptionIndex])) {
+              shaderProgramType = static_cast<ShaderProgramType>(fsTypeOptionIndex + firstPostProcessingEffectIndex);
+              shaderProgramInstance.erase();
+              shaderProgramInstance = mState.renderingEngine->createShaderProgramInstance(shaderProgramType);
+            }
+          }
+          ImGui::EndCombo();
+        }
+
+        ImGui::SameLine();
+
+        if (ImGui::Button(("Delete##" + std::to_string(effectIndex)).c_str())) {
+          effectToDelete = static_cast<int32_t>(effectIndex);
+        }
+      }
+
+      if (effectToDelete.has_value()) {
+        mState.postProcessingShaderProgramTypes.erase(mState.postProcessingShaderProgramTypes.begin() + effectToDelete.value());
+        mState.postProcessingShaderProgramInstances.erase(mState.postProcessingShaderProgramInstances.begin() + effectToDelete.value());
+      }
+
+      if (ImGui::Button("+ Add effect")) {
+        mState.postProcessingShaderProgramTypes.push_back(ShaderProgramType::PostProcessCopy);
+        mState.postProcessingShaderProgramInstances.push_back(mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::PostProcessCopy));
+      }
+
+      ImGui::Unindent();
+    }
+
     ImGui::End();
   }
 }
@@ -489,10 +538,7 @@ void Engine::updateScene() {
 void Engine::drawFrame() {
   mState.lastSceneRenderTime = timedBlock([this] {
     mState.renderingEngine->renderScene(*mState.scene, mState.scene->camera, mState.windowSize);
-    mState.renderingEngine->postProcess(std::array {
-      mState.postProcessInvertShaderProgram.value().get(),
-      mState.postProcessGrayscaleShaderProgram.value().get(),
-    });
+    mState.renderingEngine->postProcess(mState.postProcessingShaderProgramInstances);
     mState.renderingEngine->present(mState.windowSize);
   });
 

@@ -55,7 +55,7 @@ public:
                                                           std::span<const SamplerOptions> options = {});
 
   void renderScene(const Scene& scene, const Camera& camera, glm::uvec2 windowSize);
-  void postProcess(std::span<const ShaderProgramInstance> postProcessingShaders);
+  void postProcess(std::span<Handle<ShaderProgramInstance>> postProcessingShaders);
   void present(glm::uvec2 windowSize);
 
 private:
@@ -68,9 +68,13 @@ private:
   std::unique_ptr<ShaderProgram> mPostProcessGrayscaleShaderProgram;
   std::unique_ptr<ShaderProgram> mPostProcessInvertShaderProgram;
 
-  std::vector<ShaderProgramInstance> mShaderProgramInstances;
-  std::vector<VertexArray> mVertexArrays;
-  std::vector<Texture> mTextures;
+  std::unordered_map<size_t, ShaderProgramInstance> mShaderProgramInstances;
+  std::unordered_map<size_t, VertexArray> mVertexArrays;
+  std::unordered_map<size_t, Texture> mTextures;
+
+  size_t mNextShaderProgramInstanceID = 0;
+  size_t mNextVertexArrayID = 0;
+  size_t mNextTextureID = 0;
 
   GLuint mScreenQuadVAO = GL_NONE;
   std::vector<Framebuffer> mFramebuffers;
@@ -82,3 +86,7 @@ private:
 
   std::unordered_set<GLuint> mBoundTextureSlots;
 };
+
+using ShaderProgramInstanceHandle = RenderingEngine::Handle<ShaderProgramInstance>;
+using VertexArrayHandle = RenderingEngine::Handle<VertexArray>;
+using TextureHandle = RenderingEngine::Handle<Texture>;

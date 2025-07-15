@@ -7,6 +7,7 @@
 #include <Graphics/Scene.hpp>
 #include <Util/Macros/Classes.hpp>
 
+#include <unordered_map>
 #include <vector>
 
 class Scene {
@@ -23,13 +24,16 @@ public:
   Handle<Actor> addActor(Actor actor);
 
 public:
-  std::vector<Actor> actors;
+  std::unordered_map<size_t, Actor> actors;
 
   Camera camera;
 
   DirectionalLight directionalLight;
   PointLight pointLight;
   Spotlight spotlight;
+
+private:
+  size_t mNextActorID = 0;
 };
 
 using ActorHandle = Scene::Handle<Actor>;

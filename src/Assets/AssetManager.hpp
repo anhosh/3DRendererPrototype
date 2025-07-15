@@ -36,12 +36,15 @@ private:
   [[nodiscard]] Expected<void> processMesh(Model& model, aiMesh* mesh, const aiScene* scene);
   [[nodiscard]] Expected<Handle<Bitmap>> processTexture(const aiMaterial* material, aiTextureType type);
 
-public:
-  std::vector<Bitmap> bitmaps;
-  std::vector<Model> models;
-  std::vector<Mesh> meshes;
-
 private:
+  std::unordered_map<size_t, Bitmap> mBitmaps;
+  std::unordered_map<size_t, Model> mModels;
+  std::unordered_map<size_t, Mesh> mMeshes;
+
+  size_t mNextBitmapID = 0;
+  size_t mNextModelID = 0;
+  size_t mNextMeshID = 0;
+
   std::unordered_map<std::filesystem::path, size_t> mLoadedAssetIndices;
   std::filesystem::path mModelsDir = "models";
   std::filesystem::path mTexturesDir = "textures";
