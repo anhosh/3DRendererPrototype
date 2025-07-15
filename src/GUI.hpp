@@ -4,4 +4,4 @@
 void initialiseImGui(GLFWwindow* window);
 void shutdownImGui();
 void runImGui(AppState& state);
-void renderGUI();
+void renderImGui();

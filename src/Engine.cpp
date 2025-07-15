@@ -319,5 +319,5 @@ void Engine::drawFrame() {
     mState.renderingEngine->present(mState.windowSize);
   });
 
-  mState.lastGuiRenderTime = timedBlock(renderGUI);
+  mState.lastGuiRenderTime = timedBlock(renderImGui);
 }
