@@ -35,6 +35,10 @@ Expected<void> RenderingEngine::init() {
                                               mPostProcessInvertShaderProgram));
   RETURN_ERROR_IF_UNEXPECTED(addShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/kernel3x3.frag"},
                                               mPostProcessKernel3x3ShaderProgram));
+  RETURN_ERROR_IF_UNEXPECTED(addShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/flipHorizontally.frag"},
+                                              mPostProcessFlipHorizontally));
+  RETURN_ERROR_IF_UNEXPECTED(addShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/flipVertically.frag"},
+                                              mPostProcessFlipVertically));
 
   glGenVertexArrays(1, &mScreenQuadVAO);
 
@@ -92,12 +96,26 @@ ShaderProgramInstanceHandle RenderingEngine::createShaderProgramInstance(const S
       return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingBlur(mPostProcessKernel3x3ShaderProgram.get()));
     case ShaderProgramType::PostProcessEdgeDetection:
       return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingEdgeDetection(mPostProcessKernel3x3ShaderProgram.get()));
+    case ShaderProgramType::PostProcessEmboss:
+      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingEmboss(mPostProcessKernel3x3ShaderProgram.get()));
+    case ShaderProgramType::PostProcessFlipHorizontally:
+      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingFlipHorizontally(mPostProcessFlipHorizontally.get()));
+    case ShaderProgramType::PostProcessFlipVertically:
+      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingFlipVertically(mPostProcessFlipVertically.get()));
     case ShaderProgramType::PostProcessGrayscale:
       return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingGrayscale(mPostProcessGrayscaleShaderProgram.get()));
     case ShaderProgramType::PostProcessInvert:
       return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingInvert(mPostProcessInvertShaderProgram.get()));
     case ShaderProgramType::PostProcessSharpen:
       return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingSharpen(mPostProcessKernel3x3ShaderProgram.get()));
+    case ShaderProgramType::PostProcessSobelBottom:
+      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingSobelBottom(mPostProcessKernel3x3ShaderProgram.get()));
+    case ShaderProgramType::PostProcessSobelLeft:
+      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingSobelLeft(mPostProcessKernel3x3ShaderProgram.get()));
+    case ShaderProgramType::PostProcessSobelRight:
+      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingSobelRight(mPostProcessKernel3x3ShaderProgram.get()));
+    case ShaderProgramType::PostProcessSobelTop:
+      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingSobelTop(mPostProcessKernel3x3ShaderProgram.get()));
     default:
       PANIC("Unsupported shader program type");
   }

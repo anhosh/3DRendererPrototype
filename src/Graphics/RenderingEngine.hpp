@@ -67,6 +67,8 @@ private:
   std::unique_ptr<ShaderProgram> mVisualiseDepthShaderProgram;
   std::unique_ptr<ShaderProgram> mVisualiseNormalShaderProgram;
   std::unique_ptr<ShaderProgram> mPostProcessCopyShaderProgram;
+  std::unique_ptr<ShaderProgram> mPostProcessFlipHorizontally;
+  std::unique_ptr<ShaderProgram> mPostProcessFlipVertically;
   std::unique_ptr<ShaderProgram> mPostProcessGrayscaleShaderProgram;
   std::unique_ptr<ShaderProgram> mPostProcessInvertShaderProgram;
   std::unique_ptr<ShaderProgram> mPostProcessKernel3x3ShaderProgram;

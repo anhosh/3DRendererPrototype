@@ -172,9 +172,16 @@ void guiPostProcessing(AppState& state) {
         "Copy",
         "Blur",
         "Edge detection",
+        "Emboss",
+        "Flip horizontally",
+        "Flip vertically",
         "Grayscale",
         "Invert",
         "Sharpen",
+        "Sobel bottom",
+        "Sobel left",
+        "Sobel right",
+        "Sobel top",
       };
       const std::string effectIndexStr = std::to_string(effectIndex);
 

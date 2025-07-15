@@ -17,9 +17,16 @@ enum class ShaderProgramType : int32_t {
   PostProcessCopy,
   PostProcessBlur,
   PostProcessEdgeDetection,
+  PostProcessEmboss,
+  PostProcessFlipHorizontally,
+  PostProcessFlipVertically,
   PostProcessGrayscale,
   PostProcessInvert,
   PostProcessSharpen,
+  PostProcessSobelBottom,
+  PostProcessSobelLeft,
+  PostProcessSobelRight,
+  PostProcessSobelTop,
 };
 
 struct ShaderUniform {
@@ -106,7 +113,14 @@ private:
   static ShaderProgramInstance newPostProcessingCopy(NotNull<ShaderProgram> program);
   static ShaderProgramInstance newPostProcessingBlur(NotNull<ShaderProgram> program);
   static ShaderProgramInstance newPostProcessingEdgeDetection(NotNull<ShaderProgram> program);
+  static ShaderProgramInstance newPostProcessingEmboss(NotNull<ShaderProgram> program);
+  static ShaderProgramInstance newPostProcessingFlipHorizontally(NotNull<ShaderProgram> program);
+  static ShaderProgramInstance newPostProcessingFlipVertically(NotNull<ShaderProgram> program);
   static ShaderProgramInstance newPostProcessingGrayscale(NotNull<ShaderProgram> program);
   static ShaderProgramInstance newPostProcessingInvert(NotNull<ShaderProgram> program);
   static ShaderProgramInstance newPostProcessingSharpen(NotNull<ShaderProgram> program);
+  static ShaderProgramInstance newPostProcessingSobelBottom(NotNull<ShaderProgram> program);
+  static ShaderProgramInstance newPostProcessingSobelLeft(NotNull<ShaderProgram> program);
+  static ShaderProgramInstance newPostProcessingSobelRight(NotNull<ShaderProgram> program);
+  static ShaderProgramInstance newPostProcessingSobelTop(NotNull<ShaderProgram> program);
 };
