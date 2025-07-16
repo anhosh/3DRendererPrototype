@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Util/NoInit.hpp>
+#include <Util/Registry.hpp>
 
 class Bitmap;
 
@@ -31,3 +32,5 @@ public:
 private:
   GLuint mID = 0;
 };
+
+using TextureHandle = Registry<Texture>::Handle;

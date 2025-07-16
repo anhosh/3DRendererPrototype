@@ -67,7 +67,7 @@ void RenderingEngine::destroy() {
   glDeleteVertexArrays(1, &mScreenQuadVAO);
   mScreenQuadVAO = GL_NONE;
 
-  for (Framebuffer& framebuffer : mFramebuffers) {
+  for (Framebuffer& framebuffer : std::ranges::views::values(mFramebuffers)) {
     framebuffer.destroy();
   }
   mFramebuffers.clear();
@@ -121,11 +121,11 @@ ShaderProgramInstanceHandle RenderingEngine::createShaderProgramInstance(const S
   }
 }
 
-ShaderProgramInstanceHandle RenderingEngine::addShaderProgramInstance(ShaderProgramInstance instance) {
-  return mShaderProgramInstances.add(std::move(instance));
+ShaderProgramInstanceHandle RenderingEngine::addShaderProgramInstance(ShaderProgramInstance&& instance) {
+  return mShaderProgramInstances.add(std::forward<ShaderProgramInstance>(instance));
 }
 
-const std::vector<RenderingEngine::RenderData>& RenderingEngine::addModel(AssetHandle<Model> model,
+const std::vector<RenderData>& RenderingEngine::addModel(AssetHandle<Model> model,
                                                                           ShaderProgramInstanceHandle initialShaderProgramInstance)
 {
   if (mUploadedModels.contains(model.id())) {
@@ -135,14 +135,14 @@ const std::vector<RenderingEngine::RenderData>& RenderingEngine::addModel(AssetH
   std::vector<SamplerOptions> diffuseSamplers;
   std::vector<SamplerOptions> specularSamplers;
   std::vector<SamplerOptions> emissionSamplers;
-  diffuseSamplers.resize(model.get().diffuseMaps.size());
-  specularSamplers.resize(model.get().specularMaps.size());
-  emissionSamplers.resize(model.get().emissionMaps.size());
+  diffuseSamplers.resize(model->diffuseMaps.size());
+  specularSamplers.resize(model->specularMaps.size());
+  emissionSamplers.resize(model->emissionMaps.size());
 
-  const std::vector<VertexArrayHandle> vertexArrays = this->addMeshes(model.get().meshes);
-  const std::vector<std::optional<TextureHandle>> diffuseMaps = this->addTextures(model.get().diffuseMaps, diffuseSamplers);
-  const std::vector<std::optional<TextureHandle>> specularMaps = this->addTextures(model.get().specularMaps, specularSamplers);
-  const std::vector<std::optional<TextureHandle>> emissionMaps = this->addTextures(model.get().emissionMaps, emissionSamplers);
+  const std::vector<VertexArrayHandle> vertexArrays = this->addMeshes(model->meshes);
+  const std::vector<std::optional<TextureHandle>> diffuseMaps = this->addTextures(model->diffuseMaps, diffuseSamplers);
+  const std::vector<std::optional<TextureHandle>> specularMaps = this->addTextures(model->specularMaps, specularSamplers);
+  const std::vector<std::optional<TextureHandle>> emissionMaps = this->addTextures(model->emissionMaps, emissionSamplers);
 
   std::vector<RenderData> modelResources;
   modelResources.reserve(vertexArrays.size());
@@ -173,6 +173,10 @@ TextureHandle RenderingEngine::addTexture(AssetHandle<Bitmap> bitmap, const Samp
   return handle;
 }
 
+FramebufferHandle RenderingEngine::addFramebuffer(const FramebufferCreateInfo& info) {
+  return mFramebuffers.add(Framebuffer(info));
+}
+
 std::vector<VertexArrayHandle> RenderingEngine::addMeshes(std::span<const AssetHandle<Mesh>> meshes) {
   std::vector<VertexArrayHandle> refs;
   refs.reserve(meshes.size());
@@ -201,36 +205,40 @@ auto RenderingEngine::addTextures(std::span<const std::optional<AssetHandle<Bitm
   return refs;
 }
 
-void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, const glm::uvec2 windowSize) {
-  if (mFramebuffers.empty()) {
-    mFramebuffers.emplace_back(windowSize);
-    mLastFramebufferSize = windowSize;
-  } else if (mLastFramebufferSize != windowSize) {
-    for (Framebuffer& framebuffer : mFramebuffers) {
-      framebuffer.destroy();
-      framebuffer.init(windowSize);
+void RenderingEngine::submitRenderPasses(const std::span<const RenderPass> renderPasses) {
+  for (const RenderPass& renderPass : renderPasses) {
+    if (const auto* renderScenePass = std::get_if<RenderScenePass>(&renderPass.pass)) {
+      this->renderScene(*renderScenePass->scene, *renderScenePass->camera, renderPass.viewport, renderPass.dstFramebuffer);
+    } else if (const auto* postProcessingPass = std::get_if<PostProcessingPass>(&renderPass.pass)) {
+      this->postProcess(postProcessingPass->postProcessingShader, postProcessingPass->srcFramebuffer, renderPass.dstFramebuffer);
     }
-    mLastFramebufferSize = windowSize;
   }
-  mFramebuffers.front().bind();
+}
 
-  glViewport(0, 0, static_cast<GLint>(windowSize.x), static_cast<GLint>(windowSize.y));
+void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, const Viewport& viewport, FramebufferHandle dstFramebuffer) {
+  dstFramebuffer->bind();
+
+  const glm::ivec2 viewportPositionPx = glm::floor(viewport.position * glm::vec2(dstFramebuffer->size()));
+  const glm::ivec2 viewportSizePx = glm::floor(viewport.size * glm::vec2(dstFramebuffer->size()));
+
+  glViewport(static_cast<GLint>(viewportPositionPx.x), static_cast<GLint>(viewportPositionPx.y),
+             static_cast<GLint>(viewportSizePx.x), static_cast<GLint>(viewportSizePx.y));
   glEnable(GL_STENCIL_TEST);
   glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
   glStencilMask(0xff);
   glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-  std::vector<Draw> draws = scene.draw();
+  const std::vector<Draw> draws = scene.draw(camera);
   if (draws.empty()) {
     return;
   }
 
-  TransformMatrices transforms = { .view = camera.view(), .projection = camera.projection(windowSize) };
+  TransformMatrices transforms = { .view = camera.view(), .projection = camera.projection(dstFramebuffer->size()) };
 
-  Draw* lastDraw = &draws.front();
+  const Draw* lastDraw = &draws.front();
   for (size_t i = 0; i < draws.size(); i++) {
-    Draw* currDraw = &draws[i];
+    const Draw* currDraw = &draws[i];
 
     if (i == 0 || currDraw->bBackfaceCulling != lastDraw->bBackfaceCulling) {
       if (currDraw->bBackfaceCulling) {
@@ -316,45 +324,36 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
   mBoundTextureSlots.clear();
 }
 
-void RenderingEngine::postProcess(std::span<ShaderProgramInstanceHandle> postProcessingShaders) {
-  if (mFramebuffers.size() < postProcessingShaders.size() + 1) {
-    while (mFramebuffers.size() < postProcessingShaders.size() + 1) {
-      mFramebuffers.emplace_back(mLastFramebufferSize);
-    }
-  }
-
-  glViewport(0, 0, static_cast<GLint>(mLastFramebufferSize.x), static_cast<GLint>(mLastFramebufferSize.y));
+void RenderingEngine::postProcess(ShaderProgramInstanceHandle postProcessingShader,
+                                  FramebufferHandle srcFramebuffer, FramebufferHandle dstFramebuffer) const
+{
+  glViewport(0, 0, static_cast<GLint>(dstFramebuffer->size().x), static_cast<GLint>(dstFramebuffer->size().y));
   glDisable(GL_BLEND);
   glDisable(GL_CULL_FACE);
   glDisable(GL_DEPTH_TEST);
   glDisable(GL_STENCIL_TEST);
 
+  dstFramebuffer->bind();
+  glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+  glClear(GL_COLOR_BUFFER_BIT);
+
+  postProcessingShader->use();
+  postProcessingShader->bindUniforms();
+  srcFramebuffer->colorAttachment.bind();
+
   glBindVertexArray(mScreenQuadVAO);
-
-  for (ShaderProgramInstanceHandle effectShader : postProcessingShaders) {
-    const Framebuffer& currFramebuffer = mFramebuffers[mLastFramebufferIndex + 1];
-    currFramebuffer.bind();
-
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    const Framebuffer& prevFramebuffer = mFramebuffers[mLastFramebufferIndex];
-    effectShader.get().use();
-    effectShader.get().bindUniforms();
-    prevFramebuffer.colorAttachment.bind();
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
-    ++mLastFramebufferIndex;
-  }
+  glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
   glUseProgram(GL_NONE);
   glBindVertexArray(GL_NONE);
   glBindTexture(GL_TEXTURE_2D, GL_NONE);
 }
 
-void RenderingEngine::present(const glm::uvec2 windowSize) {
+void RenderingEngine::present(const glm::uvec2 windowSize, FramebufferHandle srcFramebuffer) const {
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
   glViewport(0, 0, static_cast<GLint>(windowSize.x), static_cast<GLint>(windowSize.y));
+
   glDisable(GL_BLEND);
   glDisable(GL_CULL_FACE);
   glDisable(GL_DEPTH_TEST);
@@ -365,13 +364,11 @@ void RenderingEngine::present(const glm::uvec2 windowSize) {
 
   glUseProgram(mPostProcessCopyShaderProgram->id());
   glUniform1i(0, 0); // bind uScreenTexture sampler
-  mFramebuffers[mLastFramebufferIndex].colorAttachment.bind();
+  srcFramebuffer->colorAttachment.bind();
   glBindVertexArray(mScreenQuadVAO);
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
   glUseProgram(GL_NONE);
   glBindVertexArray(GL_NONE);
   glBindTexture(GL_TEXTURE_2D, GL_NONE);
-
-  mLastFramebufferIndex = 0;
 }

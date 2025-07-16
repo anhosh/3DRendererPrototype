@@ -17,14 +17,12 @@ public:
 
   void destroy();
 
-  [[nodiscard]] std::vector<Draw> draw() const;
-
   ActorHandle addActor(Actor&& actor);
+
+  [[nodiscard]] std::vector<Draw> draw(const Camera& camera) const;
 
 public:
   Registry<Actor> actors;
-
-  Camera camera;
 
   DirectionalLight directionalLight;
   PointLight pointLight;

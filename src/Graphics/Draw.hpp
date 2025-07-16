@@ -1,5 +1,8 @@
 #pragma once
 
+#include <Graphics/ShaderProgramInstance.hpp>
+#include <Graphics/Texture.hpp>
+#include <Graphics/VertexArray.hpp>
 #include <Graphics/Transform.hpp>
 
 struct Draw {

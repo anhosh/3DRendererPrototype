@@ -5,18 +5,18 @@
 
 #include <string_view>
 
-class Engine {
+class Application {
 public:
-  Engine(const Engine&) = delete;
-  Engine(Engine&&) noexcept;
+  Application(const Application&) = delete;
+  Application(Application&&) noexcept;
 
-  static Expected<Engine> create(std::string_view title, glm::uvec2 initialWindowSize);
+  static Expected<Application> create(std::string_view title, glm::uvec2 initialWindowSize);
 
   void run();
   void shutDown();
 
 private:
-  Engine();
+  Application();
 
   [[nodiscard]] Expected<void> createContext(std::string_view title, glm::uvec2 initialWindowSize);
   [[nodiscard]] Expected<void> createScene();

@@ -1,9 +1,9 @@
-#include <Engine.hpp>
+#include <Application.hpp>
 
 #include <Util/Log.hpp>
 
 int32_t main() {
-  Expected<Engine> engine = Engine::create("LearnOpenGL", glm::uvec2(1920, 1080));
+  Expected<Application> engine = Application::create("LearnOpenGL", glm::uvec2(1920, 1080));
   if (engine.has_value()) {
     engine->run();
     engine->shutDown();

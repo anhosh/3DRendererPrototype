@@ -1,14 +1,13 @@
 #pragma once
 
 #include <Assets/AssetManager.hpp>
+#include <Graphics/Framebuffer.hpp>
 #include <Graphics/RenderingEngine.hpp>
+#include <Graphics/RenderPass.hpp>
 #include <Graphics/Scene.hpp>
 
-class OutlineShaderProgram;
-class VisualiseNormalShaderProgram;
-class LitSurfaceShaderProgram;
-class LightSourceShaderProgram;
-class VisualiseDepthShaderProgram;
+#include <memory>
+#include <optional>
 
 struct AppState {
   GLFWwindow* window = nullptr;
@@ -28,8 +27,9 @@ struct AppState {
   bool bDrawLightOutline = false;
 
   std::unique_ptr<AssetManager> assetManager;
-  std::unique_ptr<Scene> scene;
   std::unique_ptr<RenderingEngine> renderingEngine;
+  std::unique_ptr<Scene> scene;
+  Camera mainCamera;
 
   std::optional<ActorHandle> backpackActor = std::nullopt;
   std::optional<ActorHandle> lightActor = std::nullopt;
@@ -38,6 +38,10 @@ struct AppState {
   ShaderProgramType backpackShaderProgramType = ShaderProgramType::LitSurface;
   std::vector<ShaderProgramType> postProcessingShaderProgramTypes;
   std::vector<ShaderProgramInstanceHandle> postProcessingShaderProgramInstances;
+
+  std::optional<FramebufferHandle> mainSceneFramebuffer;
+  std::vector<FramebufferHandle> postProcessingFramebuffers;
+  std::vector<RenderPass> renderPasses;
 
   std::optional<ShaderProgramInstanceHandle> litSurfaceShaderProgram = std::nullopt;
   std::optional<ShaderProgramInstanceHandle> lightShaderProgram = std::nullopt;

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <Assets/Mesh.hpp>
-#include <Util/NoInit.hpp>
+#include <Util/Registry.hpp>
 
 class VertexArray {
 public:
@@ -18,3 +18,5 @@ public:
   GLuint ebo = GL_NONE;
   GLsizei indexCount = 0;
 };
+
+using VertexArrayHandle = Registry<VertexArray>::Handle;

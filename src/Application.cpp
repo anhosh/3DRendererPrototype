@@ -1,4 +1,4 @@
-#include <Engine.hpp>
+#include <Application.hpp>
 
 #include <GUI.hpp>
 
@@ -6,17 +6,17 @@
 #include <Assets/Model.hpp>
 #include <Graphics/Camera.hpp>
 #include <Graphics/Meshes.hpp>
+#include <Graphics/RenderingEngine.hpp>
 #include <Graphics/Scene.hpp>
-#include <Graphics/ShaderProgram.hpp>
 #include <Util/Macros/Errors.hpp>
 #include <Util/NotNull.hpp>
 #include <Util/Timers/TimedBlock.hpp>
 
 #include <backends/imgui_impl_glfw.h>
 
-static Engine* gApp = nullptr;
+static Application* gApp = nullptr;
 
-Engine::Engine(Engine&& other) noexcept {
+Application::Application(Application&& other) noexcept {
   gApp = this;
 
   mState = std::move(other.mState);
@@ -24,19 +24,20 @@ Engine::Engine(Engine&& other) noexcept {
   other.mState.window = nullptr;
 }
 
-Expected<Engine> Engine::create(std::string_view title, glm::uvec2 initialWindowSize) {
-  Engine app;
+Expected<Application> Application::create(std::string_view title, glm::uvec2 initialWindowSize) {
+  Application app;
   RETURN_ERROR_IF_UNEXPECTED(app.createContext(title, initialWindowSize));
   app.mState.assetManager = std::make_unique<AssetManager>();
   app.mState.scene = std::make_unique<Scene>();
   app.mState.renderingEngine = std::make_unique<RenderingEngine>();
+  app.mState.mainSceneFramebuffer = app.mState.renderingEngine->addFramebuffer({ .size = initialWindowSize });
   initialiseImGui(app.mState.window);
   RETURN_ERROR_IF_UNEXPECTED(app.mState.renderingEngine->init());
   RETURN_ERROR_IF_UNEXPECTED(app.createScene());
   return app;
 }
 
-void Engine::run() {
+void Application::run() {
   while (!glfwWindowShouldClose(mState.window)) {
     mState.lastFrameTime = mState.currentFrameTime;
     mState.currentFrameTime = glfwGetTime();
@@ -57,7 +58,7 @@ void Engine::run() {
   }
 }
 
-void Engine::shutDown() {
+void Application::shutDown() {
   shutdownImGui();
 
   mState.scene->destroy();
@@ -71,12 +72,12 @@ void Engine::shutDown() {
   gApp = nullptr;
 }
 
-Engine::Engine() {
+Application::Application() {
   assert(gApp == nullptr);
   gApp = this;
 }
 
-Expected<void> Engine::createContext(std::string_view title, glm::uvec2 initialWindowSize) {
+Expected<void> Application::createContext(std::string_view title, glm::uvec2 initialWindowSize) {
   glfwInit();
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
@@ -102,8 +103,10 @@ Expected<void> Engine::createContext(std::string_view title, glm::uvec2 initialW
 
   glViewport(0, 0, static_cast<int32_t>(mState.windowSize.x), static_cast<int32_t>(mState.windowSize.y));
   glfwSetFramebufferSizeCallback(mState.window, [](GLFWwindow*, int32_t width, int32_t height) {
-    NotNull(gApp)->mState.windowSize = glm::uvec2(width, height);
-    NotNull(gApp)->mState.lastMousePosition = glm::vec2(NotNull(gApp)->mState.windowSize) * 0.5f;
+    const glm::uvec2 newSize = {width, height};
+    NotNull(gApp)->mState.windowSize = newSize;
+    NotNull(gApp)->mState.mainSceneFramebuffer.value()->resize(newSize);
+    NotNull(gApp)->mState.lastMousePosition = glm::vec2(newSize) * 0.5f;
     NotNull(gApp)->mState.bFirstMouse = true;
   });
 
@@ -114,7 +117,7 @@ Expected<void> Engine::createContext(std::string_view title, glm::uvec2 initialW
   return {};
 }
 
-Expected<void> Engine::createScene() {
+Expected<void> Application::createScene() {
   // Load assets
   const AssetHandle<Mesh> quadMesh = mState.assetManager->addMesh(createQuadMesh());
   const AssetHandle<Mesh> cubeMesh = mState.assetManager->addMesh(createCubeMesh());
@@ -144,16 +147,16 @@ Expected<void> Engine::createScene() {
   const TextureHandle grassTexture = mState.renderingEngine->addTexture(grassBitmap.value(), samplerOptionsClampToEdge);
   const TextureHandle windowTexture = mState.renderingEngine->addTexture(windowBitmap.value(), samplerOptionsClampToEdge);
 
-  constexpr RenderingEngine::RenderOptions transparentQuadOptions = { .bBackfaceCulling = false, .bTransparent = true };
-  std::vector<RenderingEngine::RenderData> backpackResources = mState.renderingEngine->addModel(backpackModel.value(), mState.litSurfaceShaderProgram.value());
+  constexpr RenderOptions transparentQuadOptions = { .bBackfaceCulling = false, .bTransparent = true };
+  std::vector<RenderData> backpackResources = mState.renderingEngine->addModel(backpackModel.value(), mState.litSurfaceShaderProgram.value());
   std::vector lightResources = {
-    RenderingEngine::RenderData {
+    RenderData {
       .vertexArray = cubeVA,
       .shaderProgramInstance = mState.lightShaderProgram.value(),
     }
   };
   std::vector grassResources = {
-    RenderingEngine::RenderData {
+    RenderData {
       .vertexArray = quadVA,
       .shaderProgramInstance = mState.litSurfaceShaderProgram.value(),
       .diffuseMap = grassTexture,
@@ -161,7 +164,7 @@ Expected<void> Engine::createScene() {
     }
   };
   std::vector windowResources = {
-    RenderingEngine::RenderData {
+    RenderData {
       .vertexArray = quadVA,
       .shaderProgramInstance = mState.litSurfaceShaderProgram.value(),
       .diffuseMap = windowTexture,
@@ -208,7 +211,7 @@ Expected<void> Engine::createScene() {
   return {};
 }
 
-void Engine::processKeyboard() {
+void Application::processKeyboard() {
   if (glfwGetKey(mState.window, GLFW_KEY_LEFT_SUPER) == GLFW_PRESS) {
     return;
   }
@@ -229,7 +232,7 @@ void Engine::processKeyboard() {
   }
 
   const auto deltaTime = static_cast<float>(mState.currentFrameTime - mState.lastFrameTime);
-  Camera& camera = mState.scene->camera;
+  Camera& camera = mState.mainCamera;
   if (glfwGetKey(mState.window, GLFW_KEY_W) == GLFW_PRESS) {
     camera.position += deltaTime * camera.speed * camera.forward();
   }
@@ -250,7 +253,7 @@ void Engine::processKeyboard() {
   }
 }
 
-void Engine::processMousePosition(glm::vec2 mousePosition) {
+void Application::processMousePosition(glm::vec2 mousePosition) {
   if (mState.bFreeCursor) {
     return;
   }
@@ -265,58 +268,76 @@ void Engine::processMousePosition(glm::vec2 mousePosition) {
     (mousePosition.x - mState.lastMousePosition.x) * sensitivity,
     (mState.lastMousePosition.y - mousePosition.y) * sensitivity,
   };
-  Camera& camera = mState.scene->camera;
+  Camera& camera = mState.mainCamera;
   camera.rotation.x += offset.x;
   camera.rotation.y = glm::clamp(camera.rotation.y + offset.y, -89.0f, 89.0f);
 
   mState.lastMousePosition = mousePosition;
 }
 
-void Engine::updateScene() {
+void Application::updateScene() {
   // Flying light cube
   mState.scene->pointLight.position = {
     2.0f * glm::cos(mState.currentFrameTime * 0.05f),
     2.0f * glm::cos(mState.currentFrameTime * 0.075f),
     2.0f * glm::sin(mState.currentFrameTime * 0.05f),
   };
-  mState.lightActor->get().transform.translation = mState.scene->pointLight.position;
+  (*mState.lightActor)->transform.translation = mState.scene->pointLight.position;
 
   // Flashlight
   if (mState.bFlashlightFollowCamera) {
-    mState.scene->spotlight.position = mState.scene->camera.position;
-    mState.scene->spotlight.direction = mState.scene->camera.forward();
+    mState.scene->spotlight.position = mState.mainCamera.position;
+    mState.scene->spotlight.direction = mState.mainCamera.forward();
   }
 
   // Shaders
-  mState.litSurfaceShaderProgram->get().uniforms["uViewPos"] = mState.scene->camera.position;
-  mState.litSurfaceShaderProgram->get().uniforms["uDirectionalLight.colors.ambient"] = mState.scene->directionalLight.colors.ambient;
-  mState.litSurfaceShaderProgram->get().uniforms["uDirectionalLight.colors.diffuse"] = mState.scene->directionalLight.colors.diffuse;
-  mState.litSurfaceShaderProgram->get().uniforms["uDirectionalLight.colors.specular"] = mState.scene->directionalLight.colors.specular;
-  mState.litSurfaceShaderProgram->get().uniforms["uDirectionalLight.direction"] = mState.scene->directionalLight.direction;
-  mState.litSurfaceShaderProgram->get().uniforms["uPointLight.colors.ambient"] = mState.scene->pointLight.colors.ambient;
-  mState.litSurfaceShaderProgram->get().uniforms["uPointLight.colors.diffuse"] = mState.scene->pointLight.colors.diffuse;
-  mState.litSurfaceShaderProgram->get().uniforms["uPointLight.position"] = mState.scene->pointLight.position;
-  mState.litSurfaceShaderProgram->get().uniforms["uPointLight.position"] = mState.scene->pointLight.position;
-  mState.litSurfaceShaderProgram->get().uniforms["uPointLight.constant"] = mState.scene->pointLight.constant;
-  mState.litSurfaceShaderProgram->get().uniforms["uPointLight.linear"] = mState.scene->pointLight.linear;
-  mState.litSurfaceShaderProgram->get().uniforms["uPointLight.quadratic"] = mState.scene->pointLight.quadratic;
-  mState.litSurfaceShaderProgram->get().uniforms["uSpotlight.colors.ambient"] = mState.scene->spotlight.colors.ambient;
-  mState.litSurfaceShaderProgram->get().uniforms["uSpotlight.colors.diffuse"] = mState.scene->spotlight.colors.diffuse;
-  mState.litSurfaceShaderProgram->get().uniforms["uSpotlight.colors.specular"] = mState.scene->spotlight.colors.specular;
-  mState.litSurfaceShaderProgram->get().uniforms["uSpotlight.position"] = mState.scene->spotlight.position;
-  mState.litSurfaceShaderProgram->get().uniforms["uSpotlight.direction"] = mState.scene->spotlight.direction;
-  mState.litSurfaceShaderProgram->get().uniforms["uSpotlight.cutOff"] = glm::cos(glm::radians(mState.scene->spotlight.cutOff));
-  mState.litSurfaceShaderProgram->get().uniforms["uSpotlight.outerCutOff"] = glm::cos(glm::radians(mState.scene->spotlight.outerCutOff));
+  (*mState.litSurfaceShaderProgram)->uniforms["uViewPos"] = mState.mainCamera.position;
+  (*mState.litSurfaceShaderProgram)->uniforms["uDirectionalLight.colors.ambient"] = mState.scene->directionalLight.colors.ambient;
+  (*mState.litSurfaceShaderProgram)->uniforms["uDirectionalLight.colors.diffuse"] = mState.scene->directionalLight.colors.diffuse;
+  (*mState.litSurfaceShaderProgram)->uniforms["uDirectionalLight.colors.specular"] = mState.scene->directionalLight.colors.specular;
+  (*mState.litSurfaceShaderProgram)->uniforms["uDirectionalLight.direction"] = mState.scene->directionalLight.direction;
+  (*mState.litSurfaceShaderProgram)->uniforms["uPointLight.colors.ambient"] = mState.scene->pointLight.colors.ambient;
+  (*mState.litSurfaceShaderProgram)->uniforms["uPointLight.colors.diffuse"] = mState.scene->pointLight.colors.diffuse;
+  (*mState.litSurfaceShaderProgram)->uniforms["uPointLight.position"] = mState.scene->pointLight.position;
+  (*mState.litSurfaceShaderProgram)->uniforms["uPointLight.position"] = mState.scene->pointLight.position;
+  (*mState.litSurfaceShaderProgram)->uniforms["uPointLight.constant"] = mState.scene->pointLight.constant;
+  (*mState.litSurfaceShaderProgram)->uniforms["uPointLight.linear"] = mState.scene->pointLight.linear;
+  (*mState.litSurfaceShaderProgram)->uniforms["uPointLight.quadratic"] = mState.scene->pointLight.quadratic;
+  (*mState.litSurfaceShaderProgram)->uniforms["uSpotlight.colors.ambient"] = mState.scene->spotlight.colors.ambient;
+  (*mState.litSurfaceShaderProgram)->uniforms["uSpotlight.colors.diffuse"] = mState.scene->spotlight.colors.diffuse;
+  (*mState.litSurfaceShaderProgram)->uniforms["uSpotlight.colors.specular"] = mState.scene->spotlight.colors.specular;
+  (*mState.litSurfaceShaderProgram)->uniforms["uSpotlight.position"] = mState.scene->spotlight.position;
+  (*mState.litSurfaceShaderProgram)->uniforms["uSpotlight.direction"] = mState.scene->spotlight.direction;
+  (*mState.litSurfaceShaderProgram)->uniforms["uSpotlight.cutOff"] = glm::cos(glm::radians(mState.scene->spotlight.cutOff));
+  (*mState.litSurfaceShaderProgram)->uniforms["uSpotlight.outerCutOff"] = glm::cos(glm::radians(mState.scene->spotlight.outerCutOff));
 
-  mState.visualiseDepthShaderProgram->get().uniforms["uCamera.near"] = mState.scene->camera.near;
-  mState.visualiseDepthShaderProgram->get().uniforms["uCamera.far"] = mState.scene->camera.far;
+  (*mState.visualiseDepthShaderProgram)->uniforms["uCamera.near"] = mState.mainCamera.near;
+  (*mState.visualiseDepthShaderProgram)->uniforms["uCamera.far"] = mState.mainCamera.far;
 }
 
-void Engine::drawFrame() {
-  mState.lastSceneRenderTime = timedBlock([this] {
-    mState.renderingEngine->renderScene(*mState.scene, mState.scene->camera, mState.windowSize);
-    mState.renderingEngine->postProcess(mState.postProcessingShaderProgramInstances);
-    mState.renderingEngine->present(mState.windowSize);
+void Application::drawFrame() {
+  mState.renderPasses = {
+    RenderPass {
+      .viewport = {},
+      .dstFramebuffer = mState.mainSceneFramebuffer.value(),
+      .pass = RenderScenePass { mState.scene.get(), &mState.mainCamera },
+    },
+  };
+
+  FramebufferHandle lastFramebuffer = mState.mainSceneFramebuffer.value();
+  size_t shaderIndex = 0;
+  for (FramebufferHandle framebuffer : mState.postProcessingFramebuffers) {
+    const PostProcessingPass pass = {
+      .srcFramebuffer = lastFramebuffer,
+      .postProcessingShader = mState.postProcessingShaderProgramInstances[shaderIndex++],
+    };
+    mState.renderPasses.emplace_back(Viewport {}, framebuffer, pass);
+    lastFramebuffer = framebuffer;
+  }
+
+  mState.lastSceneRenderTime = timedBlock([&, this] {
+    mState.renderingEngine->submitRenderPasses(mState.renderPasses);
+    mState.renderingEngine->present(mState.windowSize, mState.renderPasses.back().dstFramebuffer);
   });
 
   mState.lastGuiRenderTime = timedBlock(renderImGui);

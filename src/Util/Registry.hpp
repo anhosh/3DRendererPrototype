@@ -32,6 +32,11 @@ public:
     Handle& operator=(const Handle&) = default;
     Handle& operator=(Handle&&) = default;
 
+    ItemType& operator*() { return get(); }
+    ItemType* operator->() { return &get(); }
+    const ItemType& operator*() const { return get(); }
+    const ItemType* operator->() const { return &get(); }
+
     void erase() {
       mOwner->erase(mID);
     }
@@ -74,7 +79,7 @@ public:
     return Handle(this, mNextItemID++);
   }
 
-  void erase(RegItemID id) {
+  void erase(const RegItemID id) {
     mItems.erase(id);
   }
 

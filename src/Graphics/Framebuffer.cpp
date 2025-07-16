@@ -2,18 +2,19 @@
 
 #include <Util/Macros/Errors.hpp>
 
-Framebuffer::Framebuffer(glm::uvec2 size) {
-  this->init(size);
+Framebuffer::Framebuffer(const FramebufferCreateInfo& info) : mInfo(info) {
+  this->init(info);
 }
 
-void Framebuffer::init(glm::uvec2 size) {
+void Framebuffer::init(const FramebufferCreateInfo& info) {
   glGenFramebuffers(1, &mFBO);
   this->bind();
 
   this->colorAttachment.init();
   colorAttachment.bind();
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, static_cast<GLint>(size.x), static_cast<GLint>(size.y),
-               0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+  glTexImage2D(GL_TEXTURE_2D, 0, info.colorFormat,
+               static_cast<GLint>(info.size.x), static_cast<GLint>(info.size.y),
+               0, info.colorFormat, GL_UNSIGNED_BYTE, nullptr);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -21,11 +22,13 @@ void Framebuffer::init(glm::uvec2 size) {
   colorAttachment.unbind();
   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorAttachment.id(), 0);
 
-  glGenRenderbuffers(1, &mDepthStencilRBO);
-  glBindRenderbuffer(GL_RENDERBUFFER, mDepthStencilRBO);
-  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, size.x, size.y);
-  glBindRenderbuffer(GL_RENDERBUFFER, GL_NONE);
-  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, mDepthStencilRBO);
+  if (info.bDepthStencil) {
+    glGenRenderbuffers(1, &mDepthStencilRBO);
+    glBindRenderbuffer(GL_RENDERBUFFER, mDepthStencilRBO);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, info.size.x, info.size.y);
+    glBindRenderbuffer(GL_RENDERBUFFER, GL_NONE);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, mDepthStencilRBO);
+  }
 
   if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
     PANIC("Framebuffer not complete");
@@ -43,6 +46,12 @@ void Framebuffer::destroy() {
     mDepthStencilRBO = GL_NONE;
   }
   colorAttachment.destroy();
+}
+
+void Framebuffer::resize(const glm::uvec2 size) {
+  this->destroy();
+  mInfo.size = size;
+  this->init(mInfo);
 }
 
 void Framebuffer::bind() const {

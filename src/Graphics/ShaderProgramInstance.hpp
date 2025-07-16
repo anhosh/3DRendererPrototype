@@ -2,6 +2,7 @@
 
 #include <Graphics/ShaderProgram.hpp>
 #include <Util/NotNull.hpp>
+#include <Util/Registry.hpp>
 
 #include <glm/gtc/type_ptr.hpp>
 
@@ -124,3 +125,5 @@ private:
   static ShaderProgramInstance newPostProcessingSobelRight(NotNull<ShaderProgram> program);
   static ShaderProgramInstance newPostProcessingSobelTop(NotNull<ShaderProgram> program);
 };
+
+using ShaderProgramInstanceHandle = Registry<ShaderProgramInstance>::Handle;
