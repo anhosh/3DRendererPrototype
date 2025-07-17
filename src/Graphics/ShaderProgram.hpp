@@ -3,6 +3,7 @@
 #include <Graphics/Shader.hpp>
 #include <Util/Expected.hpp>
 #include <Util/Macros/Errors.hpp>
+#include <Util/Registry.hpp>
 
 #include <concepts>
 #include <filesystem>
@@ -19,7 +20,6 @@ struct TransformMatrices {
 class ShaderProgram {
 public:
   explicit ShaderProgram(GLuint shaderProgram);
-  virtual ~ShaderProgram() = default;
 
   template <std::derived_from<ShaderProgram> MaterialClass = ShaderProgram>
   MaterialClass& as() {
@@ -38,11 +38,12 @@ protected:
   GLuint mID = 0;
 };
 
+using ShaderProgramHandle = Registry<ShaderProgram>::Handle;
+
 namespace ShaderPrograms {
-  template <std::derived_from<ShaderProgram> MaterialClass = ShaderProgram>
-  Expected<std::unique_ptr<ShaderProgram>> fromShaders(const ShaderProgramPaths& shaderStages) {
-    const Expected<GLuint> shaderProgram = createShaderProgram(shaderStages);
+  inline Expected<ShaderProgram> fromShaders(const ShaderProgramPaths& shaderPaths) {
+    const Expected shaderProgram = createShaderProgram(shaderPaths);
     RETURN_ERROR_IF_UNEXPECTED(shaderProgram);
-    return std::make_unique<MaterialClass>(shaderProgram.value());
+    return ShaderProgram(shaderProgram.value());
   }
 }

@@ -1,6 +1,6 @@
 #include <Graphics/Scene.hpp>
 
-#include <Graphics/RenderingEngine.hpp>
+#include <Graphics/Actor.hpp>
 
 #include <map>
 #include <ranges>

@@ -6,7 +6,7 @@
 class VertexArray {
 public:
   VertexArray();
-  VertexArray(const Mesh& mesh);
+  explicit VertexArray(const Mesh& mesh);
 
   void init();
   void destroy();

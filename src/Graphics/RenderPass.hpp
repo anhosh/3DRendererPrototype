@@ -1,9 +1,12 @@
 #pragma once
 
-#include <Graphics/Scene.hpp>
+#include <Graphics/Framebuffer.hpp>
 #include <Graphics/ShaderProgramInstance.hpp>
 #include <Graphics/Viewport.hpp>
 #include <Util/NotNull.hpp>
+
+class Camera;
+class Scene;
 
 struct RenderScenePass {
   NotNull<Scene> scene;

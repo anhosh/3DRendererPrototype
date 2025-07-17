@@ -1,5 +1,6 @@
 #pragma once
-#include <Application.hpp>
+
+struct AppState;
 
 void initialiseImGui(GLFWwindow* window);
 void shutdownImGui();

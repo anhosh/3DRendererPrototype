@@ -1,5 +1,8 @@
 #pragma once
 
+#include <Assets/AssetHandle.hpp>
+#include <Assets/Bitmap.hpp>
+#include <Assets/Model.hpp>
 #include <Util/Expected.hpp>
 #include <Util/Registry.hpp>
 
@@ -11,18 +14,12 @@
 class aiMesh;
 class aiNode;
 class aiScene;
-class Bitmap;
 struct Mesh;
-struct Model;
-
-template <typename Asset>
-using AssetHandle = typename Registry<Asset>::Handle;
 
 class AssetManager {
 public:
   AssetManager();
 
-public:
   AssetHandle<Mesh> addMesh(Mesh&& mesh);
 
   [[nodiscard]] Expected<AssetHandle<Bitmap>> loadBitmap(const std::filesystem::path& filePath);

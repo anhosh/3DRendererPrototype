@@ -1,19 +1,13 @@
 #pragma once
 
 #include <Assets/AssetManager.hpp>
-#include <Assets/Mesh.hpp>
-#include <Assets/Model.hpp>
 #include <Graphics/Framebuffer.hpp>
 #include <Graphics/RenderData.hpp>
-#include <Graphics/RenderPass.hpp>
-#include <Graphics/ShaderProgram.hpp>
 #include <Graphics/ShaderProgramInstance.hpp>
 #include <Graphics/Texture.hpp>
 #include <Graphics/VertexArray.hpp>
-#include <Graphics/Viewport.hpp>
 #include <Util/Registry.hpp>
 
-#include <memory>
 #include <optional>
 #include <unordered_map>
 #include <unordered_set>
@@ -21,6 +15,9 @@
 
 class Camera;
 class Scene;
+struct RenderData;
+struct RenderPass;
+struct Viewport;
 
 class RenderingEngine {
 public:
@@ -29,17 +26,22 @@ public:
   Expected<void> init();
   void destroy();
 
+  Expected<ShaderProgramHandle> createShaderProgram(const ShaderProgramPaths& shaderPaths);
+  ShaderProgramHandle addShaderProgram(ShaderProgram&& shaderProgram);
+
   ShaderProgramInstanceHandle createShaderProgramInstance(ShaderProgramType type);
   ShaderProgramInstanceHandle addShaderProgramInstance(ShaderProgramInstance&& instance);
 
-  const std::vector<RenderData>& addModel(AssetHandle<Model> model, ShaderProgramInstanceHandle initialShaderProgramInstance);
-  Registry<VertexArray>::Handle addMesh(AssetHandle<Mesh> mesh);
-  TextureHandle addTexture(AssetHandle<Bitmap> bitmap, const SamplerOptions& options = {});
-  FramebufferHandle addFramebuffer(const FramebufferCreateInfo& info);
+  const std::vector<RenderData>& addModel(AssetHandle<Model> model, ShaderProgramInstanceHandle initialShader);
 
   std::vector<VertexArrayHandle> addMeshes(std::span<const AssetHandle<Mesh>> meshes);
+  VertexArrayHandle addMesh(AssetHandle<Mesh> mesh);
+
   std::vector<std::optional<TextureHandle>> addTextures(std::span<const std::optional<AssetHandle<Bitmap>>> bitmaps,
                                                         std::span<const SamplerOptions> options = {});
+  TextureHandle addTexture(AssetHandle<Bitmap> bitmap, const SamplerOptions& options = {});
+
+  FramebufferHandle addFramebuffer(const FramebufferCreateInfo& info);
 
   void submitRenderPasses(std::span<const RenderPass> renderPasses);
   void renderScene(const Scene& scene, const Camera& camera, const Viewport& viewport, FramebufferHandle dstFramebuffer);
@@ -48,24 +50,27 @@ public:
   void present(glm::uvec2 windowSize, FramebufferHandle srcFramebuffer) const;
 
 private:
-  std::unique_ptr<ShaderProgram> mLitSurfaceShaderProgram;
-  std::unique_ptr<ShaderProgram> mLightShaderProgram;
-  std::unique_ptr<ShaderProgram> mOutlineShaderProgram;
-  std::unique_ptr<ShaderProgram> mVisualiseDepthShaderProgram;
-  std::unique_ptr<ShaderProgram> mVisualiseNormalShaderProgram;
-  std::unique_ptr<ShaderProgram> mPostProcessCopyShaderProgram;
-  std::unique_ptr<ShaderProgram> mPostProcessFlipHorizontally;
-  std::unique_ptr<ShaderProgram> mPostProcessFlipVertically;
-  std::unique_ptr<ShaderProgram> mPostProcessGrayscaleShaderProgram;
-  std::unique_ptr<ShaderProgram> mPostProcessInvertShaderProgram;
-  std::unique_ptr<ShaderProgram> mPostProcessKernel3x3ShaderProgram;
+  bool bInitialised = false;
 
+  Registry<ShaderProgram> mShaderPrograms;
   Registry<ShaderProgramInstance> mShaderProgramInstances;
   Registry<VertexArray> mVertexArrays;
   Registry<Texture> mTextures;
+  Registry<Framebuffer> mFramebuffers;
 
   GLuint mScreenQuadVAO = GL_NONE;
-  Registry<Framebuffer> mFramebuffers;
+
+  std::optional<ShaderProgramHandle> mLitSurfaceShaderProgram = std::nullopt;
+  std::optional<ShaderProgramHandle> mLightShaderProgram = std::nullopt;
+  std::optional<ShaderProgramHandle> mOutlineShaderProgram = std::nullopt;
+  std::optional<ShaderProgramHandle> mVisualiseDepthShaderProgram = std::nullopt;
+  std::optional<ShaderProgramHandle> mVisualiseNormalShaderProgram = std::nullopt;
+  std::optional<ShaderProgramHandle> mPostProcessCopyShaderProgram = std::nullopt;
+  std::optional<ShaderProgramHandle> mPostProcessFlipHorizontallyShaderProgram = std::nullopt;
+  std::optional<ShaderProgramHandle> mPostProcessFlipVerticallyShaderProgram = std::nullopt;
+  std::optional<ShaderProgramHandle> mPostProcessGrayscaleShaderProgram = std::nullopt;
+  std::optional<ShaderProgramHandle> mPostProcessInvertShaderProgram = std::nullopt;
+  std::optional<ShaderProgramHandle> mPostProcessKernel3x3ShaderProgram = std::nullopt;
 
   std::unordered_map<RegItemID, TextureHandle> mUploadedTextures;
   std::unordered_map<RegItemID, std::vector<RenderData>> mUploadedModels;

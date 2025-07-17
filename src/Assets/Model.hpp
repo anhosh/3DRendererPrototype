@@ -1,10 +1,11 @@
 #pragma once
 
-#include <Assets/AssetManager.hpp>
-#include <Assets/Bitmap.hpp>
-#include <Assets/Mesh.hpp>
+#include <Assets/AssetHandle.hpp>
 
 #include <vector>
+
+class Bitmap;
+struct Mesh;
 
 struct Model {
   std::vector<AssetHandle<Mesh>> meshes;

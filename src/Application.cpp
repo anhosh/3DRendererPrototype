@@ -3,9 +3,7 @@
 #include <GUI.hpp>
 
 #include <Assets/Bitmap.hpp>
-#include <Assets/Model.hpp>
 #include <Graphics/Camera.hpp>
-#include <Graphics/Meshes.hpp>
 #include <Graphics/RenderingEngine.hpp>
 #include <Graphics/Scene.hpp>
 #include <Util/Macros/Errors.hpp>
@@ -26,18 +24,23 @@ Application::Application(Application&& other) noexcept {
 
 Expected<Application> Application::create(std::string_view title, glm::uvec2 initialWindowSize) {
   Application app;
+
   RETURN_ERROR_IF_UNEXPECTED(app.createContext(title, initialWindowSize));
+  initialiseImGui(app.mState.window);
+
   app.mState.assetManager = std::make_unique<AssetManager>();
   app.mState.scene = std::make_unique<Scene>();
+
   app.mState.renderingEngine = std::make_unique<RenderingEngine>();
+  RETURN_ERROR_IF_UNEXPECTED(app.mState.renderingEngine->init());
+
   app.mState.mainSceneFramebuffer = app.mState.renderingEngine->addFramebuffer({
     .size = initialWindowSize,
   });
   app.mState.backCameraSceneFramebuffer = app.mState.renderingEngine->addFramebuffer({
     .size = glm::vec2(initialWindowSize) * glm::vec2(0.4f, 0.2f),
   });
-  initialiseImGui(app.mState.window);
-  RETURN_ERROR_IF_UNEXPECTED(app.mState.renderingEngine->init());
+
   RETURN_ERROR_IF_UNEXPECTED(app.createScene());
   return app;
 }
@@ -125,7 +128,7 @@ Expected<void> Application::createContext(std::string_view title, glm::uvec2 ini
 
 Expected<void> Application::createScene() {
   // Load assets
-  const Expected<AssetHandle<Model>> backpackModel = mState.assetManager->loadModel("backpack/backpack.obj");
+  const Expected backpackModel = mState.assetManager->loadModel("backpack/backpack.obj");
 
   RETURN_ERROR_IF_UNEXPECTED(backpackModel);
 
@@ -174,6 +177,7 @@ void Application::processKeyboard() {
 
   const auto deltaTime = static_cast<float>(mState.currentFrameTime - mState.lastFrameTime);
   Camera& camera = mState.mainCamera;
+
   if (glfwGetKey(mState.window, GLFW_KEY_W) == GLFW_PRESS) {
     camera.position += deltaTime * camera.speed * camera.forward();
   }

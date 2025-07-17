@@ -106,7 +106,7 @@ Expected<void> AssetManager::processMesh(Model& model, aiMesh* mesh, const aiSce
   }
 
   for (uint32_t f = 0; f < mesh->mNumFaces; ++f) {
-    aiFace face = mesh->mFaces[f];
+    const aiFace face = mesh->mFaces[f];
     for (uint32_t i = 0; i < face.mNumIndices; ++i) {
       indices.push_back(face.mIndices[i]);
     }
@@ -134,7 +134,5 @@ Expected<AssetHandle<Bitmap>> AssetManager::processTexture(const aiMaterial* mat
 
   aiString pathStr;
   material->GetTexture(type, 0, &pathStr);
-  Expected<AssetHandle<Bitmap>> bitmap = this->loadBitmap(pathStr.C_Str());
-  RETURN_ERROR_IF_UNEXPECTED(bitmap);
-  return bitmap.value();
+  return this->loadBitmap(pathStr.C_Str());
 }

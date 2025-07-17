@@ -1,7 +1,6 @@
 #pragma once
 
 #include <Graphics/ShaderProgram.hpp>
-#include <Util/NotNull.hpp>
 #include <Util/Registry.hpp>
 
 #include <glm/gtc/type_ptr.hpp>
@@ -100,30 +99,30 @@ public:
   void use() const;
   void bindUniforms() const;
 
-  NotNull<ShaderProgram> shaderProgram;
+  ShaderProgramHandle shaderProgram;
   std::unordered_map<std::string, ShaderUniform> uniforms;
 
 private:
-  explicit ShaderProgramInstance(NotNull<ShaderProgram> program) : shaderProgram(program) {}
+  explicit ShaderProgramInstance(const ShaderProgramHandle program) : shaderProgram(program) {}
 
-  static ShaderProgramInstance newLitSurface(NotNull<ShaderProgram> program);
-  static ShaderProgramInstance newLight(NotNull<ShaderProgram> program);
-  static ShaderProgramInstance newOutline(NotNull<ShaderProgram> program);
-  static ShaderProgramInstance newVisualiseDepth(NotNull<ShaderProgram> program);
-  static ShaderProgramInstance newVisualiseNormal(NotNull<ShaderProgram> program);
-  static ShaderProgramInstance newPostProcessingCopy(NotNull<ShaderProgram> program);
-  static ShaderProgramInstance newPostProcessingBlur(NotNull<ShaderProgram> program);
-  static ShaderProgramInstance newPostProcessingEdgeDetection(NotNull<ShaderProgram> program);
-  static ShaderProgramInstance newPostProcessingEmboss(NotNull<ShaderProgram> program);
-  static ShaderProgramInstance newPostProcessingFlipHorizontally(NotNull<ShaderProgram> program);
-  static ShaderProgramInstance newPostProcessingFlipVertically(NotNull<ShaderProgram> program);
-  static ShaderProgramInstance newPostProcessingGrayscale(NotNull<ShaderProgram> program);
-  static ShaderProgramInstance newPostProcessingInvert(NotNull<ShaderProgram> program);
-  static ShaderProgramInstance newPostProcessingSharpen(NotNull<ShaderProgram> program);
-  static ShaderProgramInstance newPostProcessingSobelBottom(NotNull<ShaderProgram> program);
-  static ShaderProgramInstance newPostProcessingSobelLeft(NotNull<ShaderProgram> program);
-  static ShaderProgramInstance newPostProcessingSobelRight(NotNull<ShaderProgram> program);
-  static ShaderProgramInstance newPostProcessingSobelTop(NotNull<ShaderProgram> program);
+  static ShaderProgramInstance newLitSurface(ShaderProgramHandle program);
+  static ShaderProgramInstance newLight(ShaderProgramHandle program);
+  static ShaderProgramInstance newOutline(ShaderProgramHandle program);
+  static ShaderProgramInstance newVisualiseDepth(ShaderProgramHandle program);
+  static ShaderProgramInstance newVisualiseNormal(ShaderProgramHandle program);
+  static ShaderProgramInstance newPostProcessingCopy(ShaderProgramHandle program);
+  static ShaderProgramInstance newPostProcessingBlur(ShaderProgramHandle program);
+  static ShaderProgramInstance newPostProcessingEdgeDetection(ShaderProgramHandle program);
+  static ShaderProgramInstance newPostProcessingEmboss(ShaderProgramHandle program);
+  static ShaderProgramInstance newPostProcessingFlipHorizontally(ShaderProgramHandle program);
+  static ShaderProgramInstance newPostProcessingFlipVertically(ShaderProgramHandle program);
+  static ShaderProgramInstance newPostProcessingGrayscale(ShaderProgramHandle program);
+  static ShaderProgramInstance newPostProcessingInvert(ShaderProgramHandle program);
+  static ShaderProgramInstance newPostProcessingSharpen(ShaderProgramHandle program);
+  static ShaderProgramInstance newPostProcessingSobelBottom(ShaderProgramHandle program);
+  static ShaderProgramInstance newPostProcessingSobelLeft(ShaderProgramHandle program);
+  static ShaderProgramInstance newPostProcessingSobelRight(ShaderProgramHandle program);
+  static ShaderProgramInstance newPostProcessingSobelTop(ShaderProgramHandle program);
 };
 
 using ShaderProgramInstanceHandle = Registry<ShaderProgramInstance>::Handle;

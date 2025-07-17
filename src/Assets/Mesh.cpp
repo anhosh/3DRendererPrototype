@@ -1,18 +1,20 @@
-#include <Graphics/Meshes.hpp>
+#include <Assets/Mesh.hpp>
 
 #include <array>
 #include <vector>
 
-Mesh createCubeMesh() {
-  constexpr auto positions = std::array {
-    glm::vec3(-0.5f, +0.5f, +0.5f), // 0: left  top    front
-    glm::vec3(-0.5f, +0.5f, -0.5f), // 1: left  top    back
-    glm::vec3(-0.5f, -0.5f, +0.5f), // 2: left  bottom front
-    glm::vec3(-0.5f, -0.5f, -0.5f), // 3: left  bottom back
-    glm::vec3(+0.5f, +0.5f, +0.5f), // 4: right top    front
-    glm::vec3(+0.5f, +0.5f, -0.5f), // 5: right top    back
-    glm::vec3(+0.5f, -0.5f, +0.5f), // 6: right bottom front
-    glm::vec3(+0.5f, -0.5f, -0.5f), // 7: right bottom back
+Mesh Mesh::createCube(const glm::vec3 size) {
+  const glm::vec3 halfSize = size * 0.5f;
+
+  const auto positions = std::array {
+    glm::vec3(-halfSize.x, +halfSize.y, +halfSize.z), // 0: left  top    front
+    glm::vec3(-halfSize.x, +halfSize.y, -halfSize.z), // 1: left  top    back
+    glm::vec3(-halfSize.x, -halfSize.y, +halfSize.z), // 2: left  bottom front
+    glm::vec3(-halfSize.x, -halfSize.y, -halfSize.z), // 3: left  bottom back
+    glm::vec3(+halfSize.x, +halfSize.y, +halfSize.z), // 4: right top    front
+    glm::vec3(+halfSize.x, +halfSize.y, -halfSize.z), // 5: right top    back
+    glm::vec3(+halfSize.x, -halfSize.y, +halfSize.z), // 6: right bottom front
+    glm::vec3(+halfSize.x, -halfSize.y, -halfSize.z), // 7: right bottom back
   };
 
   constexpr auto normals = std::array {
@@ -65,33 +67,37 @@ Mesh createCubeMesh() {
   return {vertices, indices};
 }
 
-Mesh createQuadMesh(glm::vec2 size) {
+Mesh Mesh::createQuad(const glm::vec2 size) {
+  const glm::vec2 halfSize = size * 0.5f;
+  
   const auto vertices = std::vector {
     Vertex {
-      .position = glm::vec3(-size.x * 0.5f, -size.y * 0.5f, 0.0f),
+      .position = glm::vec3(-halfSize.x, -halfSize.y, 0.0f),
       .normal = glm::vec3(0.0f, 0.0f, -1.0f),
       .texCoord = glm::vec2(0.0f, 0.0f),
     },
     Vertex {
-      .position = glm::vec3(-size.x * 0.5f, +size.y * 0.5f, 0.0f),
+      .position = glm::vec3(-halfSize.x, +halfSize.y, 0.0f),
       .normal = glm::vec3(0.0f, 0.0f, -1.0f),
       .texCoord = glm::vec2(0.0f, 1.0f),
     },
     Vertex {
-      .position = glm::vec3(+size.x * 0.5f, +size.y * 0.5f, 0.0f),
+      .position = glm::vec3(+halfSize.x, +halfSize.y, 0.0f),
       .normal = glm::vec3(0.0f, 0.0f, -1.0f),
       .texCoord = glm::vec2(1.0f, 1.0f),
     },
     Vertex {
-      .position = glm::vec3(+size.x * 0.5f, -size.y * 0.5f, 0.0f),
+      .position = glm::vec3(+halfSize.x, -halfSize.y, 0.0f),
       .normal = glm::vec3(0.0f, 0.0f, -1.0f),
       .texCoord = glm::vec2(1.0f, 0.0f),
     },
   };
+
   const auto indices = std::vector {
     0u, 1u, 2u,
     0u, 2u, 3u,
   };
+
   return {vertices, indices};
 }
 

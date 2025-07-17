@@ -6,19 +6,19 @@
 
 namespace fs = std::filesystem;
 
-Expected<Bitmap> Bitmap::fromFile(const fs::path& path) {
+Expected<Bitmap> Bitmap::fromFile(const fs::path& fileName) {
   stbi_set_flip_vertically_on_load(true);
   int32_t width, height, channels;
-  uint8_t* loadedData = stbi_load(path.c_str(), &width, &height, &channels, 0);
+  uint8_t* loadedData = stbi_load(fileName.c_str(), &width, &height, &channels, 0);
   if (!loadedData) {
     stbi_image_free(loadedData);
-    return std::unexpected(std::format("Bitmap file was not found: {}", path.c_str()));
+    return std::unexpected(std::format("Bitmap file was not found: {}", fileName.c_str()));
   }
 
-  Expected<Bitmap> ret = Bitmap::fromMemory(std::span(loadedData, static_cast<uint32_t>(width * height * channels)),
-                                            glm::uvec2(width, height), static_cast<uint32_t>(channels));
+  Expected ret = Bitmap::fromMemory(std::span(loadedData, static_cast<uint32_t>(width * height * channels)),
+                                    glm::uvec2(width, height), static_cast<uint32_t>(channels));
   stbi_image_free(loadedData);
-  ret.value().mFilePath = path;
+  ret.value().mFilePath = fileName;
   return ret;
 }
 

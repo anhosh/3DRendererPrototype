@@ -1,133 +1,162 @@
-#include <ranges>
 #include <Graphics/RenderingEngine.hpp>
 
+#include <Assets/Mesh.hpp>
+#include <Assets/Model.hpp>
 #include <Graphics/Draw.hpp>
-#include <Graphics/Meshes.hpp>
+#include <Graphics/Framebuffer.hpp>
+#include <Graphics/RenderData.hpp>
+#include <Graphics/RenderPass.hpp>
 #include <Graphics/Scene.hpp>
 #include <Graphics/ShaderProgram.hpp>
-#include <Graphics/VertexArray.hpp>
+#include <Graphics/Viewport.hpp>
 
 #include <glm/gtc/type_ptr.hpp>
 
-Expected<void> addShaderProgram(const ShaderProgramPaths& stages, std::unique_ptr<ShaderProgram>& outShader) {
-  Expected<std::unique_ptr<ShaderProgram>> program = ShaderPrograms::fromShaders(stages);
-  RETURN_ERROR_IF_UNEXPECTED(program);
-  outShader = std::move(program.value());
-  return {};
-};
+#include <ranges>
 
 Expected<void> RenderingEngine::init() {
-  RETURN_ERROR_IF_UNEXPECTED(addShaderProgram({.vertex = "simple.vert", .fragment = "litSurface.frag"},
-                                              mLitSurfaceShaderProgram));
-  RETURN_ERROR_IF_UNEXPECTED(addShaderProgram({.vertex = "simple.vert", .fragment = "light.frag"},
-                                              mLightShaderProgram));
-  RETURN_ERROR_IF_UNEXPECTED(addShaderProgram({.vertex = "simple.vert", .fragment = "visualiseDepth.frag"},
-                                              mVisualiseDepthShaderProgram));
-  RETURN_ERROR_IF_UNEXPECTED(addShaderProgram({.vertex = "simple.vert", .fragment = "visualiseNormal.frag"},
-                                              mVisualiseNormalShaderProgram));
-  RETURN_ERROR_IF_UNEXPECTED(addShaderProgram({.vertex = "simple.vert", .fragment = "outline.frag"},
-                                              mOutlineShaderProgram));
-  RETURN_ERROR_IF_UNEXPECTED(addShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/copy.frag"},
-                                              mPostProcessCopyShaderProgram));
-  RETURN_ERROR_IF_UNEXPECTED(addShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/grayscale.frag"},
-                                              mPostProcessGrayscaleShaderProgram));
-  RETURN_ERROR_IF_UNEXPECTED(addShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/invert.frag"},
-                                              mPostProcessInvertShaderProgram));
-  RETURN_ERROR_IF_UNEXPECTED(addShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/kernel3x3.frag"},
-                                              mPostProcessKernel3x3ShaderProgram));
-  RETURN_ERROR_IF_UNEXPECTED(addShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/flipHorizontally.frag"},
-                                              mPostProcessFlipHorizontally));
-  RETURN_ERROR_IF_UNEXPECTED(addShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/flipVertically.frag"},
-                                              mPostProcessFlipVertically));
+  bInitialised = true; // Set this flag temporarily to let the shader program creation pass its assertion.
+  Expected litSurface       = this->createShaderProgram({.vertex = "simple.vert",     .fragment = "litSurface.frag"});
+  Expected light            = this->createShaderProgram({.vertex = "simple.vert",     .fragment = "light.frag"});
+  Expected visualiseDepth   = this->createShaderProgram({.vertex = "simple.vert",     .fragment = "visualiseDepth.frag"});
+  Expected visualiseNormal  = this->createShaderProgram({.vertex = "simple.vert",     .fragment = "visualiseNormal.frag"});
+  Expected outline          = this->createShaderProgram({.vertex = "simple.vert",     .fragment = "outline.frag"});
+  Expected copy             = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/copy.frag"});
+  Expected grayscale        = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/grayscale.frag"});
+  Expected invert           = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/invert.frag"});
+  Expected kernel3x3        = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/kernel3x3.frag"});
+  Expected flipHorizontally = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/flipHorizontally.frag"});
+  Expected flipVertically   = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/flipVertically.frag"});
+
+  bInitialised = false; // Reset because don't yet know if any of the shader program creations have failed or not.
+  ASSIGN_EXPECTED_OR_RETURN(mLitSurfaceShaderProgram, litSurface);
+  ASSIGN_EXPECTED_OR_RETURN(mLightShaderProgram, light);
+  ASSIGN_EXPECTED_OR_RETURN(mVisualiseDepthShaderProgram, visualiseDepth);
+  ASSIGN_EXPECTED_OR_RETURN(mVisualiseNormalShaderProgram, visualiseNormal);
+  ASSIGN_EXPECTED_OR_RETURN(mOutlineShaderProgram, outline);
+  ASSIGN_EXPECTED_OR_RETURN(mPostProcessCopyShaderProgram, copy);
+  ASSIGN_EXPECTED_OR_RETURN(mPostProcessGrayscaleShaderProgram, grayscale);
+  ASSIGN_EXPECTED_OR_RETURN(mPostProcessInvertShaderProgram, invert);
+  ASSIGN_EXPECTED_OR_RETURN(mPostProcessKernel3x3ShaderProgram, kernel3x3);
+  ASSIGN_EXPECTED_OR_RETURN(mPostProcessFlipHorizontallyShaderProgram, flipHorizontally);
+  ASSIGN_EXPECTED_OR_RETURN(mPostProcessFlipVerticallyShaderProgram, flipVertically);
 
   glGenVertexArrays(1, &mScreenQuadVAO);
 
+  bInitialised = true;
   return {};
 }
 
 void RenderingEngine::destroy() {
-  mLitSurfaceShaderProgram->destroy();
-  mLightShaderProgram->destroy();
-  mOutlineShaderProgram->destroy();
-  mVisualiseDepthShaderProgram->destroy();
-  mVisualiseNormalShaderProgram->destroy();
-  mPostProcessCopyShaderProgram->destroy();
-  mPostProcessInvertShaderProgram->destroy();
-
+  for (ShaderProgram& shaderProgram : std::ranges::views::values(mShaderPrograms)) {
+    shaderProgram.destroy();
+  }
   for (VertexArray& vertexArray : std::ranges::views::values(mVertexArrays)) {
     vertexArray.destroy();
   }
   for (Texture& texture : std::ranges::views::values(mTextures)) {
     texture.destroy();
   }
+  for (Framebuffer& framebuffer : std::ranges::views::values(mFramebuffers)) {
+    framebuffer.destroy();
+  }
+
   mShaderProgramInstances.clear();
   mVertexArrays.clear();
   mTextures.clear();
+  mFramebuffers.clear();
 
   glDeleteVertexArrays(1, &mScreenQuadVAO);
   mScreenQuadVAO = GL_NONE;
 
-  for (Framebuffer& framebuffer : std::ranges::views::values(mFramebuffers)) {
-    framebuffer.destroy();
-  }
-  mFramebuffers.clear();
+  mLitSurfaceShaderProgram.reset();
+  mLightShaderProgram.reset();
+  mOutlineShaderProgram.reset();
+  mVisualiseDepthShaderProgram.reset();
+  mVisualiseNormalShaderProgram.reset();
+  mPostProcessCopyShaderProgram.reset();
+  mPostProcessFlipHorizontallyShaderProgram.reset();
+  mPostProcessFlipVerticallyShaderProgram.reset();
+  mPostProcessGrayscaleShaderProgram.reset();
+  mPostProcessInvertShaderProgram.reset();
+  mPostProcessKernel3x3ShaderProgram.reset();
 
   mUploadedTextures.clear();
   mUploadedModels.clear();
 
   mBoundTextureSlots.clear();
+
+  bInitialised = false;
+}
+
+Expected<ShaderProgramHandle> RenderingEngine::createShaderProgram(const ShaderProgramPaths& shaderPaths) {
+  assert(bInitialised);
+
+  Expected shaderProgram = ShaderPrograms::fromShaders(shaderPaths);
+  RETURN_ERROR_IF_UNEXPECTED(shaderProgram);
+  return mShaderPrograms.add(std::move(shaderProgram.value()));
+}
+
+ShaderProgramHandle RenderingEngine::addShaderProgram(ShaderProgram&& shaderProgram) {
+  assert(bInitialised);
+
+  return mShaderPrograms.add(std::forward<ShaderProgram>(shaderProgram));
 }
 
 ShaderProgramInstanceHandle RenderingEngine::createShaderProgramInstance(const ShaderProgramType type) {
+  assert(bInitialised);
+
   switch (type) {
     case ShaderProgramType::LitSurface:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newLitSurface(mLitSurfaceShaderProgram.get()));
+      return this->addShaderProgramInstance(ShaderProgramInstance::newLitSurface(mLitSurfaceShaderProgram.value()));
     case ShaderProgramType::Light:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newLight(mLightShaderProgram.get()));
+      return this->addShaderProgramInstance(ShaderProgramInstance::newLight(mLightShaderProgram.value()));
     case ShaderProgramType::Outline:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newOutline(mOutlineShaderProgram.get()));
+      return this->addShaderProgramInstance(ShaderProgramInstance::newOutline(mOutlineShaderProgram.value()));
     case ShaderProgramType::VisualiseDepth:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newVisualiseDepth(mVisualiseDepthShaderProgram.get()));
+      return this->addShaderProgramInstance(ShaderProgramInstance::newVisualiseDepth(mVisualiseDepthShaderProgram.value()));
     case ShaderProgramType::VisualiseNormal:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newVisualiseNormal(mVisualiseNormalShaderProgram.get()));
+      return this->addShaderProgramInstance(ShaderProgramInstance::newVisualiseNormal(mVisualiseNormalShaderProgram.value()));
     case ShaderProgramType::PostProcessCopy:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingCopy(mPostProcessCopyShaderProgram.get()));
+      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingCopy(mPostProcessCopyShaderProgram.value()));
     case ShaderProgramType::PostProcessBlur:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingBlur(mPostProcessKernel3x3ShaderProgram.get()));
+      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingBlur(mPostProcessKernel3x3ShaderProgram.value()));
     case ShaderProgramType::PostProcessEdgeDetection:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingEdgeDetection(mPostProcessKernel3x3ShaderProgram.get()));
+      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingEdgeDetection(mPostProcessKernel3x3ShaderProgram.value()));
     case ShaderProgramType::PostProcessEmboss:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingEmboss(mPostProcessKernel3x3ShaderProgram.get()));
+      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingEmboss(mPostProcessKernel3x3ShaderProgram.value()));
     case ShaderProgramType::PostProcessFlipHorizontally:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingFlipHorizontally(mPostProcessFlipHorizontally.get()));
+      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingFlipHorizontally(mPostProcessFlipHorizontallyShaderProgram.value()));
     case ShaderProgramType::PostProcessFlipVertically:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingFlipVertically(mPostProcessFlipVertically.get()));
+      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingFlipVertically(mPostProcessFlipVerticallyShaderProgram.value()));
     case ShaderProgramType::PostProcessGrayscale:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingGrayscale(mPostProcessGrayscaleShaderProgram.get()));
+      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingGrayscale(mPostProcessGrayscaleShaderProgram.value()));
     case ShaderProgramType::PostProcessInvert:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingInvert(mPostProcessInvertShaderProgram.get()));
+      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingInvert(mPostProcessInvertShaderProgram.value()));
     case ShaderProgramType::PostProcessSharpen:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingSharpen(mPostProcessKernel3x3ShaderProgram.get()));
+      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingSharpen(mPostProcessKernel3x3ShaderProgram.value()));
     case ShaderProgramType::PostProcessSobelBottom:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingSobelBottom(mPostProcessKernel3x3ShaderProgram.get()));
+      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingSobelBottom(mPostProcessKernel3x3ShaderProgram.value()));
     case ShaderProgramType::PostProcessSobelLeft:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingSobelLeft(mPostProcessKernel3x3ShaderProgram.get()));
+      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingSobelLeft(mPostProcessKernel3x3ShaderProgram.value()));
     case ShaderProgramType::PostProcessSobelRight:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingSobelRight(mPostProcessKernel3x3ShaderProgram.get()));
+      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingSobelRight(mPostProcessKernel3x3ShaderProgram.value()));
     case ShaderProgramType::PostProcessSobelTop:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingSobelTop(mPostProcessKernel3x3ShaderProgram.get()));
+      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingSobelTop(mPostProcessKernel3x3ShaderProgram.value()));
     default:
       PANIC("Unsupported shader program type");
   }
 }
 
 ShaderProgramInstanceHandle RenderingEngine::addShaderProgramInstance(ShaderProgramInstance&& instance) {
+  assert(bInitialised);
+
   return mShaderProgramInstances.add(std::forward<ShaderProgramInstance>(instance));
 }
 
-const std::vector<RenderData>& RenderingEngine::addModel(AssetHandle<Model> model,
-                                                                          ShaderProgramInstanceHandle initialShaderProgramInstance)
-{
+const std::vector<RenderData>& RenderingEngine::addModel(AssetHandle<Model> model, ShaderProgramInstanceHandle initialShader) {
+  assert(bInitialised);
+
   if (mUploadedModels.contains(model.id())) {
     return mUploadedModels.at(model.id());
   }
@@ -147,7 +176,7 @@ const std::vector<RenderData>& RenderingEngine::addModel(AssetHandle<Model> mode
   std::vector<RenderData> modelResources;
   modelResources.reserve(vertexArrays.size());
   for (size_t meshRes = 0; meshRes < vertexArrays.size(); ++meshRes) {
-    RenderData resources { .vertexArray = vertexArrays[meshRes], .shaderProgramInstance = initialShaderProgramInstance };
+    RenderData resources { .vertexArray = vertexArrays[meshRes], .shaderProgramInstance = initialShader };
     resources.diffuseMap = diffuseMaps[meshRes];
     resources.specularMap = specularMaps[meshRes];
     resources.emissionMap = emissionMaps[meshRes];
@@ -159,25 +188,9 @@ const std::vector<RenderData>& RenderingEngine::addModel(AssetHandle<Model> mode
   return resources;
 }
 
-VertexArrayHandle RenderingEngine::addMesh(AssetHandle<Mesh> mesh) {
-  return mVertexArrays.add(mesh.get());
-}
-
-TextureHandle RenderingEngine::addTexture(AssetHandle<Bitmap> bitmap, const SamplerOptions& options) {
-  if (mUploadedTextures.contains(bitmap.id())) {
-    return mUploadedTextures.at(bitmap.id());
-  }
-
-  const TextureHandle handle = mTextures.add(Texture(bitmap.get(), options));
-  mUploadedTextures.emplace(bitmap.id(), handle);
-  return handle;
-}
-
-FramebufferHandle RenderingEngine::addFramebuffer(const FramebufferCreateInfo& info) {
-  return mFramebuffers.add(Framebuffer(info));
-}
-
 std::vector<VertexArrayHandle> RenderingEngine::addMeshes(std::span<const AssetHandle<Mesh>> meshes) {
+  assert(bInitialised);
+
   std::vector<VertexArrayHandle> refs;
   refs.reserve(meshes.size());
   for (const AssetHandle<Mesh>& mesh : meshes) {
@@ -187,10 +200,18 @@ std::vector<VertexArrayHandle> RenderingEngine::addMeshes(std::span<const AssetH
   return refs;
 }
 
+VertexArrayHandle RenderingEngine::addMesh(AssetHandle<Mesh> mesh) {
+  assert(bInitialised);
+
+  return mVertexArrays.add(VertexArray(mesh.get()));
+}
+
 auto RenderingEngine::addTextures(std::span<const std::optional<AssetHandle<Bitmap>>> bitmaps, std::span<const SamplerOptions> options)
   -> std::vector<std::optional<TextureHandle>>
 {
+  assert(bInitialised);
   assert(bitmaps.size() == options.size());
+
   std::vector<std::optional<TextureHandle>> refs;
   refs.reserve(bitmaps.size());
   for (size_t i = 0; i < bitmaps.size(); ++i) {
@@ -205,27 +226,49 @@ auto RenderingEngine::addTextures(std::span<const std::optional<AssetHandle<Bitm
   return refs;
 }
 
+TextureHandle RenderingEngine::addTexture(AssetHandle<Bitmap> bitmap, const SamplerOptions& options) {
+  assert(bInitialised);
+
+  if (mUploadedTextures.contains(bitmap.id())) {
+    return mUploadedTextures.at(bitmap.id());
+  }
+
+  const TextureHandle handle = mTextures.add(Texture(bitmap.get(), options));
+  mUploadedTextures.emplace(bitmap.id(), handle);
+  return handle;
+}
+
+FramebufferHandle RenderingEngine::addFramebuffer(const FramebufferCreateInfo& info) {
+  assert(bInitialised);
+
+  return mFramebuffers.add(Framebuffer(info));
+}
+
 void RenderingEngine::submitRenderPasses(const std::span<const RenderPass> renderPasses) {
-  for (const RenderPass& renderPass : renderPasses) {
-    if (const auto* renderScenePass = std::get_if<RenderScenePass>(&renderPass.pass)) {
-      this->renderScene(*renderScenePass->scene, *renderScenePass->camera, renderPass.viewport, renderPass.dstFramebuffer);
-    } else if (const auto* postProcessingPass = std::get_if<PostProcessingPass>(&renderPass.pass)) {
-      this->postProcess(renderPass.viewport, postProcessingPass->postProcessingShader, postProcessingPass->srcFramebuffer, renderPass.dstFramebuffer);
+  assert(bInitialised);
+
+  for (const auto& [viewport, dstFramebuffer, pass] : renderPasses) {
+    if (const auto* renderScenePass = std::get_if<RenderScenePass>(&pass)) {
+      this->renderScene(*renderScenePass->scene, *renderScenePass->camera, viewport, dstFramebuffer);
+    } else if (const auto* postProcessingPass = std::get_if<PostProcessingPass>(&pass)) {
+      this->postProcess(viewport, postProcessingPass->postProcessingShader, postProcessingPass->srcFramebuffer, dstFramebuffer);
     }
   }
 }
 
 void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, const Viewport& viewport, FramebufferHandle dstFramebuffer) {
+  assert(bInitialised);
+
   dstFramebuffer->bind();
 
   const glm::ivec2 viewportPositionPx = glm::floor(viewport.position * glm::vec2(dstFramebuffer->size()));
   const glm::ivec2 viewportSizePx = glm::floor(viewport.size * glm::vec2(dstFramebuffer->size()));
+  glViewport(viewportPositionPx.x, viewportPositionPx.y, viewportSizePx.x, viewportSizePx.y);
 
-  glViewport(static_cast<GLint>(viewportPositionPx.x), static_cast<GLint>(viewportPositionPx.y),
-             static_cast<GLint>(viewportSizePx.x), static_cast<GLint>(viewportSizePx.y));
   glEnable(GL_STENCIL_TEST);
   glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
   glStencilMask(0xff);
+
   glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
@@ -237,10 +280,10 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
   TransformMatrices transforms = { .view = camera.view(), .projection = camera.projection(dstFramebuffer->size()) };
 
   const Draw* lastDraw = &draws.front();
-  for (size_t i = 0; i < draws.size(); i++) {
-    const Draw* currDraw = &draws[i];
+  for (size_t drawIdx = 0; drawIdx < draws.size(); drawIdx++) {
+    const Draw* currDraw = &draws[drawIdx];
 
-    if (i == 0 || currDraw->bBackfaceCulling != lastDraw->bBackfaceCulling) {
+    if (drawIdx == 0 || currDraw->bBackfaceCulling != lastDraw->bBackfaceCulling) {
       if (currDraw->bBackfaceCulling) {
         glEnable(GL_CULL_FACE);
         glCullFace(GL_BACK);
@@ -249,20 +292,20 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
         glDisable(GL_CULL_FACE);
       }
     }
-    if (i == 0 || currDraw->bDepthTest != lastDraw->bDepthTest) {
+    if (drawIdx == 0 || currDraw->bDepthTest != lastDraw->bDepthTest) {
       if (currDraw->bDepthTest) {
         glEnable(GL_DEPTH_TEST);
       } else {
         glDisable(GL_DEPTH_TEST);
       }
     }
-    if (i == 0 || currDraw->bStencilTest != lastDraw->bStencilTest) {
+    if (drawIdx == 0 || currDraw->bStencilTest != lastDraw->bStencilTest) {
       glStencilFunc(currDraw->bStencilTest ? GL_NOTEQUAL : GL_ALWAYS, 1, 0xff);
     }
-    if (i == 0 || currDraw->bWriteToStencil != lastDraw->bWriteToStencil) {
+    if (drawIdx == 0 || currDraw->bWriteToStencil != lastDraw->bWriteToStencil) {
       glStencilMask(currDraw->bWriteToStencil ? 0xff : 0x00);
     }
-    if (i == 0 || currDraw->bTransparent != lastDraw->bTransparent) {
+    if (drawIdx == 0 || currDraw->bTransparent != lastDraw->bTransparent) {
       if (currDraw->bTransparent) {
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -272,15 +315,15 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
     }
 
     const ShaderProgramInstance& currShader = currDraw->shaderProgramInstance.get();
-    if (i == 0 || currDraw->shaderProgramInstance.id() != lastDraw->shaderProgramInstance.id()) {
+    if (drawIdx == 0 || currDraw->shaderProgramInstance.id() != lastDraw->shaderProgramInstance.id()) {
       const ShaderProgramInstance& lastShader = lastDraw->shaderProgramInstance.get();
-      if (i == 0 || currShader.shaderProgram != lastShader.shaderProgram) {
+      if (drawIdx == 0 || currShader.shaderProgram != lastShader.shaderProgram) {
         currShader.use();
       }
       currShader.bindUniforms();
     }
 
-    if (i == 0 || currDraw->shaderProgramInstance.id() != lastDraw->shaderProgramInstance.id() ||
+    if (drawIdx == 0 || currDraw->shaderProgramInstance.id() != lastDraw->shaderProgramInstance.id() ||
         currDraw->transform != lastDraw->transform)
     {
       transforms.model = currDraw->transform.matrix();
@@ -290,7 +333,7 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
 
     GLuint slot = GL_TEXTURE0;
     const auto bindTextures = [&, this](const std::optional<TextureHandle>& currTexture, const std::optional<TextureHandle>& lastTexture) {
-      if (i == 0 || currTexture != lastTexture) {
+      if (drawIdx == 0 || currTexture != lastTexture) {
         if (currTexture.has_value()) {
           currTexture->get().bind(slot);
           mBoundTextureSlots.insert(slot);
@@ -307,7 +350,7 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
     bindTextures(currDraw->emissionMapIndex, lastDraw->emissionMapIndex);
 
     const VertexArray& currVA = currDraw->vertexArray.get();
-    if (i == 0 || currDraw->vertexArray != lastDraw->vertexArray) {
+    if (drawIdx == 0 || currDraw->vertexArray != lastDraw->vertexArray) {
       glBindVertexArray(currVA.vao);
     }
     glDrawElements(GL_TRIANGLES, currVA.indexCount, GL_UNSIGNED_INT, nullptr);
@@ -327,11 +370,12 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
 void RenderingEngine::postProcess(const Viewport& viewport, ShaderProgramInstanceHandle postProcessingShader,
                                   FramebufferHandle srcFramebuffer, FramebufferHandle dstFramebuffer) const
 {
+  assert(bInitialised);
+
   const glm::ivec2 viewportPositionPx = glm::floor(viewport.position * glm::vec2(dstFramebuffer->size()));
   const glm::ivec2 viewportSizePx = glm::floor(viewport.size * glm::vec2(dstFramebuffer->size()));
+  glViewport(viewportPositionPx.x, viewportPositionPx.y, viewportSizePx.x, viewportSizePx.y);
 
-  glViewport(static_cast<GLint>(viewportPositionPx.x), static_cast<GLint>(viewportPositionPx.y),
-             static_cast<GLint>(viewportSizePx.x), static_cast<GLint>(viewportSizePx.y));
   glDisable(GL_BLEND);
   glDisable(GL_CULL_FACE);
   glDisable(GL_DEPTH_TEST);
@@ -352,6 +396,8 @@ void RenderingEngine::postProcess(const Viewport& viewport, ShaderProgramInstanc
 }
 
 void RenderingEngine::present(const glm::uvec2 windowSize, FramebufferHandle srcFramebuffer) const {
+  assert(bInitialised);
+
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
   glViewport(0, 0, static_cast<GLint>(windowSize.x), static_cast<GLint>(windowSize.y));
@@ -364,8 +410,9 @@ void RenderingEngine::present(const glm::uvec2 windowSize, FramebufferHandle src
   glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT);
 
-  glUseProgram(mPostProcessCopyShaderProgram->id());
+  glUseProgram((*mPostProcessCopyShaderProgram)->id());
   glUniform1i(0, 0); // bind uScreenTexture sampler
+  glActiveTexture(GL_TEXTURE0);
   srcFramebuffer->colorAttachment.bind();
   glBindVertexArray(mScreenQuadVAO);
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);

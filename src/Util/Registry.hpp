@@ -9,7 +9,6 @@ using RegItemID = uint32_t;
 template <typename ItemType>
 class Registry {
 public:
-
   ///  Iterator-related typedefs.
   using pointer              = typename std::unordered_map<RegItemID, ItemType>::pointer;
   using const_pointer        = typename std::unordered_map<RegItemID, ItemType>::const_pointer;

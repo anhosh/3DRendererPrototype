@@ -30,6 +30,7 @@ struct AppState {
   std::unique_ptr<AssetManager> assetManager;
   std::unique_ptr<RenderingEngine> renderingEngine;
   std::unique_ptr<Scene> scene;
+
   Camera mainCamera;
   Camera backCamera;
 
@@ -40,6 +41,7 @@ struct AppState {
   std::optional<FramebufferHandle> mainSceneFramebuffer;
   std::optional<FramebufferHandle> backCameraSceneFramebuffer;
   std::vector<FramebufferHandle> postProcessingFramebuffers;
+
   std::vector<RenderPass> renderPasses;
 
   std::optional<ShaderProgramInstanceHandle> litSurfaceShaderProgram = std::nullopt;

@@ -2,8 +2,8 @@
 
 #include <Graphics/ShaderProgramInstance.hpp>
 #include <Graphics/Texture.hpp>
-#include <Graphics/VertexArray.hpp>
 #include <Graphics/Transform.hpp>
+#include <Graphics/VertexArray.hpp>
 
 struct Draw {
   Transform transform = {};
