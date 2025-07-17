@@ -43,7 +43,7 @@ public:
 
   void submitRenderPasses(std::span<const RenderPass> renderPasses);
   void renderScene(const Scene& scene, const Camera& camera, const Viewport& viewport, FramebufferHandle dstFramebuffer);
-  void postProcess(ShaderProgramInstanceHandle postProcessingShader,
+  void postProcess(const Viewport& viewport, ShaderProgramInstanceHandle postProcessingShader,
                    FramebufferHandle srcFramebuffer, FramebufferHandle dstFramebuffer) const;
   void present(glm::uvec2 windowSize, FramebufferHandle srcFramebuffer) const;
 

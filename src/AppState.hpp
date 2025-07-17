@@ -25,6 +25,7 @@ struct AppState {
   bool bFlashlightFollowCamera = true;
   bool bDrawBackpackOutline = false;
   bool bDrawLightOutline = false;
+  bool bBackMirror = false;
 
   std::unique_ptr<AssetManager> assetManager;
   std::unique_ptr<RenderingEngine> renderingEngine;
@@ -40,6 +41,7 @@ struct AppState {
   std::vector<ShaderProgramInstanceHandle> postProcessingShaderProgramInstances;
 
   std::optional<FramebufferHandle> mainSceneFramebuffer;
+  std::optional<FramebufferHandle> backCameraSceneFramebuffer;
   std::vector<FramebufferHandle> postProcessingFramebuffers;
   std::vector<RenderPass> renderPasses;
 
@@ -50,4 +52,6 @@ struct AppState {
 
   std::optional<ShaderProgramInstanceHandle> backpackOutlineShaderProgram = std::nullopt;
   std::optional<ShaderProgramInstanceHandle> lightCubeOutlineShaderProgram = std::nullopt;
+
+  std::optional<ShaderProgramInstanceHandle> postProcessingCopyShaderProgramInstance = std::nullopt;
 };

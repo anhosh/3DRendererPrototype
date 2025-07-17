@@ -26,6 +26,10 @@ void guiCamera(AppState& state) {
     ImGui::DragFloat("Near", &camera.near, 0.01f, 0.01f, 10.0f);
     ImGui::DragFloat("Far", &camera.far, 0.01f, 10.0f, 1000.0f);
 
+    ImGui::Spacing();
+
+    ImGui::Checkbox("Back mirror", &state.bBackMirror);
+
     ImGui::Unindent();
   }
 }

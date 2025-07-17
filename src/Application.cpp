@@ -30,7 +30,12 @@ Expected<Application> Application::create(std::string_view title, glm::uvec2 ini
   app.mState.assetManager = std::make_unique<AssetManager>();
   app.mState.scene = std::make_unique<Scene>();
   app.mState.renderingEngine = std::make_unique<RenderingEngine>();
-  app.mState.mainSceneFramebuffer = app.mState.renderingEngine->addFramebuffer({ .size = initialWindowSize });
+  app.mState.mainSceneFramebuffer = app.mState.renderingEngine->addFramebuffer({
+    .size = initialWindowSize,
+  });
+  app.mState.backCameraSceneFramebuffer = app.mState.renderingEngine->addFramebuffer({
+    .size = glm::vec2(initialWindowSize) * glm::vec2(0.4f, 0.2f),
+  });
   initialiseImGui(app.mState.window);
   RETURN_ERROR_IF_UNEXPECTED(app.mState.renderingEngine->init());
   RETURN_ERROR_IF_UNEXPECTED(app.createScene());
@@ -106,6 +111,7 @@ Expected<void> Application::createContext(std::string_view title, glm::uvec2 ini
     const glm::uvec2 newSize = {width, height};
     NotNull(gApp)->mState.windowSize = newSize;
     NotNull(gApp)->mState.mainSceneFramebuffer.value()->resize(newSize);
+    NotNull(gApp)->mState.backCameraSceneFramebuffer.value()->resize(glm::vec2(newSize) * glm::vec2(0.4f, 0.2f));
     NotNull(gApp)->mState.lastMousePosition = glm::vec2(newSize) * 0.5f;
     NotNull(gApp)->mState.bFirstMouse = true;
   });
@@ -138,6 +144,8 @@ Expected<void> Application::createScene() {
 
   mState.backpackOutlineShaderProgram = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::Outline);
   mState.lightCubeOutlineShaderProgram = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::Outline);
+
+  mState.postProcessingCopyShaderProgramInstance = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::PostProcessCopy);
 
   // Upload assets to GPU
   const VertexArrayHandle quadVA = mState.renderingEngine->addMesh(quadMesh);
@@ -316,13 +324,17 @@ void Application::updateScene() {
 }
 
 void Application::drawFrame() {
-  mState.renderPasses = {
-    RenderPass {
-      .viewport = {},
-      .dstFramebuffer = mState.mainSceneFramebuffer.value(),
-      .pass = RenderScenePass { mState.scene.get(), &mState.mainCamera },
-    },
-  };
+  Camera backCamera = mState.mainCamera;
+  backCamera.rotation.x += 180.0f;
+  backCamera.rotation.y *= -1.0f;
+
+  mState.renderPasses.clear();
+  if (mState.bBackMirror) {
+    mState.renderPasses.emplace_back(Viewport {}, mState.backCameraSceneFramebuffer.value(),
+                                     RenderScenePass { mState.scene.get(), &backCamera });
+  }
+  mState.renderPasses.emplace_back(Viewport {}, mState.mainSceneFramebuffer.value(),
+                                   RenderScenePass { mState.scene.get(), &mState.mainCamera });
 
   FramebufferHandle lastFramebuffer = mState.mainSceneFramebuffer.value();
   size_t shaderIndex = 0;
@@ -333,6 +345,20 @@ void Application::drawFrame() {
     };
     mState.renderPasses.emplace_back(Viewport {}, framebuffer, pass);
     lastFramebuffer = framebuffer;
+  }
+
+  if (mState.bBackMirror) {
+    mState.renderPasses.push_back({
+      .viewport = {
+        .position = { 0.3f, 0.8f },
+        .size = { 0.4f, 0.2f },
+      },
+      .dstFramebuffer = mState.renderPasses.back().dstFramebuffer,
+      .pass = PostProcessingPass {
+        .srcFramebuffer = mState.backCameraSceneFramebuffer.value(),
+        .postProcessingShader = mState.postProcessingCopyShaderProgramInstance.value(),
+      },
+    });
   }
 
   mState.lastSceneRenderTime = timedBlock([&, this] {

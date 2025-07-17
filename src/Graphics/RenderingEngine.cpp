@@ -210,7 +210,7 @@ void RenderingEngine::submitRenderPasses(const std::span<const RenderPass> rende
     if (const auto* renderScenePass = std::get_if<RenderScenePass>(&renderPass.pass)) {
       this->renderScene(*renderScenePass->scene, *renderScenePass->camera, renderPass.viewport, renderPass.dstFramebuffer);
     } else if (const auto* postProcessingPass = std::get_if<PostProcessingPass>(&renderPass.pass)) {
-      this->postProcess(postProcessingPass->postProcessingShader, postProcessingPass->srcFramebuffer, renderPass.dstFramebuffer);
+      this->postProcess(renderPass.viewport, postProcessingPass->postProcessingShader, postProcessingPass->srcFramebuffer, renderPass.dstFramebuffer);
     }
   }
 }
@@ -324,18 +324,20 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
   mBoundTextureSlots.clear();
 }
 
-void RenderingEngine::postProcess(ShaderProgramInstanceHandle postProcessingShader,
+void RenderingEngine::postProcess(const Viewport& viewport, ShaderProgramInstanceHandle postProcessingShader,
                                   FramebufferHandle srcFramebuffer, FramebufferHandle dstFramebuffer) const
 {
-  glViewport(0, 0, static_cast<GLint>(dstFramebuffer->size().x), static_cast<GLint>(dstFramebuffer->size().y));
+  const glm::ivec2 viewportPositionPx = glm::floor(viewport.position * glm::vec2(dstFramebuffer->size()));
+  const glm::ivec2 viewportSizePx = glm::floor(viewport.size * glm::vec2(dstFramebuffer->size()));
+
+  glViewport(static_cast<GLint>(viewportPositionPx.x), static_cast<GLint>(viewportPositionPx.y),
+             static_cast<GLint>(viewportSizePx.x), static_cast<GLint>(viewportSizePx.y));
   glDisable(GL_BLEND);
   glDisable(GL_CULL_FACE);
   glDisable(GL_DEPTH_TEST);
   glDisable(GL_STENCIL_TEST);
 
   dstFramebuffer->bind();
-  glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-  glClear(GL_COLOR_BUFFER_BIT);
 
   postProcessingShader->use();
   postProcessingShader->bindUniforms();
