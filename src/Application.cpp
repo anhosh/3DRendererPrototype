@@ -125,96 +125,29 @@ Expected<void> Application::createContext(std::string_view title, glm::uvec2 ini
 
 Expected<void> Application::createScene() {
   // Load assets
-  const AssetHandle<Mesh> quadMesh = mState.assetManager->addMesh(createQuadMesh());
-  const AssetHandle<Mesh> cubeMesh = mState.assetManager->addMesh(createCubeMesh());
-
   const Expected<AssetHandle<Model>> backpackModel = mState.assetManager->loadModel("backpack/backpack.obj");
-  const Expected<AssetHandle<Bitmap>> grassBitmap = mState.assetManager->loadBitmap("grass/diffuse.png");
-  const Expected<AssetHandle<Bitmap>> windowBitmap = mState.assetManager->loadBitmap("window/diffuse.png");
 
   RETURN_ERROR_IF_UNEXPECTED(backpackModel);
-  RETURN_ERROR_IF_UNEXPECTED(grassBitmap);
-  RETURN_ERROR_IF_UNEXPECTED(windowBitmap);
 
   // Get shader instances
   mState.litSurfaceShaderProgram = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::LitSurface);
   mState.lightShaderProgram = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::Light);
   mState.visualiseDepthShaderProgram = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::VisualiseDepth);
   mState.visualiseNormalShaderProgram = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::VisualiseNormal);
-
   mState.backpackOutlineShaderProgram = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::Outline);
-  mState.lightCubeOutlineShaderProgram = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::Outline);
-
   mState.postProcessingCopyShaderProgramInstance = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::PostProcessCopy);
 
   // Upload assets to GPU
-  const VertexArrayHandle quadVA = mState.renderingEngine->addMesh(quadMesh);
-  const VertexArrayHandle cubeVA = mState.renderingEngine->addMesh(cubeMesh);
-
-  constexpr SamplerOptions samplerOptionsClampToEdge = { .wrapS = GL_CLAMP_TO_EDGE, .wrapT = GL_CLAMP_TO_EDGE };
-  const TextureHandle grassTexture = mState.renderingEngine->addTexture(grassBitmap.value(), samplerOptionsClampToEdge);
-  const TextureHandle windowTexture = mState.renderingEngine->addTexture(windowBitmap.value(), samplerOptionsClampToEdge);
-
-  constexpr RenderOptions transparentQuadOptions = { .bBackfaceCulling = false, .bTransparent = true };
   std::vector<RenderData> backpackResources = mState.renderingEngine->addModel(backpackModel.value(), mState.litSurfaceShaderProgram.value());
-  std::vector lightResources = {
-    RenderData {
-      .vertexArray = cubeVA,
-      .shaderProgramInstance = mState.lightShaderProgram.value(),
-    }
-  };
-  std::vector grassResources = {
-    RenderData {
-      .vertexArray = quadVA,
-      .shaderProgramInstance = mState.litSurfaceShaderProgram.value(),
-      .diffuseMap = grassTexture,
-      .renderOptions = transparentQuadOptions,
-    }
-  };
-  std::vector windowResources = {
-    RenderData {
-      .vertexArray = quadVA,
-      .shaderProgramInstance = mState.litSurfaceShaderProgram.value(),
-      .diffuseMap = windowTexture,
-      .renderOptions = transparentQuadOptions,
-    }
-  };
 
   // Create actors
-  mState.backpackActor = mState.scene->addActor(Actor {
+  mState.scene->addActor(Actor {
     .name = "Backpack",
     .transform = Transform {
       .translation = glm::vec3(0.0f),
     },
     .renderData = std::move(backpackResources),
   });
-
-  mState.lightActor = mState.scene->addActor(Actor {
-    .name = "Light cube",
-    .transform = Transform {
-      .scale = glm::vec3(0.1f),
-    },
-    .renderData = std::move(lightResources),
-  });
-
-  mState.grassActor = mState.scene->addActor(Actor {
-    .name = "Grass",
-    .transform = Transform {
-      .translation = glm::vec3(0.0f, 0.0f, 1.0f),
-    },
-    .renderData = std::move(grassResources),
-  });
-
-  Actor windowActor = { .renderData = windowResources };
-  windowActor.name = "Window 0";
-  windowActor.transform.translation = glm::vec3(-0.25f, 0.0f, 1.5f);
-  mState.scene->addActor(Actor(windowActor));
-  windowActor.name = "Window 1";
-  windowActor.transform.translation = glm::vec3(0.25f, 0.0f, 1.75f);
-  mState.scene->addActor(Actor(windowActor));
-  windowActor.name = "Window 2";
-  windowActor.transform.translation = glm::vec3(0.0f, 0.0f, 2.0f);
-  mState.scene->addActor(std::move(windowActor));
 
   return {};
 }
@@ -284,13 +217,10 @@ void Application::processMousePosition(glm::vec2 mousePosition) {
 }
 
 void Application::updateScene() {
-  // Flying light cube
-  mState.scene->pointLight.position = {
-    2.0f * glm::cos(mState.currentFrameTime * 0.05f),
-    2.0f * glm::cos(mState.currentFrameTime * 0.075f),
-    2.0f * glm::sin(mState.currentFrameTime * 0.05f),
-  };
-  (*mState.lightActor)->transform.translation = mState.scene->pointLight.position;
+  // Back mirror camera
+  mState.backCamera = mState.mainCamera;
+  mState.backCamera.rotation.x += 180.0f;
+  mState.backCamera.rotation.y *= -1.0f;
 
   // Flashlight
   if (mState.bFlashlightFollowCamera) {
@@ -324,14 +254,10 @@ void Application::updateScene() {
 }
 
 void Application::drawFrame() {
-  Camera backCamera = mState.mainCamera;
-  backCamera.rotation.x += 180.0f;
-  backCamera.rotation.y *= -1.0f;
-
   mState.renderPasses.clear();
   if (mState.bBackMirror) {
     mState.renderPasses.emplace_back(Viewport {}, mState.backCameraSceneFramebuffer.value(),
-                                     RenderScenePass { mState.scene.get(), &backCamera });
+                                     RenderScenePass { mState.scene.get(), &mState.backCamera });
   }
   mState.renderPasses.emplace_back(Viewport {}, mState.mainSceneFramebuffer.value(),
                                    RenderScenePass { mState.scene.get(), &mState.mainCamera });

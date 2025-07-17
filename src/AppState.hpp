@@ -31,10 +31,7 @@ struct AppState {
   std::unique_ptr<RenderingEngine> renderingEngine;
   std::unique_ptr<Scene> scene;
   Camera mainCamera;
-
-  std::optional<ActorHandle> backpackActor = std::nullopt;
-  std::optional<ActorHandle> lightActor = std::nullopt;
-  std::optional<ActorHandle> grassActor = std::nullopt;
+  Camera backCamera;
 
   ShaderProgramType backpackShaderProgramType = ShaderProgramType::LitSurface;
   std::vector<ShaderProgramType> postProcessingShaderProgramTypes;
@@ -49,9 +46,6 @@ struct AppState {
   std::optional<ShaderProgramInstanceHandle> lightShaderProgram = std::nullopt;
   std::optional<ShaderProgramInstanceHandle> visualiseDepthShaderProgram = std::nullopt;
   std::optional<ShaderProgramInstanceHandle> visualiseNormalShaderProgram = std::nullopt;
-
   std::optional<ShaderProgramInstanceHandle> backpackOutlineShaderProgram = std::nullopt;
-  std::optional<ShaderProgramInstanceHandle> lightCubeOutlineShaderProgram = std::nullopt;
-
   std::optional<ShaderProgramInstanceHandle> postProcessingCopyShaderProgramInstance = std::nullopt;
 };

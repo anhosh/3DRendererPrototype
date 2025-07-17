@@ -143,15 +143,6 @@ void guiActors(AppState& state) {
           std::unordered_map<std::string, ShaderUniform>& outlineUniforms = (*state.backpackOutlineShaderProgram)->uniforms;
           ImGui::ColorPicker3("Outline color##backpack", outlineUniforms["uOutlineColor"].getValuePtr<glm::vec3>(), ImGuiColorEditFlags_Float);
           ImGui::EndDisabled();
-        } else if (actor.name.contains("Light cube")) {
-          if (ImGui::Checkbox("Draw outline##lightCube", &state.bDrawLightOutline)) {
-            actor.setOutlineShaderInstance(state.bDrawLightOutline ? state.lightCubeOutlineShaderProgram : std::nullopt);
-          }
-
-          ImGui::BeginDisabled(!state.bDrawLightOutline);
-          std::unordered_map<std::string, ShaderUniform>& outlineUniforms = (*state.lightCubeOutlineShaderProgram)->uniforms;
-          ImGui::ColorPicker3("Outline color##lightCube", outlineUniforms["uOutlineColor"].getValuePtr<glm::vec3>(), ImGuiColorEditFlags_Float);
-          ImGui::EndDisabled();
         }
 
         ImGui::Unindent();
