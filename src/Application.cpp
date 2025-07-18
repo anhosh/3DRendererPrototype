@@ -150,13 +150,31 @@ Expected<void> Application::createScene() {
   // Get shader instances
   mState.litSurfaceShader = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::LitSurface);
   mState.lightShader = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::Light);
+  mState.reflectiveSurfaceShader = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::ReflectiveSurface);
+  mState.refractiveSurfaceShader = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::RefractiveSurface);
   mState.visualiseDepthShader = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::VisualiseDepth);
   mState.visualiseNormalShader = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::VisualiseNormal);
   mState.backpackOutlineShader = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::Outline);
   mState.postProcessingCopyShader = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::PostProcessCopy);
 
   // Upload assets to GPU
-  std::vector<RenderData> backpackResources = mState.renderingEngine->addModel(modelBackpack.value(), mState.litSurfaceShader.value());
+  std::vector<RenderData> backpackMeshes = mState.renderingEngine->addModel(modelBackpack.value(), mState.litSurfaceShader.value());
+
+  TextureCubeMapHandle skyboxTexture = mState.renderingEngine->addTextureCubeMap(
+    TextureCubeMapBitmaps {
+      bitmapSkyboxRight.value(),
+      bitmapSkyboxLeft.value(),
+      bitmapSkyboxTop.value(),
+      bitmapSkyboxBottom.value(),
+      bitmapSkyboxBack.value(),
+      bitmapSkyboxFront.value(),
+    },
+    SamplerOptions { .minFilter = GL_LINEAR }
+  );
+
+  for (RenderData& mesh : backpackMeshes) {
+    mesh.environmentMap = skyboxTexture;
+  }
 
   // Create scene
   mState.scene->directionalLight.direction = glm::vec3(0.3f, -1.0f, 0.3f);
@@ -172,17 +190,7 @@ Expected<void> Application::createScene() {
 
   mState.scene->skybox = Skybox {
     .cubeMesh = mState.renderingEngine->addMesh(skyboxCubeMesh),
-    .texture = mState.renderingEngine->addTextureCubeMap(
-      TextureCubeMapBitmaps {
-        bitmapSkyboxRight.value(),
-        bitmapSkyboxLeft.value(),
-        bitmapSkyboxTop.value(),
-        bitmapSkyboxBottom.value(),
-        bitmapSkyboxBack.value(),
-        bitmapSkyboxFront.value(),
-      },
-      SamplerOptions { .minFilter = GL_LINEAR }
-    ),
+    .texture = skyboxTexture,
     .shader = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::Skybox),
   };
 
@@ -191,7 +199,7 @@ Expected<void> Application::createScene() {
     .transform = Transform {
       .translation = glm::vec3(0.0f),
     },
-    .renderData = std::move(backpackResources),
+    .renderData = std::move(backpackMeshes),
   });
 
   return {};
@@ -294,6 +302,9 @@ void Application::updateScene() {
   (*mState.litSurfaceShader)->uniforms["uSpotlight.direction"] = mState.scene->spotlight.direction;
   (*mState.litSurfaceShader)->uniforms["uSpotlight.cutOff"] = glm::cos(glm::radians(mState.scene->spotlight.cutOff));
   (*mState.litSurfaceShader)->uniforms["uSpotlight.outerCutOff"] = glm::cos(glm::radians(mState.scene->spotlight.outerCutOff));
+
+  (*mState.reflectiveSurfaceShader)->uniforms["uViewPos"] = mState.mainCamera.position;
+  (*mState.refractiveSurfaceShader)->uniforms["uViewPos"] = mState.mainCamera.position;
 
   (*mState.visualiseDepthShader)->uniforms["uCamera.near"] = mState.mainCamera.near;
   (*mState.visualiseDepthShader)->uniforms["uCamera.far"] = mState.mainCamera.far;

@@ -59,7 +59,7 @@ Expected<AssetHandle<Model>> AssetManager::loadModel(const std::filesystem::path
 }
 
 Expected<void> AssetManager::locateModels() {
-  if (std::optional<fs::path> modelsDir = locateDirectory("models")) {
+  if (const std::optional<fs::path> modelsDir = locateDirectory("models")) {
     mModelsDir = std::move(modelsDir.value());
     return {};
   }
@@ -67,7 +67,7 @@ Expected<void> AssetManager::locateModels() {
 }
 
 Expected<void> AssetManager::locateTextures() {
-  if (std::optional<fs::path> texturesDir = locateDirectory("textures")) {
+  if (const std::optional<fs::path> texturesDir = locateDirectory("textures")) {
     mTexturesDir = texturesDir.value();
     return {};
   }

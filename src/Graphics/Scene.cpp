@@ -35,6 +35,7 @@ std::vector<Draw> Scene::draw(const Camera& camera) const {
           .diffuseMap = resources.diffuseMap,
           .specularMap = resources.specularMap,
           .emissionMap = resources.emissionMap,
+          .environmentMap = resources.environmentMap,
           .bBackfaceCulling = resources.renderOptions.bBackfaceCulling,
           .bWriteToStencil = resources.renderOptions.outlineShaderInstance.has_value(),
         });
@@ -60,6 +61,7 @@ std::vector<Draw> Scene::draw(const Camera& camera) const {
       .diffuseMap = resources.diffuseMap,
       .specularMap = resources.specularMap,
       .emissionMap = resources.emissionMap,
+      .environmentMap = resources.environmentMap,
       .bBackfaceCulling = resources.renderOptions.bBackfaceCulling,
       .bWriteToStencil = resources.renderOptions.outlineShaderInstance.has_value(),
       .bTransparent = true,
@@ -86,7 +88,7 @@ std::vector<Draw> Scene::draw(const Camera& camera) const {
     draws.push_back(Draw {
       .shaderProgramInstance = skybox->shader,
       .vertexArray = skybox->cubeMesh,
-      .emissionCubeMap = skybox->texture,
+      .environmentMap = skybox->texture,
       .bBackfaceCulling = false,
       .bDisableCameraTranslation = true,
     });

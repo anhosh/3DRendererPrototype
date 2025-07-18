@@ -45,6 +45,8 @@ struct AppState {
   std::vector<RenderPass> renderPasses;
 
   std::optional<ShaderProgramInstanceHandle> litSurfaceShader = std::nullopt;
+  std::optional<ShaderProgramInstanceHandle> reflectiveSurfaceShader = std::nullopt;
+  std::optional<ShaderProgramInstanceHandle> refractiveSurfaceShader = std::nullopt;
   std::optional<ShaderProgramInstanceHandle> lightShader = std::nullopt;
   std::optional<ShaderProgramInstanceHandle> visualiseDepthShader = std::nullopt;
   std::optional<ShaderProgramInstanceHandle> visualiseNormalShader = std::nullopt;

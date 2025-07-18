@@ -2,6 +2,7 @@
 
 #include <Graphics/ShaderProgramInstance.hpp>
 #include <Graphics/Texture2D.hpp>
+#include <Graphics/TextureCubeMap.hpp>
 #include <Graphics/VertexArray.hpp>
 #include <Util/Registry.hpp>
 
@@ -19,5 +20,6 @@ struct RenderData {
   std::optional<Texture2DHandle> diffuseMap = std::nullopt;
   std::optional<Texture2DHandle> specularMap = std::nullopt;
   std::optional<Texture2DHandle> emissionMap = std::nullopt;
+  std::optional<TextureCubeMapHandle> environmentMap = std::nullopt;
   RenderOptions renderOptions = {};
 };

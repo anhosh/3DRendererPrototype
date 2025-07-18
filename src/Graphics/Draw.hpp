@@ -15,7 +15,7 @@ struct Draw {
   std::optional<Texture2DHandle> diffuseMap = std::nullopt;
   std::optional<Texture2DHandle> specularMap = std::nullopt;
   std::optional<Texture2DHandle> emissionMap = std::nullopt;
-  std::optional<TextureCubeMapHandle> emissionCubeMap = std::nullopt;
+  std::optional<TextureCubeMapHandle> environmentMap = std::nullopt;
 
   bool bBackfaceCulling = true;
   bool bWriteToStencil = false;

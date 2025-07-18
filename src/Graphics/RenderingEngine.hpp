@@ -66,6 +66,8 @@ private:
   std::optional<ShaderProgramHandle> mLitSurfaceShaderProgram = std::nullopt;
   std::optional<ShaderProgramHandle> mLightShaderProgram = std::nullopt;
   std::optional<ShaderProgramHandle> mOutlineShaderProgram = std::nullopt;
+  std::optional<ShaderProgramHandle> mReflectiveSurfaceShaderProgram = std::nullopt;
+  std::optional<ShaderProgramHandle> mRefractiveSurfaceShaderProgram = std::nullopt;
   std::optional<ShaderProgramHandle> mVisualiseDepthShaderProgram = std::nullopt;
   std::optional<ShaderProgramHandle> mVisualiseNormalShaderProgram = std::nullopt;
   std::optional<ShaderProgramHandle> mPostProcessCopyShaderProgram = std::nullopt;

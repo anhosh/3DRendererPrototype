@@ -4,6 +4,12 @@
 
 #include <ranges>
 
+static constexpr GLint TEXTURE_SLOT_SCREEN = 0;
+static constexpr GLint TEXTURE_SLOT_DIFFUSE = 0;
+static constexpr GLint TEXTURE_SLOT_SPECULAR = 1;
+static constexpr GLint TEXTURE_SLOT_EMISSION = 2;
+static constexpr GLint TEXTURE_SLOT_ENVIRONMENT = 3;
+
 void ShaderProgramInstance::use() const {
   glUseProgram(shaderProgram->id());
 }
@@ -41,9 +47,9 @@ ShaderProgramInstance ShaderProgramInstance::newLitSurface(const ShaderProgramHa
 
   instance.setUniform("uViewPos", glm::vec3(0.0f));
 
-  instance.setUniform("uMaterial.diffuse", 0);
-  instance.setUniform("uMaterial.specular", 1);
-  instance.setUniform("uMaterial.emission", 2);
+  instance.setUniform("uMaterial.diffuse", TEXTURE_SLOT_DIFFUSE);
+  instance.setUniform("uMaterial.specular", TEXTURE_SLOT_SPECULAR);
+  instance.setUniform("uMaterial.emission", TEXTURE_SLOT_EMISSION);
   instance.setUniform("uMaterial.shininess", 32.0f);
   
   constexpr DirectionalLight directionalLight;
@@ -89,6 +95,25 @@ ShaderProgramInstance ShaderProgramInstance::newOutline(const ShaderProgramHandl
   return instance;
 }
 
+ShaderProgramInstance ShaderProgramInstance::newReflectiveSurface(ShaderProgramHandle program) {
+  ShaderProgramInstance instance(program);
+
+  instance.setUniform("uViewPos", glm::vec3(0.0f));
+  instance.setUniform("uEnvironmentMap", TEXTURE_SLOT_ENVIRONMENT);
+
+  return instance;
+}
+
+ShaderProgramInstance ShaderProgramInstance::newRefractiveSurface(ShaderProgramHandle program) {
+  ShaderProgramInstance instance(program);
+
+  instance.setUniform("uViewPos", glm::vec3(0.0f));
+  instance.setUniform("uRefractiveIndex", 1.52f);
+  instance.setUniform("uEnvironmentMap", TEXTURE_SLOT_ENVIRONMENT);
+
+  return instance;
+}
+
 ShaderProgramInstance ShaderProgramInstance::newVisualiseDepth(const ShaderProgramHandle program) {
   ShaderProgramInstance instance(program);
 
@@ -107,7 +132,7 @@ ShaderProgramInstance ShaderProgramInstance::newVisualiseNormal(const ShaderProg
 ShaderProgramInstance ShaderProgramInstance::newPostProcessingCopy(const ShaderProgramHandle program) {
   ShaderProgramInstance instance(program);
 
-  instance.setUniform("uScreenTexture", 0);
+  instance.setUniform("uScreenTexture", TEXTURE_SLOT_SCREEN);
   
   return instance;
 }
@@ -115,7 +140,7 @@ ShaderProgramInstance ShaderProgramInstance::newPostProcessingCopy(const ShaderP
 ShaderProgramInstance ShaderProgramInstance::newPostProcessingBlur(const ShaderProgramHandle program) {
   ShaderProgramInstance instance(program);
 
-  instance.setUniform("uScreenTexture", 0);
+  instance.setUniform("uScreenTexture", TEXTURE_SLOT_SCREEN);
   instance.setUniform("uOffset", 1.0f / 3000.0f);
   instance.setUniform("uKernel", glm::mat3(1.0f, 2.0f, 1.0f,
                                                       2.0f, 4.0f, 2.0f,
@@ -127,7 +152,7 @@ ShaderProgramInstance ShaderProgramInstance::newPostProcessingBlur(const ShaderP
 ShaderProgramInstance ShaderProgramInstance::newPostProcessingEdgeDetection(const ShaderProgramHandle program) {
   ShaderProgramInstance instance(program);
 
-  instance.setUniform("uScreenTexture", 0);
+  instance.setUniform("uScreenTexture", TEXTURE_SLOT_SCREEN);
   instance.setUniform("uOffset", 1.0f / 3000.0f);
   instance.setUniform("uKernel", glm::mat3(1.0f,  1.0f, 1.0f,
                                                       1.0f, -8.0f, 1.0f,
@@ -139,7 +164,7 @@ ShaderProgramInstance ShaderProgramInstance::newPostProcessingEdgeDetection(cons
 ShaderProgramInstance ShaderProgramInstance::newPostProcessingEmboss(const ShaderProgramHandle program) {
   ShaderProgramInstance instance(program);
 
-  instance.setUniform("uScreenTexture", 0);
+  instance.setUniform("uScreenTexture", TEXTURE_SLOT_SCREEN);
   instance.setUniform("uOffset", 1.0f / 3000.0f);
   instance.setUniform("uKernel", glm::mat3(-2.0f, -1.0f, 1.0f,
                                                       -1.0f,  1.0f, 1.0f,
@@ -167,7 +192,7 @@ ShaderProgramInstance ShaderProgramInstance::newPostProcessingInvert(const Shade
 ShaderProgramInstance ShaderProgramInstance::newPostProcessingSharpen(const ShaderProgramHandle program) {
   ShaderProgramInstance instance(program);
 
-  instance.setUniform("uScreenTexture", 0);
+  instance.setUniform("uScreenTexture", TEXTURE_SLOT_SCREEN);
   instance.setUniform("uOffset", 1.0f / 3000.0f);
   instance.setUniform("uKernel", glm::mat3(-1.0f, -1.0f, -1.0f,
                                                       -1.0f,  9.0f, -1.0f,
@@ -179,7 +204,7 @@ ShaderProgramInstance ShaderProgramInstance::newPostProcessingSharpen(const Shad
 ShaderProgramInstance ShaderProgramInstance::newPostProcessingSobelBottom(const ShaderProgramHandle program) {
   ShaderProgramInstance instance(program);
 
-  instance.setUniform("uScreenTexture", 0);
+  instance.setUniform("uScreenTexture", TEXTURE_SLOT_SCREEN);
   instance.setUniform("uOffset", 1.0f / 3000.0f);
   instance.setUniform("uKernel", glm::mat3(-1.0f, -2.0f, -1.0f,
                                                        0.0f,  0.0f,  0.0f,
@@ -191,7 +216,7 @@ ShaderProgramInstance ShaderProgramInstance::newPostProcessingSobelBottom(const 
 ShaderProgramInstance ShaderProgramInstance::newPostProcessingSobelLeft(const ShaderProgramHandle program) {
   ShaderProgramInstance instance(program);
 
-  instance.setUniform("uScreenTexture", 0);
+  instance.setUniform("uScreenTexture", TEXTURE_SLOT_SCREEN);
   instance.setUniform("uOffset", 1.0f / 3000.0f);
   instance.setUniform("uKernel", glm::mat3(1.0f, 0.0f, -1.0f,
                                                       2.0f, 0.0f, -2.0f,
@@ -203,7 +228,7 @@ ShaderProgramInstance ShaderProgramInstance::newPostProcessingSobelLeft(const Sh
 ShaderProgramInstance ShaderProgramInstance::newPostProcessingSobelRight(const ShaderProgramHandle program) {
   ShaderProgramInstance instance(program);
 
-  instance.setUniform("uScreenTexture", 0);
+  instance.setUniform("uScreenTexture", TEXTURE_SLOT_SCREEN);
   instance.setUniform("uOffset", 1.0f / 3000.0f);
   instance.setUniform("uKernel", glm::mat3(-1.0f, 0.0f, 1.0f,
                                                       -2.0f, 0.0f, 2.0f,
@@ -215,7 +240,7 @@ ShaderProgramInstance ShaderProgramInstance::newPostProcessingSobelRight(const S
 ShaderProgramInstance ShaderProgramInstance::newPostProcessingSobelTop(const ShaderProgramHandle program) {
   ShaderProgramInstance instance(program);
 
-  instance.setUniform("uScreenTexture", 0);
+  instance.setUniform("uScreenTexture", TEXTURE_SLOT_SCREEN);
   instance.setUniform("uOffset", 1.0f / 3000.0f);
   instance.setUniform("uKernel", glm::mat3( 1.0f,  2.0f,  1.0f,
                                                        0.0f,  0.0f,  0.0f,
@@ -224,10 +249,10 @@ ShaderProgramInstance ShaderProgramInstance::newPostProcessingSobelTop(const Sha
   return instance;
 }
 
-ShaderProgramInstance ShaderProgramInstance::newSkybox(ShaderProgramHandle program) {
+ShaderProgramInstance ShaderProgramInstance::newSkybox(const ShaderProgramHandle program) {
   ShaderProgramInstance instance(program);
 
-  instance.setUniform("uSkyTexture", 3);
+  instance.setUniform("uSkyTexture", TEXTURE_SLOT_ENVIRONMENT);
 
   return instance;
 }

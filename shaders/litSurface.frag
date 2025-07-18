@@ -39,7 +39,7 @@ uniform DirectionalLight uDirectionalLight;
 uniform PointLight uPointLight;
 uniform Spotlight uSpotlight;
 
-layout (location = 4) uniform vec3 uViewPos;
+uniform vec3 uViewPos;
 
 in VS_OUT {
   vec3 position;

@@ -44,7 +44,7 @@ void guiLight(AppState& state) {
       ImGui::Indent();
       DirectionalLight& directionalLight = state.scene->directionalLight;
 
-      ImGui::DragFloat3("Direction##dl", glm::value_ptr(directionalLight.direction), 0.001, -1.0f, 1.0f);
+      ImGui::DragFloat3("Direction##dl", glm::value_ptr(directionalLight.direction), 0.001f, -1.0f, 1.0f);
       ImGui::Spacing();
 
       ImGui::ColorPicker3("Ambient##dl", glm::value_ptr(directionalLight.colors.ambient), lightColorEditFlags);
@@ -111,6 +111,8 @@ void guiActors(AppState& state) {
             "Light",
             "Lit surface",
             "Outline",
+            "Reflective surface",
+            "Refractive surface",
             "Visualise depth",
             "Visualise normal",
           };
@@ -129,6 +131,12 @@ void guiActors(AppState& state) {
               case ShaderProgramType::Outline:
                 actor.setShaderProgramInstance(state.backpackOutlineShader.value());
                 break;
+              case ShaderProgramType::ReflectiveSurface:
+                actor.setShaderProgramInstance(state.reflectiveSurfaceShader.value());
+                break;
+              case ShaderProgramType::RefractiveSurface:
+                actor.setShaderProgramInstance(state.refractiveSurfaceShader.value());
+                break;
               case ShaderProgramType::VisualiseDepth:
                 actor.setShaderProgramInstance(state.visualiseDepthShader.value());
                 break;
@@ -138,6 +146,11 @@ void guiActors(AppState& state) {
               default:
                 PANIC("Unexpected shader program type");
             }
+          }
+
+          if (state.backpackShaderProgramType == ShaderProgramType::RefractiveSurface) {
+            auto& refractiveIndex = (*state.refractiveSurfaceShader)->uniforms["uRefractiveIndex"].getRef<GLfloat>();
+            ImGui::DragFloat("Refractive index", &refractiveIndex, 0.01f, 1.0f, 10.0f);
           }
 
           if (ImGui::Checkbox("Draw outline##backpack", &state.bDrawBackpackOutline)) {

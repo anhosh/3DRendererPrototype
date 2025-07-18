@@ -16,18 +16,20 @@
 
 Expected<void> RenderingEngine::init() {
   bInitialised = true; // Set this flag temporarily to let the shader program creation pass its assertion.
-  Expected litSurface       = this->createShaderProgram({.vertex = "simple.vert",     .fragment = "litSurface.frag"});
-  Expected light            = this->createShaderProgram({.vertex = "simple.vert",     .fragment = "light.frag"});
-  Expected visualiseDepth   = this->createShaderProgram({.vertex = "simple.vert",     .fragment = "visualiseDepth.frag"});
-  Expected visualiseNormal  = this->createShaderProgram({.vertex = "simple.vert",     .fragment = "visualiseNormal.frag"});
-  Expected outline          = this->createShaderProgram({.vertex = "simple.vert",     .fragment = "outline.frag"});
-  Expected copy             = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/copy.frag"});
-  Expected grayscale        = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/grayscale.frag"});
-  Expected invert           = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/invert.frag"});
-  Expected kernel3x3        = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/kernel3x3.frag"});
-  Expected flipHorizontally = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/flipHorizontally.frag"});
-  Expected flipVertically   = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/flipVertically.frag"});
-  Expected skybox           = this->createShaderProgram({.vertex = "skybox.vert", .fragment = "skybox.frag"});
+  Expected litSurface        = this->createShaderProgram({.vertex = "simple.vert",     .fragment = "litSurface.frag"});
+  Expected light             = this->createShaderProgram({.vertex = "simple.vert",     .fragment = "light.frag"});
+  Expected visualiseDepth    = this->createShaderProgram({.vertex = "simple.vert",     .fragment = "visualiseDepth.frag"});
+  Expected visualiseNormal   = this->createShaderProgram({.vertex = "simple.vert",     .fragment = "visualiseNormal.frag"});
+  Expected outline           = this->createShaderProgram({.vertex = "simple.vert",     .fragment = "outline.frag"});
+  Expected reflectiveSurface = this->createShaderProgram({.vertex = "simple.vert",     .fragment = "reflectiveSurface.frag"});
+  Expected refractiveSurface = this->createShaderProgram({.vertex = "simple.vert",     .fragment = "refractiveSurface.frag"});
+  Expected copy              = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/copy.frag"});
+  Expected grayscale         = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/grayscale.frag"});
+  Expected invert            = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/invert.frag"});
+  Expected kernel3x3         = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/kernel3x3.frag"});
+  Expected flipHorizontally  = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/flipHorizontally.frag"});
+  Expected flipVertically    = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/flipVertically.frag"});
+  Expected skybox            = this->createShaderProgram({.vertex = "skybox.vert", .fragment = "skybox.frag"});
 
   bInitialised = false; // Reset because some of the shader program creations might have failed.
   ASSIGN_EXPECTED_OR_RETURN(mLitSurfaceShaderProgram, litSurface);
@@ -35,6 +37,8 @@ Expected<void> RenderingEngine::init() {
   ASSIGN_EXPECTED_OR_RETURN(mVisualiseDepthShaderProgram, visualiseDepth);
   ASSIGN_EXPECTED_OR_RETURN(mVisualiseNormalShaderProgram, visualiseNormal);
   ASSIGN_EXPECTED_OR_RETURN(mOutlineShaderProgram, outline);
+  ASSIGN_EXPECTED_OR_RETURN(mReflectiveSurfaceShaderProgram, reflectiveSurface);
+  ASSIGN_EXPECTED_OR_RETURN(mRefractiveSurfaceShaderProgram, refractiveSurface);
   ASSIGN_EXPECTED_OR_RETURN(mPostProcessCopyShaderProgram, copy);
   ASSIGN_EXPECTED_OR_RETURN(mPostProcessGrayscaleShaderProgram, grayscale);
   ASSIGN_EXPECTED_OR_RETURN(mPostProcessInvertShaderProgram, invert);
@@ -116,6 +120,10 @@ ShaderProgramInstanceHandle RenderingEngine::createShaderProgramInstance(const S
       return this->addShaderProgramInstance(ShaderProgramInstance::newLight(mLightShaderProgram.value()));
     case ShaderProgramType::Outline:
       return this->addShaderProgramInstance(ShaderProgramInstance::newOutline(mOutlineShaderProgram.value()));
+    case ShaderProgramType::ReflectiveSurface:
+      return this->addShaderProgramInstance(ShaderProgramInstance::newReflectiveSurface(mReflectiveSurfaceShaderProgram.value()));
+    case ShaderProgramType::RefractiveSurface:
+      return this->addShaderProgramInstance(ShaderProgramInstance::newRefractiveSurface(mRefractiveSurfaceShaderProgram.value()));
     case ShaderProgramType::VisualiseDepth:
       return this->addShaderProgramInstance(ShaderProgramInstance::newVisualiseDepth(mVisualiseDepthShaderProgram.value()));
     case ShaderProgramType::VisualiseNormal:
@@ -272,8 +280,8 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
 
   dstFramebuffer->bind();
 
-  const glm::ivec2 viewportPositionPx = glm::floor(viewport.position * glm::vec2(dstFramebuffer->size()));
-  const glm::ivec2 viewportSizePx = glm::floor(viewport.size * glm::vec2(dstFramebuffer->size()));
+  const glm::ivec2 viewportPositionPx = glm::round(viewport.position * glm::vec2(dstFramebuffer->size()));
+  const glm::ivec2 viewportSizePx = glm::round(viewport.size * glm::vec2(dstFramebuffer->size()));
   glViewport(viewportPositionPx.x, viewportPositionPx.y, viewportSizePx.x, viewportSizePx.y);
 
   glEnable(GL_STENCIL_TEST);
@@ -374,7 +382,7 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
     bindTexture(currDraw->diffuseMap, lastDraw->diffuseMap, GL_TEXTURE_2D);
     bindTexture(currDraw->specularMap, lastDraw->specularMap, GL_TEXTURE_2D);
     bindTexture(currDraw->emissionMap, lastDraw->emissionMap, GL_TEXTURE_2D);
-    bindTexture(currDraw->emissionCubeMap, lastDraw->emissionCubeMap, GL_TEXTURE_CUBE_MAP);
+    bindTexture(currDraw->environmentMap, lastDraw->environmentMap, GL_TEXTURE_CUBE_MAP);
 
     const VertexArray& currVA = currDraw->vertexArray.get();
     if (drawIdx == 0 || currDraw->vertexArray != lastDraw->vertexArray) {
@@ -399,8 +407,8 @@ void RenderingEngine::postProcess(const Viewport& viewport, ShaderProgramInstanc
 {
   assert(bInitialised);
 
-  const glm::ivec2 viewportPositionPx = glm::floor(viewport.position * glm::vec2(dstFramebuffer->size()));
-  const glm::ivec2 viewportSizePx = glm::floor(viewport.size * glm::vec2(dstFramebuffer->size()));
+  const glm::ivec2 viewportPositionPx = glm::round(viewport.position * glm::vec2(dstFramebuffer->size()));
+  const glm::ivec2 viewportSizePx = glm::round(viewport.size * glm::vec2(dstFramebuffer->size()));
   glViewport(viewportPositionPx.x, viewportPositionPx.y, viewportSizePx.x, viewportSizePx.y);
 
   glDisable(GL_BLEND);

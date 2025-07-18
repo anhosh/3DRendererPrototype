@@ -12,6 +12,8 @@ enum class ShaderProgramType : int32_t {
   Light,
   LitSurface,
   Outline,
+  ReflectiveSurface,
+  RefractiveSurface,
   VisualiseDepth,
   VisualiseNormal,
   PostProcessCopy,
@@ -109,6 +111,8 @@ private:
   static ShaderProgramInstance newLitSurface(ShaderProgramHandle program);
   static ShaderProgramInstance newLight(ShaderProgramHandle program);
   static ShaderProgramInstance newOutline(ShaderProgramHandle program);
+  static ShaderProgramInstance newReflectiveSurface(ShaderProgramHandle program);
+  static ShaderProgramInstance newRefractiveSurface(ShaderProgramHandle program);
   static ShaderProgramInstance newVisualiseDepth(ShaderProgramHandle program);
   static ShaderProgramInstance newVisualiseNormal(ShaderProgramHandle program);
   static ShaderProgramInstance newPostProcessingCopy(ShaderProgramHandle program);
