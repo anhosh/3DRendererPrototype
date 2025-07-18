@@ -10,6 +10,7 @@ out VS_OUT {
 } vsOut;
 
 void main() {
-  gl_Position = uProjectionTransform * uViewTransform * vec4(inPosition, 1.0);
+  vec4 vertexPosition = uProjectionTransform * uViewTransform * vec4(inPosition, 1.0);
+  gl_Position = vertexPosition.xyww;
   vsOut.texCoords = inPosition;
 }

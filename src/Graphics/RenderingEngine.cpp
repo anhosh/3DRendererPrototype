@@ -306,6 +306,7 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
     if (drawIdx == 0 || currDraw->bDepthTest != lastDraw->bDepthTest) {
       if (currDraw->bDepthTest) {
         glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_LEQUAL);
       } else {
         glDisable(GL_DEPTH_TEST);
       }
@@ -356,7 +357,8 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
       currShader.shaderProgram->bindTransforms(transforms);
     }
 
-    const auto bindTexture = [&, this](const auto& currTexture, const auto& lastTexture, GLenum target, GLuint slot) {
+    GLuint slot = GL_TEXTURE0;
+    const auto bindTexture = [&, this](const auto& currTexture, const auto& lastTexture, GLenum target) {
       if (drawIdx == 0 || currTexture != lastTexture) {
         if (currTexture.has_value()) {
           currTexture->get().bind(slot);
@@ -367,11 +369,12 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
           mBoundTextureSlots.erase(slot);
         }
       }
+      ++slot;
     };
-    bindTexture(currDraw->diffuseMap, lastDraw->diffuseMap, GL_TEXTURE_2D, GL_TEXTURE0);
-    bindTexture(currDraw->specularMap, lastDraw->specularMap, GL_TEXTURE_2D, GL_TEXTURE1);
-    bindTexture(currDraw->emissionMap, lastDraw->emissionMap, GL_TEXTURE_2D, GL_TEXTURE2);
-    bindTexture(currDraw->emissionCubeMap, lastDraw->emissionCubeMap, GL_TEXTURE_CUBE_MAP, GL_TEXTURE0);
+    bindTexture(currDraw->diffuseMap, lastDraw->diffuseMap, GL_TEXTURE_2D);
+    bindTexture(currDraw->specularMap, lastDraw->specularMap, GL_TEXTURE_2D);
+    bindTexture(currDraw->emissionMap, lastDraw->emissionMap, GL_TEXTURE_2D);
+    bindTexture(currDraw->emissionCubeMap, lastDraw->emissionCubeMap, GL_TEXTURE_CUBE_MAP);
 
     const VertexArray& currVA = currDraw->vertexArray.get();
     if (drawIdx == 0 || currDraw->vertexArray != lastDraw->vertexArray) {
@@ -409,7 +412,7 @@ void RenderingEngine::postProcess(const Viewport& viewport, ShaderProgramInstanc
 
   postProcessingShader->use();
   postProcessingShader->bindUniforms();
-  srcFramebuffer->colorAttachment.bind();
+  srcFramebuffer->colorAttachment.bind(GL_TEXTURE0);
 
   glBindVertexArray(mScreenQuadVAO);
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);

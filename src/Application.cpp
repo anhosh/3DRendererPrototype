@@ -137,7 +137,7 @@ Expected<void> Application::createScene() {
   const Expected bitmapSkyboxBack = mState.assetManager->loadBitmap("skybox/back.jpg", false);
   const Expected bitmapSkyboxFront = mState.assetManager->loadBitmap("skybox/front.jpg", false);
 
-  const AssetHandle<Mesh> skyboxCubeMesh = mState.assetManager->addMesh(Mesh::createCube());
+  const AssetHandle<Mesh> skyboxCubeMesh = mState.assetManager->addMesh(Mesh::createCube(glm::vec3(2.0f)));
 
   RETURN_ERROR_IF_UNEXPECTED(modelBackpack);
   RETURN_ERROR_IF_UNEXPECTED(bitmapSkyboxRight);

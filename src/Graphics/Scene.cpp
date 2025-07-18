@@ -22,19 +22,6 @@ std::vector<Draw> Scene::draw(const Camera& camera) const {
   std::vector<MeshDataReference> meshesWithOutlines;
   std::map<float, MeshDataReference> transparentMeshes;
 
-  // Skybox
-  if (skybox.has_value()) {
-    draws.push_back(Draw {
-      .shaderProgramInstance = skybox->shader,
-      .vertexArray = skybox->cubeMesh,
-      .emissionCubeMap = skybox->texture,
-      .bBackfaceCulling = false,
-      .bWriteToDepth = false,
-      .bDepthTest = false,
-      .bDisableCameraTranslation = true,
-    });
-  }
-
   // Opaque objects
   for (const Actor& actor: std::ranges::views::values(actors)) {
     for (size_t resIdx = 0; resIdx < actor.renderData.size(); ++resIdx) {
@@ -91,6 +78,17 @@ std::vector<Draw> Scene::draw(const Camera& camera) const {
       .bBackfaceCulling = true,
       .bStencilTest = true,
       .bDepthTest = false,
+    });
+  }
+
+  // Skybox
+  if (skybox.has_value()) {
+    draws.push_back(Draw {
+      .shaderProgramInstance = skybox->shader,
+      .vertexArray = skybox->cubeMesh,
+      .emissionCubeMap = skybox->texture,
+      .bBackfaceCulling = false,
+      .bDisableCameraTranslation = true,
     });
   }
 
