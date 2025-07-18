@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Graphics/Texture.hpp>
+#include <Graphics/Texture2D.hpp>
 #include <Util/NoInit.hpp>
 #include <Util/Registry.hpp>
 
@@ -26,7 +26,7 @@ public:
   [[nodiscard]] GLuint depthStencilRBO() const { return mDepthStencilRBO; }
   [[nodiscard]] glm::uvec2 size() const { return mInfo.size; }
 
-  Texture colorAttachment = NoInit{};
+  Texture2D colorAttachment = NoInit{};
 
 private:
   GLuint mFBO = GL_NONE;

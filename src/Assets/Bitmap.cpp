@@ -6,8 +6,8 @@
 
 namespace fs = std::filesystem;
 
-Expected<Bitmap> Bitmap::fromFile(const fs::path& fileName) {
-  stbi_set_flip_vertically_on_load(true);
+Expected<Bitmap> Bitmap::fromFile(const fs::path& fileName, bool bFlipVertically) {
+  stbi_set_flip_vertically_on_load(bFlipVertically);
   int32_t width, height, channels;
   uint8_t* loadedData = stbi_load(fileName.c_str(), &width, &height, &channels, 0);
   if (!loadedData) {

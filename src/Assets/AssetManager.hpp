@@ -22,7 +22,7 @@ public:
 
   AssetHandle<Mesh> addMesh(Mesh&& mesh);
 
-  [[nodiscard]] Expected<AssetHandle<Bitmap>> loadBitmap(const std::filesystem::path& filePath);
+  [[nodiscard]] Expected<AssetHandle<Bitmap>> loadBitmap(const std::filesystem::path& filePath, bool bFlipVertically = true);
   [[nodiscard]] Expected<AssetHandle<Model>> loadModel(const std::filesystem::path& filePath);
 
 private:

@@ -5,8 +5,10 @@
 #include <Graphics/Draw.hpp>
 #include <Graphics/Light.hpp>
 #include <Graphics/Scene.hpp>
+#include <Graphics/Skybox.hpp>
 #include <Util/Registry.hpp>
 
+#include <optional>
 #include <vector>
 
 using ActorHandle = Registry<Actor>::Handle;
@@ -27,4 +29,6 @@ public:
   DirectionalLight directionalLight;
   PointLight pointLight;
   Spotlight spotlight;
+
+  std::optional<Skybox> skybox = std::nullopt;
 };

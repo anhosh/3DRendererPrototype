@@ -23,7 +23,7 @@ AssetHandle<Mesh> AssetManager::addMesh(Mesh&& mesh) {
   return mMeshes.add(std::forward<Mesh>(mesh));
 }
 
-Expected<AssetHandle<Bitmap>> AssetManager::loadBitmap(const std::filesystem::path& filePath) {
+Expected<AssetHandle<Bitmap>> AssetManager::loadBitmap(const std::filesystem::path& filePath, bool bFlipVertically) {
   const std::filesystem::path fullPath = mTexturesDir / filePath;
   if (const auto found = mLoadedBitmaps.find(fullPath); found != mLoadedBitmaps.end()) {
     const auto& [_, handle] = *found;
@@ -31,7 +31,7 @@ Expected<AssetHandle<Bitmap>> AssetManager::loadBitmap(const std::filesystem::pa
   }
 
   Bitmap bitmap;
-  ASSIGN_EXPECTED_OR_RETURN(bitmap, Bitmap::fromFile(fullPath));
+  ASSIGN_EXPECTED_OR_RETURN(bitmap, Bitmap::fromFile(fullPath, bFlipVertically));
   const AssetHandle<Bitmap> handle = mBitmaps.add(std::move(bitmap));
   mLoadedBitmaps.emplace(fullPath, handle);
   return handle;

@@ -44,10 +44,10 @@ struct AppState {
 
   std::vector<RenderPass> renderPasses;
 
-  std::optional<ShaderProgramInstanceHandle> litSurfaceShaderProgram = std::nullopt;
-  std::optional<ShaderProgramInstanceHandle> lightShaderProgram = std::nullopt;
-  std::optional<ShaderProgramInstanceHandle> visualiseDepthShaderProgram = std::nullopt;
-  std::optional<ShaderProgramInstanceHandle> visualiseNormalShaderProgram = std::nullopt;
-  std::optional<ShaderProgramInstanceHandle> backpackOutlineShaderProgram = std::nullopt;
-  std::optional<ShaderProgramInstanceHandle> postProcessingCopyShaderProgramInstance = std::nullopt;
+  std::optional<ShaderProgramInstanceHandle> litSurfaceShader = std::nullopt;
+  std::optional<ShaderProgramInstanceHandle> lightShader = std::nullopt;
+  std::optional<ShaderProgramInstanceHandle> visualiseDepthShader = std::nullopt;
+  std::optional<ShaderProgramInstanceHandle> visualiseNormalShader = std::nullopt;
+  std::optional<ShaderProgramInstanceHandle> backpackOutlineShader = std::nullopt;
+  std::optional<ShaderProgramInstanceHandle> postProcessingCopyShader = std::nullopt;
 };

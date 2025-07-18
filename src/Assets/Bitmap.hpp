@@ -8,7 +8,7 @@
 
 class Bitmap {
 public:
-  [[nodiscard]] static Expected<Bitmap> fromFile(const std::filesystem::path& fileName);
+  [[nodiscard]] static Expected<Bitmap> fromFile(const std::filesystem::path& fileName, bool bFlipVertically = true);
   [[nodiscard]] static Expected<Bitmap> fromMemory(std::span<const uint8_t> bytes, glm::uvec2 size, uint32_t channels);
 
   [[nodiscard]] const std::vector<uint8_t>& data() const { return mData; }

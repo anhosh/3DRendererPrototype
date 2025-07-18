@@ -128,22 +128,64 @@ Expected<void> Application::createContext(std::string_view title, glm::uvec2 ini
 
 Expected<void> Application::createScene() {
   // Load assets
-  const Expected backpackModel = mState.assetManager->loadModel("backpack/backpack.obj");
+  const Expected modelBackpack = mState.assetManager->loadModel("backpack/backpack.obj");
 
-  RETURN_ERROR_IF_UNEXPECTED(backpackModel);
+  const Expected bitmapSkyboxRight = mState.assetManager->loadBitmap("skybox/right.jpg", false);
+  const Expected bitmapSkyboxLeft = mState.assetManager->loadBitmap("skybox/left.jpg", false);
+  const Expected bitmapSkyboxTop = mState.assetManager->loadBitmap("skybox/top.jpg", false);
+  const Expected bitmapSkyboxBottom = mState.assetManager->loadBitmap("skybox/bottom.jpg", false);
+  const Expected bitmapSkyboxBack = mState.assetManager->loadBitmap("skybox/back.jpg", false);
+  const Expected bitmapSkyboxFront = mState.assetManager->loadBitmap("skybox/front.jpg", false);
+
+  const AssetHandle<Mesh> skyboxCubeMesh = mState.assetManager->addMesh(Mesh::createCube());
+
+  RETURN_ERROR_IF_UNEXPECTED(modelBackpack);
+  RETURN_ERROR_IF_UNEXPECTED(bitmapSkyboxRight);
+  RETURN_ERROR_IF_UNEXPECTED(bitmapSkyboxLeft);
+  RETURN_ERROR_IF_UNEXPECTED(bitmapSkyboxTop);
+  RETURN_ERROR_IF_UNEXPECTED(bitmapSkyboxBottom);
+  RETURN_ERROR_IF_UNEXPECTED(bitmapSkyboxBack);
+  RETURN_ERROR_IF_UNEXPECTED(bitmapSkyboxFront);
 
   // Get shader instances
-  mState.litSurfaceShaderProgram = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::LitSurface);
-  mState.lightShaderProgram = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::Light);
-  mState.visualiseDepthShaderProgram = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::VisualiseDepth);
-  mState.visualiseNormalShaderProgram = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::VisualiseNormal);
-  mState.backpackOutlineShaderProgram = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::Outline);
-  mState.postProcessingCopyShaderProgramInstance = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::PostProcessCopy);
+  mState.litSurfaceShader = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::LitSurface);
+  mState.lightShader = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::Light);
+  mState.visualiseDepthShader = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::VisualiseDepth);
+  mState.visualiseNormalShader = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::VisualiseNormal);
+  mState.backpackOutlineShader = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::Outline);
+  mState.postProcessingCopyShader = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::PostProcessCopy);
 
   // Upload assets to GPU
-  std::vector<RenderData> backpackResources = mState.renderingEngine->addModel(backpackModel.value(), mState.litSurfaceShaderProgram.value());
+  std::vector<RenderData> backpackResources = mState.renderingEngine->addModel(modelBackpack.value(), mState.litSurfaceShader.value());
 
-  // Create actors
+  // Create scene
+  mState.scene->directionalLight.direction = glm::vec3(0.3f, -1.0f, 0.3f);
+  mState.scene->directionalLight.colors.ambient = glm::vec3(0.587f);
+  mState.scene->directionalLight.colors.diffuse = glm::vec3(0.808f);
+  mState.scene->directionalLight.colors.specular = glm::vec3(1.0f);
+  mState.scene->pointLight.colors.ambient = glm::vec3(0.0f);
+  mState.scene->pointLight.colors.diffuse = glm::vec3(0.0f);
+  mState.scene->pointLight.colors.specular = glm::vec3(0.0f);
+  mState.scene->spotlight.colors.ambient = glm::vec3(0.0f);
+  mState.scene->spotlight.colors.diffuse = glm::vec3(0.0f);
+  mState.scene->spotlight.colors.specular = glm::vec3(0.0f);
+
+  mState.scene->skybox = Skybox {
+    .cubeMesh = mState.renderingEngine->addMesh(skyboxCubeMesh),
+    .texture = mState.renderingEngine->addTextureCubeMap(
+      TextureCubeMapBitmaps {
+        bitmapSkyboxRight.value(),
+        bitmapSkyboxLeft.value(),
+        bitmapSkyboxTop.value(),
+        bitmapSkyboxBottom.value(),
+        bitmapSkyboxBack.value(),
+        bitmapSkyboxFront.value(),
+      },
+      SamplerOptions { .minFilter = GL_LINEAR }
+    ),
+    .shader = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::Skybox),
+  };
+
   mState.scene->addActor(Actor {
     .name = "Backpack",
     .transform = Transform {
@@ -233,28 +275,28 @@ void Application::updateScene() {
   }
 
   // Shaders
-  (*mState.litSurfaceShaderProgram)->uniforms["uViewPos"] = mState.mainCamera.position;
-  (*mState.litSurfaceShaderProgram)->uniforms["uDirectionalLight.colors.ambient"] = mState.scene->directionalLight.colors.ambient;
-  (*mState.litSurfaceShaderProgram)->uniforms["uDirectionalLight.colors.diffuse"] = mState.scene->directionalLight.colors.diffuse;
-  (*mState.litSurfaceShaderProgram)->uniforms["uDirectionalLight.colors.specular"] = mState.scene->directionalLight.colors.specular;
-  (*mState.litSurfaceShaderProgram)->uniforms["uDirectionalLight.direction"] = mState.scene->directionalLight.direction;
-  (*mState.litSurfaceShaderProgram)->uniforms["uPointLight.colors.ambient"] = mState.scene->pointLight.colors.ambient;
-  (*mState.litSurfaceShaderProgram)->uniforms["uPointLight.colors.diffuse"] = mState.scene->pointLight.colors.diffuse;
-  (*mState.litSurfaceShaderProgram)->uniforms["uPointLight.position"] = mState.scene->pointLight.position;
-  (*mState.litSurfaceShaderProgram)->uniforms["uPointLight.position"] = mState.scene->pointLight.position;
-  (*mState.litSurfaceShaderProgram)->uniforms["uPointLight.constant"] = mState.scene->pointLight.constant;
-  (*mState.litSurfaceShaderProgram)->uniforms["uPointLight.linear"] = mState.scene->pointLight.linear;
-  (*mState.litSurfaceShaderProgram)->uniforms["uPointLight.quadratic"] = mState.scene->pointLight.quadratic;
-  (*mState.litSurfaceShaderProgram)->uniforms["uSpotlight.colors.ambient"] = mState.scene->spotlight.colors.ambient;
-  (*mState.litSurfaceShaderProgram)->uniforms["uSpotlight.colors.diffuse"] = mState.scene->spotlight.colors.diffuse;
-  (*mState.litSurfaceShaderProgram)->uniforms["uSpotlight.colors.specular"] = mState.scene->spotlight.colors.specular;
-  (*mState.litSurfaceShaderProgram)->uniforms["uSpotlight.position"] = mState.scene->spotlight.position;
-  (*mState.litSurfaceShaderProgram)->uniforms["uSpotlight.direction"] = mState.scene->spotlight.direction;
-  (*mState.litSurfaceShaderProgram)->uniforms["uSpotlight.cutOff"] = glm::cos(glm::radians(mState.scene->spotlight.cutOff));
-  (*mState.litSurfaceShaderProgram)->uniforms["uSpotlight.outerCutOff"] = glm::cos(glm::radians(mState.scene->spotlight.outerCutOff));
+  (*mState.litSurfaceShader)->uniforms["uViewPos"] = mState.mainCamera.position;
+  (*mState.litSurfaceShader)->uniforms["uDirectionalLight.colors.ambient"] = mState.scene->directionalLight.colors.ambient;
+  (*mState.litSurfaceShader)->uniforms["uDirectionalLight.colors.diffuse"] = mState.scene->directionalLight.colors.diffuse;
+  (*mState.litSurfaceShader)->uniforms["uDirectionalLight.colors.specular"] = mState.scene->directionalLight.colors.specular;
+  (*mState.litSurfaceShader)->uniforms["uDirectionalLight.direction"] = mState.scene->directionalLight.direction;
+  (*mState.litSurfaceShader)->uniforms["uPointLight.colors.ambient"] = mState.scene->pointLight.colors.ambient;
+  (*mState.litSurfaceShader)->uniforms["uPointLight.colors.diffuse"] = mState.scene->pointLight.colors.diffuse;
+  (*mState.litSurfaceShader)->uniforms["uPointLight.position"] = mState.scene->pointLight.position;
+  (*mState.litSurfaceShader)->uniforms["uPointLight.position"] = mState.scene->pointLight.position;
+  (*mState.litSurfaceShader)->uniforms["uPointLight.constant"] = mState.scene->pointLight.constant;
+  (*mState.litSurfaceShader)->uniforms["uPointLight.linear"] = mState.scene->pointLight.linear;
+  (*mState.litSurfaceShader)->uniforms["uPointLight.quadratic"] = mState.scene->pointLight.quadratic;
+  (*mState.litSurfaceShader)->uniforms["uSpotlight.colors.ambient"] = mState.scene->spotlight.colors.ambient;
+  (*mState.litSurfaceShader)->uniforms["uSpotlight.colors.diffuse"] = mState.scene->spotlight.colors.diffuse;
+  (*mState.litSurfaceShader)->uniforms["uSpotlight.colors.specular"] = mState.scene->spotlight.colors.specular;
+  (*mState.litSurfaceShader)->uniforms["uSpotlight.position"] = mState.scene->spotlight.position;
+  (*mState.litSurfaceShader)->uniforms["uSpotlight.direction"] = mState.scene->spotlight.direction;
+  (*mState.litSurfaceShader)->uniforms["uSpotlight.cutOff"] = glm::cos(glm::radians(mState.scene->spotlight.cutOff));
+  (*mState.litSurfaceShader)->uniforms["uSpotlight.outerCutOff"] = glm::cos(glm::radians(mState.scene->spotlight.outerCutOff));
 
-  (*mState.visualiseDepthShaderProgram)->uniforms["uCamera.near"] = mState.mainCamera.near;
-  (*mState.visualiseDepthShaderProgram)->uniforms["uCamera.far"] = mState.mainCamera.far;
+  (*mState.visualiseDepthShader)->uniforms["uCamera.near"] = mState.mainCamera.near;
+  (*mState.visualiseDepthShader)->uniforms["uCamera.far"] = mState.mainCamera.far;
 }
 
 void Application::drawFrame() {
@@ -286,7 +328,7 @@ void Application::drawFrame() {
       .dstFramebuffer = mState.renderPasses.back().dstFramebuffer,
       .pass = PostProcessingPass {
         .srcFramebuffer = mState.backCameraSceneFramebuffer.value(),
-        .postProcessingShader = mState.postProcessingCopyShaderProgramInstance.value(),
+        .postProcessingShader = mState.postProcessingCopyShader.value(),
       },
     });
   }

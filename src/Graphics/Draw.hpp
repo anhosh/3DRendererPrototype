@@ -1,7 +1,8 @@
 #pragma once
 
 #include <Graphics/ShaderProgramInstance.hpp>
-#include <Graphics/Texture.hpp>
+#include <Graphics/Texture2D.hpp>
+#include <Graphics/TextureCubeMap.hpp>
 #include <Graphics/Transform.hpp>
 #include <Graphics/VertexArray.hpp>
 
@@ -9,12 +10,15 @@ struct Draw {
   Transform transform = {};
   ShaderProgramInstanceHandle shaderProgramInstance;
   VertexArrayHandle vertexArray;
-  std::optional<TextureHandle> diffuseMapIndex = std::nullopt;
-  std::optional<TextureHandle> specularMapIndex = std::nullopt;
-  std::optional<TextureHandle> emissionMapIndex = std::nullopt;
+  std::optional<Texture2DHandle> diffuseMap = std::nullopt;
+  std::optional<Texture2DHandle> specularMap = std::nullopt;
+  std::optional<Texture2DHandle> emissionMap = std::nullopt;
+  std::optional<TextureCubeMapHandle> emissionCubeMap = std::nullopt;
   bool bBackfaceCulling = true;
   bool bWriteToStencil = false;
   bool bStencilTest = false;
+  bool bWriteToDepth = true;
   bool bDepthTest = true;
   bool bTransparent = false;
+  bool bDisableCameraTranslation = false;
 };

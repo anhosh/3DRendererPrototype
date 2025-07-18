@@ -1,7 +1,7 @@
 #pragma once
 
 #include <Graphics/ShaderProgramInstance.hpp>
-#include <Graphics/Texture.hpp>
+#include <Graphics/Texture2D.hpp>
 #include <Graphics/VertexArray.hpp>
 #include <Util/Registry.hpp>
 
@@ -16,8 +16,8 @@ struct RenderOptions {
 struct RenderData {
   VertexArrayHandle vertexArray;
   ShaderProgramInstanceHandle shaderProgramInstance;
-  std::optional<TextureHandle> diffuseMap = std::nullopt;
-  std::optional<TextureHandle> specularMap = std::nullopt;
-  std::optional<TextureHandle> emissionMap = std::nullopt;
+  std::optional<Texture2DHandle> diffuseMap = std::nullopt;
+  std::optional<Texture2DHandle> specularMap = std::nullopt;
+  std::optional<Texture2DHandle> emissionMap = std::nullopt;
   RenderOptions renderOptions = {};
 };

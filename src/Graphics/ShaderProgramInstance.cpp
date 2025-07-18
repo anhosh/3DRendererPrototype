@@ -223,3 +223,11 @@ ShaderProgramInstance ShaderProgramInstance::newPostProcessingSobelTop(const Sha
 
   return instance;
 }
+
+ShaderProgramInstance ShaderProgramInstance::newSkybox(ShaderProgramHandle program) {
+  ShaderProgramInstance instance(program);
+
+  instance.setUniform("uSkyTexture", 0);
+
+  return instance;
+}

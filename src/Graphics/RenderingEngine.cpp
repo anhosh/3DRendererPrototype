@@ -27,8 +27,9 @@ Expected<void> RenderingEngine::init() {
   Expected kernel3x3        = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/kernel3x3.frag"});
   Expected flipHorizontally = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/flipHorizontally.frag"});
   Expected flipVertically   = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/flipVertically.frag"});
+  Expected skybox           = this->createShaderProgram({.vertex = "skybox.vert", .fragment = "skybox.frag"});
 
-  bInitialised = false; // Reset because don't yet know if any of the shader program creations have failed or not.
+  bInitialised = false; // Reset because some of the shader program creations might have failed.
   ASSIGN_EXPECTED_OR_RETURN(mLitSurfaceShaderProgram, litSurface);
   ASSIGN_EXPECTED_OR_RETURN(mLightShaderProgram, light);
   ASSIGN_EXPECTED_OR_RETURN(mVisualiseDepthShaderProgram, visualiseDepth);
@@ -40,6 +41,7 @@ Expected<void> RenderingEngine::init() {
   ASSIGN_EXPECTED_OR_RETURN(mPostProcessKernel3x3ShaderProgram, kernel3x3);
   ASSIGN_EXPECTED_OR_RETURN(mPostProcessFlipHorizontallyShaderProgram, flipHorizontally);
   ASSIGN_EXPECTED_OR_RETURN(mPostProcessFlipVerticallyShaderProgram, flipVertically);
+  ASSIGN_EXPECTED_OR_RETURN(mSkyboxShaderProgram, skybox);
 
   glGenVertexArrays(1, &mScreenQuadVAO);
 
@@ -54,7 +56,7 @@ void RenderingEngine::destroy() {
   for (VertexArray& vertexArray : std::ranges::views::values(mVertexArrays)) {
     vertexArray.destroy();
   }
-  for (Texture& texture : std::ranges::views::values(mTextures)) {
+  for (Texture2D& texture : std::ranges::views::values(mTexture2Ds)) {
     texture.destroy();
   }
   for (Framebuffer& framebuffer : std::ranges::views::values(mFramebuffers)) {
@@ -63,7 +65,7 @@ void RenderingEngine::destroy() {
 
   mShaderProgramInstances.clear();
   mVertexArrays.clear();
-  mTextures.clear();
+  mTexture2Ds.clear();
   mFramebuffers.clear();
 
   glDeleteVertexArrays(1, &mScreenQuadVAO);
@@ -80,6 +82,7 @@ void RenderingEngine::destroy() {
   mPostProcessGrayscaleShaderProgram.reset();
   mPostProcessInvertShaderProgram.reset();
   mPostProcessKernel3x3ShaderProgram.reset();
+  mSkyboxShaderProgram.reset();
 
   mUploadedTextures.clear();
   mUploadedModels.clear();
@@ -143,6 +146,8 @@ ShaderProgramInstanceHandle RenderingEngine::createShaderProgramInstance(const S
       return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingSobelRight(mPostProcessKernel3x3ShaderProgram.value()));
     case ShaderProgramType::PostProcessSobelTop:
       return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingSobelTop(mPostProcessKernel3x3ShaderProgram.value()));
+    case ShaderProgramType::Skybox:
+      return this->addShaderProgramInstance(ShaderProgramInstance::newSkybox(mSkyboxShaderProgram.value()));
     default:
       PANIC("Unsupported shader program type");
   }
@@ -169,9 +174,9 @@ const std::vector<RenderData>& RenderingEngine::addModel(AssetHandle<Model> mode
   emissionSamplers.resize(model->emissionMaps.size());
 
   const std::vector<VertexArrayHandle> vertexArrays = this->addMeshes(model->meshes);
-  const std::vector<std::optional<TextureHandle>> diffuseMaps = this->addTextures(model->diffuseMaps, diffuseSamplers);
-  const std::vector<std::optional<TextureHandle>> specularMaps = this->addTextures(model->specularMaps, specularSamplers);
-  const std::vector<std::optional<TextureHandle>> emissionMaps = this->addTextures(model->emissionMaps, emissionSamplers);
+  const std::vector<std::optional<Texture2DHandle>> diffuseMaps = this->addTexture2Ds(model->diffuseMaps, diffuseSamplers);
+  const std::vector<std::optional<Texture2DHandle>> specularMaps = this->addTexture2Ds(model->specularMaps, specularSamplers);
+  const std::vector<std::optional<Texture2DHandle>> emissionMaps = this->addTexture2Ds(model->emissionMaps, emissionSamplers);
 
   std::vector<RenderData> modelResources;
   modelResources.reserve(vertexArrays.size());
@@ -206,18 +211,18 @@ VertexArrayHandle RenderingEngine::addMesh(AssetHandle<Mesh> mesh) {
   return mVertexArrays.add(VertexArray(mesh.get()));
 }
 
-auto RenderingEngine::addTextures(std::span<const std::optional<AssetHandle<Bitmap>>> bitmaps, std::span<const SamplerOptions> options)
-  -> std::vector<std::optional<TextureHandle>>
+auto RenderingEngine::addTexture2Ds(std::span<const std::optional<AssetHandle<Bitmap>>> bitmaps, std::span<const SamplerOptions> options)
+  -> std::vector<std::optional<Texture2DHandle>>
 {
   assert(bInitialised);
   assert(bitmaps.size() == options.size());
 
-  std::vector<std::optional<TextureHandle>> refs;
+  std::vector<std::optional<Texture2DHandle>> refs;
   refs.reserve(bitmaps.size());
   for (size_t i = 0; i < bitmaps.size(); ++i) {
     if (const std::optional<AssetHandle<Bitmap>> bitmap = bitmaps[i]; bitmap.has_value()) {
       const SamplerOptions& option = options[i];
-      const TextureHandle ref = this->addTexture(bitmap.value(), option);
+      const Texture2DHandle ref = this->addTexture2D(bitmap.value(), option);
       refs.emplace_back(ref);
     } else {
       refs.emplace_back();
@@ -226,16 +231,22 @@ auto RenderingEngine::addTextures(std::span<const std::optional<AssetHandle<Bitm
   return refs;
 }
 
-TextureHandle RenderingEngine::addTexture(AssetHandle<Bitmap> bitmap, const SamplerOptions& options) {
+Texture2DHandle RenderingEngine::addTexture2D(AssetHandle<Bitmap> bitmap, const SamplerOptions& options) {
   assert(bInitialised);
 
   if (mUploadedTextures.contains(bitmap.id())) {
     return mUploadedTextures.at(bitmap.id());
   }
 
-  const TextureHandle handle = mTextures.add(Texture(bitmap.get(), options));
+  const Texture2DHandle handle = mTexture2Ds.add(Texture2D(bitmap, options));
   mUploadedTextures.emplace(bitmap.id(), handle);
   return handle;
+}
+
+TextureCubeMapHandle RenderingEngine::addTextureCubeMap(const TextureCubeMapBitmaps& bitmaps, const SamplerOptions& options) {
+  assert(bInitialised);
+
+  return mTextureCubeMaps.add(TextureCubeMap(bitmaps, options));
 }
 
 FramebufferHandle RenderingEngine::addFramebuffer(const FramebufferCreateInfo& info) {
@@ -299,6 +310,13 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
         glDisable(GL_DEPTH_TEST);
       }
     }
+    if (drawIdx == 0 || currDraw->bWriteToDepth != lastDraw->bWriteToDepth) {
+      if (currDraw->bWriteToDepth) {
+        glDepthMask(GL_TRUE);
+      } else {
+        glDepthMask(GL_FALSE);
+      }
+    }
     if (drawIdx == 0 || currDraw->bStencilTest != lastDraw->bStencilTest) {
       glStencilFunc(currDraw->bStencilTest ? GL_NOTEQUAL : GL_ALWAYS, 1, 0xff);
     }
@@ -311,6 +329,13 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
       } else {
         glDisable(GL_BLEND);
+      }
+    }
+    if (drawIdx == 0 || currDraw->bDisableCameraTranslation != lastDraw->bDisableCameraTranslation) {
+      if (currDraw->bDisableCameraTranslation) {
+        transforms.view = glm::mat4(glm::mat3(camera.view()));
+      } else {
+        transforms.view = camera.view();
       }
     }
 
@@ -331,23 +356,22 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
       currShader.shaderProgram->bindTransforms(transforms);
     }
 
-    GLuint slot = GL_TEXTURE0;
-    const auto bindTextures = [&, this](const std::optional<TextureHandle>& currTexture, const std::optional<TextureHandle>& lastTexture) {
+    const auto bindTexture = [&, this](const auto& currTexture, const auto& lastTexture, GLenum target, GLuint slot) {
       if (drawIdx == 0 || currTexture != lastTexture) {
         if (currTexture.has_value()) {
           currTexture->get().bind(slot);
           mBoundTextureSlots.insert(slot);
         } else {
           glActiveTexture(slot);
-          glBindTexture(GL_TEXTURE_2D, 0);
+          glBindTexture(target, 0);
           mBoundTextureSlots.erase(slot);
         }
       }
-      ++slot;
     };
-    bindTextures(currDraw->diffuseMapIndex, lastDraw->diffuseMapIndex);
-    bindTextures(currDraw->specularMapIndex, lastDraw->specularMapIndex);
-    bindTextures(currDraw->emissionMapIndex, lastDraw->emissionMapIndex);
+    bindTexture(currDraw->diffuseMap, lastDraw->diffuseMap, GL_TEXTURE_2D, GL_TEXTURE0);
+    bindTexture(currDraw->specularMap, lastDraw->specularMap, GL_TEXTURE_2D, GL_TEXTURE1);
+    bindTexture(currDraw->emissionMap, lastDraw->emissionMap, GL_TEXTURE_2D, GL_TEXTURE2);
+    bindTexture(currDraw->emissionCubeMap, lastDraw->emissionCubeMap, GL_TEXTURE_CUBE_MAP, GL_TEXTURE0);
 
     const VertexArray& currVA = currDraw->vertexArray.get();
     if (drawIdx == 0 || currDraw->vertexArray != lastDraw->vertexArray) {

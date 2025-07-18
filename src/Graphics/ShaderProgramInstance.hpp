@@ -27,6 +27,7 @@ enum class ShaderProgramType : int32_t {
   PostProcessSobelLeft,
   PostProcessSobelRight,
   PostProcessSobelTop,
+  Skybox,
 };
 
 struct ShaderUniform {
@@ -123,6 +124,7 @@ private:
   static ShaderProgramInstance newPostProcessingSobelLeft(ShaderProgramHandle program);
   static ShaderProgramInstance newPostProcessingSobelRight(ShaderProgramHandle program);
   static ShaderProgramInstance newPostProcessingSobelTop(ShaderProgramHandle program);
+  static ShaderProgramInstance newSkybox(ShaderProgramHandle program);
 };
 
 using ShaderProgramInstanceHandle = Registry<ShaderProgramInstance>::Handle;

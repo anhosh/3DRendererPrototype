@@ -22,6 +22,19 @@ std::vector<Draw> Scene::draw(const Camera& camera) const {
   std::vector<MeshDataReference> meshesWithOutlines;
   std::map<float, MeshDataReference> transparentMeshes;
 
+  // Skybox
+  if (skybox.has_value()) {
+    draws.push_back(Draw {
+      .shaderProgramInstance = skybox->shader,
+      .vertexArray = skybox->cubeMesh,
+      .emissionCubeMap = skybox->texture,
+      .bBackfaceCulling = false,
+      .bWriteToDepth = false,
+      .bDepthTest = false,
+      .bDisableCameraTranslation = true,
+    });
+  }
+
   // Opaque objects
   for (const Actor& actor: std::ranges::views::values(actors)) {
     for (size_t resIdx = 0; resIdx < actor.renderData.size(); ++resIdx) {
@@ -32,9 +45,9 @@ std::vector<Draw> Scene::draw(const Camera& camera) const {
           .transform = actor.transform,
           .shaderProgramInstance = resources.shaderProgramInstance,
           .vertexArray = resources.vertexArray,
-          .diffuseMapIndex = resources.diffuseMap,
-          .specularMapIndex = resources.specularMap,
-          .emissionMapIndex = resources.emissionMap,
+          .diffuseMap = resources.diffuseMap,
+          .specularMap = resources.specularMap,
+          .emissionMap = resources.emissionMap,
           .bBackfaceCulling = resources.renderOptions.bBackfaceCulling,
           .bWriteToStencil = resources.renderOptions.outlineShaderInstance.has_value(),
         });
@@ -57,9 +70,9 @@ std::vector<Draw> Scene::draw(const Camera& camera) const {
       .transform = actor->transform,
       .shaderProgramInstance = resources.shaderProgramInstance,
       .vertexArray = resources.vertexArray,
-      .diffuseMapIndex = resources.diffuseMap,
-      .specularMapIndex = resources.specularMap,
-      .emissionMapIndex = resources.emissionMap,
+      .diffuseMap = resources.diffuseMap,
+      .specularMap = resources.specularMap,
+      .emissionMap = resources.emissionMap,
       .bBackfaceCulling = resources.renderOptions.bBackfaceCulling,
       .bWriteToStencil = resources.renderOptions.outlineShaderInstance.has_value(),
       .bTransparent = true,

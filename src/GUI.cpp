@@ -44,6 +44,9 @@ void guiLight(AppState& state) {
       ImGui::Indent();
       DirectionalLight& directionalLight = state.scene->directionalLight;
 
+      ImGui::DragFloat3("Direction##dl", glm::value_ptr(directionalLight.direction), 0.001, -1.0f, 1.0f);
+      ImGui::Spacing();
+
       ImGui::ColorPicker3("Ambient##dl", glm::value_ptr(directionalLight.colors.ambient), lightColorEditFlags);
       ImGui::ColorPicker3("Diffuse##dl", glm::value_ptr(directionalLight.colors.diffuse), lightColorEditFlags);
       ImGui::ColorPicker3("Specular##dl", glm::value_ptr(directionalLight.colors.specular), lightColorEditFlags);
@@ -63,7 +66,7 @@ void guiLight(AppState& state) {
       ImGui::ColorPicker3("Ambient##pl", glm::value_ptr(pointLight.colors.ambient), lightColorEditFlags);
       ImGui::ColorPicker3("Diffuse##pl", glm::value_ptr(pointLight.colors.diffuse), lightColorEditFlags);
       if (ImGui::ColorPicker3("Specular##pl", glm::value_ptr(pointLight.colors.specular), lightColorEditFlags)) {
-        (*state.lightShaderProgram)->uniforms["uLightColor"] = pointLight.colors.specular;
+        (*state.lightShader)->uniforms["uLightColor"] = pointLight.colors.specular;
       }
 
       ImGui::Unindent();
@@ -118,19 +121,19 @@ void guiActors(AppState& state) {
           {
             switch (state.backpackShaderProgramType) {
               case ShaderProgramType::Light:
-                actor.setShaderProgramInstance(state.lightShaderProgram.value());
+                actor.setShaderProgramInstance(state.lightShader.value());
                 break;
               case ShaderProgramType::LitSurface:
-                actor.setShaderProgramInstance(state.litSurfaceShaderProgram.value());
+                actor.setShaderProgramInstance(state.litSurfaceShader.value());
                 break;
               case ShaderProgramType::Outline:
-                actor.setShaderProgramInstance(state.backpackOutlineShaderProgram.value());
+                actor.setShaderProgramInstance(state.backpackOutlineShader.value());
                 break;
               case ShaderProgramType::VisualiseDepth:
-                actor.setShaderProgramInstance(state.visualiseDepthShaderProgram.value());
+                actor.setShaderProgramInstance(state.visualiseDepthShader.value());
                 break;
               case ShaderProgramType::VisualiseNormal:
-                actor.setShaderProgramInstance(state.visualiseNormalShaderProgram.value());
+                actor.setShaderProgramInstance(state.visualiseNormalShader.value());
                 break;
               default:
                 PANIC("Unexpected shader program type");
@@ -138,11 +141,11 @@ void guiActors(AppState& state) {
           }
 
           if (ImGui::Checkbox("Draw outline##backpack", &state.bDrawBackpackOutline)) {
-            actor.setOutlineShaderInstance(state.bDrawBackpackOutline ? state.backpackOutlineShaderProgram : std::nullopt);
+            actor.setOutlineShaderInstance(state.bDrawBackpackOutline ? state.backpackOutlineShader : std::nullopt);
           }
 
           ImGui::BeginDisabled(!state.bDrawBackpackOutline);
-          std::unordered_map<std::string, ShaderUniform>& outlineUniforms = (*state.backpackOutlineShaderProgram)->uniforms;
+          std::unordered_map<std::string, ShaderUniform>& outlineUniforms = (*state.backpackOutlineShader)->uniforms;
           ImGui::ColorPicker3("Outline color##backpack", outlineUniforms["uOutlineColor"].getValuePtr<glm::vec3>(), ImGuiColorEditFlags_Float);
           ImGui::EndDisabled();
         }
@@ -236,8 +239,8 @@ void gui(AppState& state) {
     guiLight(state);
     guiActors(state);
     guiPostProcessing(state);
-    ImGui::End();
   }
+  ImGui::End();
 }
 
 void initialiseImGui(GLFWwindow* window) {
