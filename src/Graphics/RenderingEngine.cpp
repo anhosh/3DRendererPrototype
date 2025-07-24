@@ -8,6 +8,8 @@
 #include <Graphics/RenderPass.hpp>
 #include <Graphics/Scene.hpp>
 #include <Graphics/ShaderProgram.hpp>
+#include <Graphics/UniformBuffers/CameraUniforms.hpp>
+#include <Graphics/UniformBuffers/LightSourceUniforms.hpp>
 #include <Graphics/Viewport.hpp>
 
 #include <glm/gtc/type_ptr.hpp>
@@ -29,7 +31,7 @@ Expected<void> RenderingEngine::init() {
   Expected kernel3x3         = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/kernel3x3.frag"});
   Expected flipHorizontally  = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/flipHorizontally.frag"});
   Expected flipVertically    = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/flipVertically.frag"});
-  Expected skybox            = this->createShaderProgram({.vertex = "skybox.vert", .fragment = "skybox.frag"});
+  Expected skybox            = this->createShaderProgram({.vertex = "skybox.vert",     .fragment = "skybox.frag"});
 
   bInitialised = false; // Reset because some of the shader program creations might have failed.
   ASSIGN_EXPECTED_OR_RETURN(mLitSurfaceShaderProgram, litSurface);
@@ -48,6 +50,11 @@ Expected<void> RenderingEngine::init() {
   ASSIGN_EXPECTED_OR_RETURN(mSkyboxShaderProgram, skybox);
 
   glGenVertexArrays(1, &mScreenQuadVAO);
+
+  UniformBuffer cameraUniforms;
+  cameraUniforms.allocate(sizeof(CameraUniforms));
+  cameraUniforms.bindWhole(UBO_BIND_POINT_CAMERA);
+  mCameraUniformBuffer = mUniformBuffers.add(std::move(cameraUniforms));
 
   bInitialised = true;
   return {};
@@ -225,18 +232,18 @@ auto RenderingEngine::addTexture2Ds(std::span<const std::optional<AssetHandle<Bi
   assert(bInitialised);
   assert(bitmaps.size() == options.size());
 
-  std::vector<std::optional<Texture2DHandle>> refs;
-  refs.reserve(bitmaps.size());
+  std::vector<std::optional<Texture2DHandle>> handles;
+  handles.reserve(bitmaps.size());
   for (size_t i = 0; i < bitmaps.size(); ++i) {
     if (const std::optional<AssetHandle<Bitmap>> bitmap = bitmaps[i]; bitmap.has_value()) {
       const SamplerOptions& option = options[i];
       const Texture2DHandle ref = this->addTexture2D(bitmap.value(), option);
-      refs.emplace_back(ref);
+      handles.emplace_back(ref);
     } else {
-      refs.emplace_back();
+      handles.emplace_back();
     }
   }
-  return refs;
+  return handles;
 }
 
 Texture2DHandle RenderingEngine::addTexture2D(AssetHandle<Bitmap> bitmap, const SamplerOptions& options) {
@@ -284,6 +291,11 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
   const glm::ivec2 viewportSizePx = glm::round(viewport.size * glm::vec2(dstFramebuffer->size()));
   glViewport(viewportPositionPx.x, viewportPositionPx.y, viewportSizePx.x, viewportSizePx.y);
 
+  glCullFace(GL_BACK);
+  glFrontFace(GL_CCW);
+
+  glDepthFunc(GL_LEQUAL);
+
   glEnable(GL_STENCIL_TEST);
   glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
   glStencilMask(0xff);
@@ -296,7 +308,13 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
     return;
   }
 
-  TransformMatrices transforms = { .view = camera.view(), .projection = camera.projection(dstFramebuffer->size()) };
+  mCameraUniformBuffer.value()->write(CameraUniforms {
+    .view = camera.view(),
+    .projection = camera.projection(dstFramebuffer->size()),
+    .position = camera.position,
+    .near = camera.near,
+    .far = camera.far,
+  });
 
   const Draw* lastDraw = &draws.front();
   for (size_t drawIdx = 0; drawIdx < draws.size(); drawIdx++) {
@@ -305,8 +323,6 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
     if (drawIdx == 0 || currDraw->bBackfaceCulling != lastDraw->bBackfaceCulling) {
       if (currDraw->bBackfaceCulling) {
         glEnable(GL_CULL_FACE);
-        glCullFace(GL_BACK);
-        glFrontFace(GL_CCW);
       } else {
         glDisable(GL_CULL_FACE);
       }
@@ -314,7 +330,6 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
     if (drawIdx == 0 || currDraw->bDepthTest != lastDraw->bDepthTest) {
       if (currDraw->bDepthTest) {
         glEnable(GL_DEPTH_TEST);
-        glDepthFunc(GL_LEQUAL);
       } else {
         glDisable(GL_DEPTH_TEST);
       }
@@ -340,13 +355,6 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
         glDisable(GL_BLEND);
       }
     }
-    if (drawIdx == 0 || currDraw->bDisableCameraTranslation != lastDraw->bDisableCameraTranslation) {
-      if (currDraw->bDisableCameraTranslation) {
-        transforms.view = glm::mat4(glm::mat3(camera.view()));
-      } else {
-        transforms.view = camera.view();
-      }
-    }
 
     const ShaderProgramInstance& currShader = currDraw->shaderProgramInstance.get();
     if (drawIdx == 0 || currDraw->shaderProgramInstance.id() != lastDraw->shaderProgramInstance.id()) {
@@ -360,6 +368,7 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
     if (drawIdx == 0 || currDraw->shaderProgramInstance.id() != lastDraw->shaderProgramInstance.id() ||
         currDraw->transform != lastDraw->transform)
     {
+      TransformMatrices transforms;
       transforms.model = currDraw->transform.matrix();
       transforms.normal = glm::transpose(glm::inverse(transforms.model));
       currShader.shaderProgram->bindTransforms(transforms);

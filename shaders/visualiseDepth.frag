@@ -1,11 +1,4 @@
-#version 460 core
-
-struct Camera {
-  float near;
-  float far;
-};
-
-uniform Camera uCamera;
+#include "common/cameraUniforms.glsl"
 
 out vec4 outColor;
 

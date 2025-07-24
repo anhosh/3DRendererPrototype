@@ -1,5 +1,3 @@
-#version 460 core
-
 layout(location = 4) uniform vec3 uOutlineColor;
 
 out vec4 outColor;

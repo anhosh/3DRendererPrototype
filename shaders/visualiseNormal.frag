@@ -1,5 +1,3 @@
-#version 460 core
-
 in VS_OUT {
   vec3 position;
   vec3 normal;
@@ -9,5 +7,5 @@ in VS_OUT {
 out vec4 outColor;
 
 void main() {
-  outColor = vec4((normalize(fsIn.normal) + 1) * 0.5, 1);
+  outColor = vec4(normalize(fsIn.normal) * 0.5 + 0.5, 1);
 }

@@ -1,9 +1,13 @@
 #include <Graphics/Shader.hpp>
 
+#include <Graphics/UniformBuffer.hpp>
 #include <Util/Macros/Errors.hpp>
 #include <Util/Paths.hpp>
 
-#include <fstream>
+#include <stb_include.h>
+
+#include <array>
+#include <filesystem>
 #include <vector>
 
 static fs::path sShadersDir = "shaders";
@@ -26,17 +30,27 @@ Expected<Shader> createShader(GLenum type, const fs::path& sourcePath) {
     PANIC("Could not locate shaders directory");
   }
 
-  auto file = std::ifstream(sShadersDir / sourcePath, std::ios::ate);
-  const std::streamsize fileSize = file.tellg();
-  file.seekg(0, std::ios::beg);
+  char error[256];
+  const char* sourceCStr = stb_include_file((sShadersDir / sourcePath).c_str(), nullptr, sShadersDir.c_str(), error);
+  if (sourceCStr == nullptr) {
+    return std::unexpected(std::format("Failed to load shader '{}':\n{}", sourcePath.c_str(), error));
+  }
 
-  std::string source;
-  source.resize(static_cast<size_t>(fileSize));
-  file.read(source.data(), fileSize);
-  const GLchar* sourceCStr = source.data();
+#define NEW_DEFINE(name) std::format("#define " #name " {}\n", name)
+  const std::string defines = NEW_DEFINE(UBO_BIND_POINT_CAMERA) +
+                              NEW_DEFINE(UBO_BIND_POINT_DIRECTIONAL_LIGHTS) +
+                              NEW_DEFINE(UBO_BIND_POINT_POINT_LIGHTS) +
+                              NEW_DEFINE(UBO_BIND_POINT_SPOTLIGHTS);
+#undef NEW_DEFINE
+
+  const auto sources = std::array {
+    "#version 460 core\n",
+    defines.c_str(),
+    sourceCStr,
+  };
 
   const GLuint shader = glCreateShader(type);
-  glShaderSource(shader, 1, &sourceCStr, nullptr);
+  glShaderSource(shader, sources.size(), sources.data(), nullptr);
   glCompileShader(shader);
 
   GLint success;

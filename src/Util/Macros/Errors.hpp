@@ -6,6 +6,12 @@
 #include <expected>
 #include <print>
 
+#define UNREACHABLE() \
+  TO_STATEMENT( \
+    std::println(stderr, "Reached unreachable code at {}:{}, {}:", __FILE__, __LINE__, __FUNCTION__); \
+    assert(false); \
+  )
+
 #define PANIC(fmt, ...) \
   TO_STATEMENT( \
     std::println(stderr, "Program panicked at {}:{}, {}:", __FILE__, __LINE__, __FUNCTION__); \

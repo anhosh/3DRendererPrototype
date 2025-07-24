@@ -56,7 +56,7 @@ target_sources(imgui PRIVATE
   imgui/backends/imgui_impl_opengl3_loader.h
 )
 
-# setup Dear ImGui library
+# setup stb_image library
 message(STATUS "[stb_image]")
 add_library(stb_image)
 add_library(stb_image::stb_image ALIAS stb_image)
@@ -64,6 +64,16 @@ target_include_directories(stb_image SYSTEM PUBLIC stb)
 target_sources(stb_image PRIVATE
   stb/stb_image.cpp
   stb/stb_image.h
+)
+
+# setup stb_include library
+message(STATUS "[stb_include]")
+add_library(stb_include)
+add_library(stb_include::stb_include ALIAS stb_include)
+target_include_directories(stb_include SYSTEM PUBLIC stb)
+target_sources(stb_include PRIVATE
+  stb/stb_include.cpp
+  stb/stb_include.h
 )
 
 # declare ext library target
@@ -77,6 +87,7 @@ target_link_libraries(${PROJECT_NAME} INTERFACE
   glm::glm
   imgui::imgui
   stb_image::stb_image
+  stb_include::stb_include
 )
 
 if(CMAKE_SYSTEM_NAME STREQUAL Linux)

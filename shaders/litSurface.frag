@@ -1,4 +1,5 @@
-#version 460 core
+#include "common/cameraUniforms.glsl"
+#include "common/lightSources.glsl"
 
 struct Material {
   sampler2D diffuse;
@@ -7,39 +8,10 @@ struct Material {
   float shininess;
 };
 
-struct LightColors {
-  vec3 ambient;
-  vec3 diffuse;
-  vec3 specular;
-};
-
-struct DirectionalLight {
-  LightColors colors;
-  vec3 direction;
-};
-
-struct PointLight {
-  LightColors colors;
-  vec3 position;
-  float constant;
-  float linear;
-  float quadratic;
-};
-
-struct Spotlight {
-  LightColors colors;
-  vec3 position;
-  vec3 direction;
-  float cutOff;
-  float outerCutOff;
-};
-
 uniform Material uMaterial;
 uniform DirectionalLight uDirectionalLight;
 uniform PointLight uPointLight;
 uniform Spotlight uSpotlight;
-
-uniform vec3 uViewPos;
 
 in VS_OUT {
   vec3 position;
@@ -54,7 +26,7 @@ float diffuse(in vec3 normal, in vec3 lightDirection) {
 }
 
 float specular(in vec3 normal, in vec3 lightDirection) {
-  vec3 viewDirection = normalize(uViewPos - fsIn.position);
+  vec3 viewDirection = normalize(uCamera.position - fsIn.position);
   vec3 reflectDirection = reflect(-lightDirection, normal);
   float angularDifference = max(dot(viewDirection, reflectDirection), 0);
   return pow(angularDifference, uMaterial.shininess);

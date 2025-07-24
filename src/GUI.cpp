@@ -144,7 +144,7 @@ void guiActors(AppState& state) {
                 actor.setShaderProgramInstance(state.visualiseNormalShader.value());
                 break;
               default:
-                PANIC("Unexpected shader program type");
+                UNREACHABLE();
             }
           }
 

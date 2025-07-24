@@ -6,6 +6,7 @@
 #include <Graphics/Vertex.hpp>
 #include <Util/Macros/Errors.hpp>
 #include <Util/Paths.hpp>
+#include <Util/Timers/ScopedTimer.hpp>
 
 #include <assimp/Importer.hpp>
 #include <assimp/mesh.h>
@@ -51,6 +52,7 @@ Expected<AssetHandle<Model>> AssetManager::loadModel(const std::filesystem::path
     return std::unexpected(std::format("Assimp: {}", importer.GetErrorString()));
   }
 
+  ScopedTimer timer(std::format("Load model {}", filePath.string()));
   Model model;
   RETURN_ERROR_IF_UNEXPECTED(this->processNode(model, scene->mRootNode, scene));
   const AssetHandle<Model> handle = mModels.add(std::move(model));
@@ -59,7 +61,7 @@ Expected<AssetHandle<Model>> AssetManager::loadModel(const std::filesystem::path
 }
 
 Expected<void> AssetManager::locateModels() {
-  if (const std::optional<fs::path> modelsDir = locateDirectory("models")) {
+  if (std::optional<fs::path> modelsDir = locateDirectory("models")) {
     mModelsDir = std::move(modelsDir.value());
     return {};
   }
@@ -91,18 +93,20 @@ Expected<void> AssetManager::processMesh(Model& model, aiMesh* mesh, const aiSce
   std::vector<Vertex> vertices;
   std::vector<uint32_t> indices;
 
-  vertices.reserve(mesh->mNumVertices);
+  vertices.resize(mesh->mNumVertices);
   indices.reserve(mesh->mNumFaces * 3);
 
   for (size_t v = 0; v < mesh->mNumVertices; ++v) {
     const aiVector3D& vertex = mesh->mVertices[v];
+    vertices[v].position = glm::vec3(vertex.x, vertex.y, vertex.z);
+  }
+  for (size_t v = 0; v < mesh->mNumVertices; ++v) {
     const aiVector3D& normal = mesh->mNormals[v];
-    const aiVector3D& uv = mesh->mTextureCoords[0] ? mesh->mTextureCoords[0][v] : aiVector3D(0.0f);
-    vertices.push_back(Vertex {
-      .position = glm::vec3(vertex.x, vertex.y, vertex.z),
-      .normal = glm::vec3(normal.x, normal.y, normal.z),
-      .texCoord = glm::vec2(uv.x, uv.y),
-    });
+    vertices[v].normal = glm::vec3(normal.x, normal.y, normal.z);
+  }
+  for (size_t v = 0; v < mesh->mNumVertices; ++v) {
+    const aiVector3D& texCoord = mesh->mTextureCoords[0] ? mesh->mTextureCoords[0][v] : aiVector3D(0.0f);
+    vertices[v].texCoord = glm::vec2(texCoord.x, texCoord.y);
   }
 
   for (uint32_t f = 0; f < mesh->mNumFaces; ++f) {
@@ -112,7 +116,8 @@ Expected<void> AssetManager::processMesh(Model& model, aiMesh* mesh, const aiSce
     }
   }
 
-  model.meshes.push_back(this->addMesh(Mesh(vertices, indices)));
+  model.meshes.push_back(this->addMesh(Mesh(std::move(vertices), std::move(indices))));
+
   const size_t meshIndex = model.meshes.size() - 1;
   if (mesh->mMaterialIndex < scene->mNumMaterials) {
     const aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];

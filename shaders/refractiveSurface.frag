@@ -1,6 +1,5 @@
-#version 460 core
+#include "common/cameraUniforms.glsl"
 
-uniform vec3 uViewPos;
 uniform float uRefractiveIndex;
 uniform samplerCube uEnvironmentMap;
 
@@ -14,7 +13,7 @@ out vec4 outColor;
 
 void main() {
   float refractiveIndexRatio = 1 / uRefractiveIndex;
-  vec3 incidental = normalize(fsIn.position - uViewPos);
+  vec3 incidental = normalize(fsIn.position - uCamera.position);
   vec3 reflected = refract(incidental, normalize(fsIn.normal), refractiveIndexRatio);
   outColor = vec4(texture(uEnvironmentMap, reflected).rgb, 1);
 }

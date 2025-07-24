@@ -1,5 +1,3 @@
-#version 460 core
-
 layout (location = 0) uniform sampler2D uScreenTexture;
 
 in VS_OUT {

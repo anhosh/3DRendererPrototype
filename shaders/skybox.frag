@@ -1,5 +1,3 @@
-#version 460 core
-
 uniform samplerCube uSkyTexture;
 
 in VS_OUT {

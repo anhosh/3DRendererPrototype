@@ -20,13 +20,18 @@ void VertexArray::init() {
 }
 
 void VertexArray::destroy() {
-  glDeleteBuffers(1, &vbo);
-  glDeleteBuffers(1, &ebo);
-  glDeleteVertexArrays(1, &vao);
-
-  vao = GL_NONE;
-  vbo = GL_NONE;
-  ebo = GL_NONE;
+  if (vbo != GL_NONE) {
+    glDeleteBuffers(1, &vbo);
+    vbo = GL_NONE;
+  }
+  if (ebo != GL_NONE) {
+    glDeleteBuffers(1, &ebo);
+    ebo = GL_NONE;
+  }
+  if (vao != GL_NONE) {
+    glDeleteVertexArrays(1, &vao);
+    vao = GL_NONE;
+  }
 }
 
 void VertexArray::generateMesh(const Mesh& mesh) {
