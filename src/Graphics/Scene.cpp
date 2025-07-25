@@ -9,10 +9,6 @@ void Scene::destroy() {
   actors.clear();
 }
 
-ActorHandle Scene::addActor(Actor&& actor) {
-  return actors.add(std::forward<Actor>(actor));
-}
-
 std::vector<Draw> Scene::draw(const Camera& camera) const {
   struct MeshDataReference {
     const Actor* actor = nullptr;
@@ -94,4 +90,31 @@ std::vector<Draw> Scene::draw(const Camera& camera) const {
   }
 
   return draws;
+}
+
+DirectionalLightSourceBuffer Scene::createDirectionalLightUniforms() const {
+  DirectionalLightSourceBuffer buffer;
+  buffer.sources.reserve(directionalLights.size());
+  for (const DirectionalLight& directionalLight: std::ranges::views::values(directionalLights)) {
+    buffer.sources.push_back(DirectionalLightUniforms::from(directionalLight));
+  }
+  return buffer;
+}
+
+PointLightSourceBuffer Scene::createPointLightUniforms() const {
+  PointLightSourceBuffer buffer;
+  buffer.sources.reserve(pointLights.size());
+  for (const PointLight& directionalLight: std::ranges::views::values(pointLights)) {
+    buffer.sources.push_back(PointLightUniforms::from(directionalLight));
+  }
+  return buffer;
+}
+
+SpotlightSourceBuffer Scene::createSpotlightUniforms() const {
+  SpotlightSourceBuffer buffer;
+  buffer.sources.reserve(spotlights.size());
+  for (const Spotlight& directionalLight: std::ranges::views::values(spotlights)) {
+    buffer.sources.push_back(SpotlightUniforms::from(directionalLight));
+  }
+  return buffer;
 }

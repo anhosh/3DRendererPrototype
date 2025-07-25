@@ -1,6 +1,7 @@
 #include <Graphics/Shader.hpp>
 
-#include <Graphics/UniformBuffer.hpp>
+#include <Graphics/Buffer.hpp>
+#include <Graphics/Buffers/BindPoints.hpp>
 #include <Util/Macros/Errors.hpp>
 #include <Util/Paths.hpp>
 
@@ -38,9 +39,9 @@ Expected<Shader> createShader(GLenum type, const fs::path& sourcePath) {
 
 #define NEW_DEFINE(name) std::format("#define " #name " {}\n", name)
   const std::string defines = NEW_DEFINE(UBO_BIND_POINT_CAMERA) +
-                              NEW_DEFINE(UBO_BIND_POINT_DIRECTIONAL_LIGHTS) +
-                              NEW_DEFINE(UBO_BIND_POINT_POINT_LIGHTS) +
-                              NEW_DEFINE(UBO_BIND_POINT_SPOTLIGHTS);
+                              NEW_DEFINE(SSBO_BIND_POINT_DIRECTIONAL_LIGHTS) +
+                              NEW_DEFINE(SSBO_BIND_POINT_POINT_LIGHTS) +
+                              NEW_DEFINE(SSBO_BIND_POINT_SPOTLIGHTS);
 #undef NEW_DEFINE
 
   const auto sources = std::array {

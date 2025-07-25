@@ -6,7 +6,7 @@
 #include <Graphics/ShaderProgramInstance.hpp>
 #include <Graphics/Texture2D.hpp>
 #include <Graphics/TextureCubeMap.hpp>
-#include <Graphics/UniformBuffer.hpp>
+#include <Graphics/Buffer.hpp>
 #include <Graphics/VertexArray.hpp>
 #include <Util/Registry.hpp>
 
@@ -61,7 +61,7 @@ private:
   Registry<Texture2D> mTexture2Ds;
   Registry<TextureCubeMap> mTextureCubeMaps;
   Registry<Framebuffer> mFramebuffers;
-  Registry<UniformBuffer> mUniformBuffers;
+  Registry<Buffer> mBuffers;
 
   GLuint mScreenQuadVAO = GL_NONE;
 
@@ -80,7 +80,10 @@ private:
   std::optional<ShaderProgramHandle> mPostProcessKernel3x3ShaderProgram = std::nullopt;
   std::optional<ShaderProgramHandle> mSkyboxShaderProgram = std::nullopt;
 
-  std::optional<UniformBufferHandle> mCameraUniformBuffer = std::nullopt;
+  std::optional<BufferHandle> mCameraUniformBuffer = std::nullopt;
+  std::optional<BufferHandle> mDirectionalLightsStorageBuffer = std::nullopt;
+  std::optional<BufferHandle> mPointLightsStorageBuffer = std::nullopt;
+  std::optional<BufferHandle> mSpotlightsStorageBuffer = std::nullopt;
 
   std::unordered_map<RegItemID, Texture2DHandle> mUploadedTextures;
   std::unordered_map<RegItemID, std::vector<RenderData>> mUploadedModels;

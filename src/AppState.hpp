@@ -34,6 +34,8 @@ struct AppState {
   Camera mainCamera;
   Camera backCamera;
 
+  std::optional<SceneHandle<Spotlight>> flashlight = std::nullopt;
+
   ShaderProgramType backpackShaderProgramType = ShaderProgramType::LitSurface;
   std::vector<ShaderProgramType> postProcessingShaderProgramTypes;
   std::vector<ShaderProgramInstanceHandle> postProcessingShaderProgramInstances;

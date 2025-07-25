@@ -8,7 +8,7 @@
 
 #include <ranges>
 
-constexpr ImGuiColorEditFlags lightColorEditFlags = ImGuiColorEditFlags_Float | ImGuiColorEditFlags_HDR;
+constexpr ImGuiColorEditFlags lightColorEditFlags [[maybe_unused]] = ImGuiColorEditFlags_Float | ImGuiColorEditFlags_HDR;
 
 void guiMetrics(const AppState& state) {
   ImGui::Text("FPS: %.03f", 1.0 / (state.currentFrameTime - state.lastFrameTime));
@@ -30,6 +30,7 @@ void guiCamera(AppState& state) {
 
     ImGui::Spacing();
 
+    ImGui::Checkbox("Flashlight following camera", &state.bFlashlightFollowCamera);
     ImGui::Checkbox("Back mirror", &state.bBackMirror);
 
     ImGui::Unindent();
@@ -40,50 +41,83 @@ void guiLight(AppState& state) {
   if (ImGui::CollapsingHeader("Light")) {
     ImGui::Indent();
 
-    if (ImGui::CollapsingHeader("Directional light")) {
+    if (ImGui::CollapsingHeader("Directional lights")) {
       ImGui::Indent();
-      DirectionalLight& directionalLight = state.scene->directionalLight;
 
-      ImGui::DragFloat3("Direction##dl", glm::value_ptr(directionalLight.direction), 0.001f, -1.0f, 1.0f);
-      ImGui::Spacing();
+      size_t index = 0;
+      for (DirectionalLight& directionalLight : std::ranges::views::values(state.scene->directionalLights)) {
+        if (ImGui::CollapsingHeader(std::format("{}##sl{}", directionalLight.name, index).c_str())) {
+          ImGui::Indent();
 
-      ImGui::ColorPicker3("Ambient##dl", glm::value_ptr(directionalLight.colors.ambient), lightColorEditFlags);
-      ImGui::ColorPicker3("Diffuse##dl", glm::value_ptr(directionalLight.colors.diffuse), lightColorEditFlags);
-      ImGui::ColorPicker3("Specular##dl", glm::value_ptr(directionalLight.colors.specular), lightColorEditFlags);
+          ImGui::DragFloat3(("Direction##dl" + std::to_string(index)).c_str(), glm::value_ptr(directionalLight.direction), 0.001f, -1.0f, 1.0f);
+          ImGui::Spacing();
 
-      ImGui::Unindent();
-    }
+          ImGui::ColorPicker3(("Ambient##dl" + std::to_string(index)).c_str(), glm::value_ptr(directionalLight.colors.ambient), lightColorEditFlags);
+          ImGui::ColorPicker3(("Diffuse##dl" + std::to_string(index)).c_str(), glm::value_ptr(directionalLight.colors.diffuse), lightColorEditFlags);
+          ImGui::ColorPicker3(("Specular##dl" + std::to_string(index)).c_str(), glm::value_ptr(directionalLight.colors.specular), lightColorEditFlags);
 
-    if (ImGui::CollapsingHeader("Point light")) {
-      ImGui::Indent();
-      PointLight& pointLight = state.scene->pointLight;
-
-      ImGui::DragFloat("Constant", &pointLight.constant, 0.1f, 1.0f, 100.0f);
-      ImGui::DragFloat("Linear", &pointLight.linear, 0.01f, 0.01f, 10.0f);
-      ImGui::DragFloat("Quadratic", &pointLight.quadratic, 0.001f, 0.01f, 1.0f);
-      ImGui::Spacing();
-
-      ImGui::ColorPicker3("Ambient##pl", glm::value_ptr(pointLight.colors.ambient), lightColorEditFlags);
-      ImGui::ColorPicker3("Diffuse##pl", glm::value_ptr(pointLight.colors.diffuse), lightColorEditFlags);
-      if (ImGui::ColorPicker3("Specular##pl", glm::value_ptr(pointLight.colors.specular), lightColorEditFlags)) {
-        (*state.lightShader)->uniforms["uLightColor"] = pointLight.colors.specular;
+          ImGui::Unindent();
+        }
+        ++index;
       }
 
       ImGui::Unindent();
     }
 
-    if (ImGui::CollapsingHeader("Spotlight")) {
+    if (ImGui::CollapsingHeader("Point lights")) {
       ImGui::Indent();
-      Spotlight& spotlight = state.scene->spotlight;
 
-      ImGui::Checkbox("Follow camera", &state.bFlashlightFollowCamera);
-      ImGui::DragFloat("Cut off", &spotlight.cutOff, 0.01f, 1.0f, spotlight.outerCutOff);
-      ImGui::DragFloat("Outer cut off", &spotlight.outerCutOff, 0.01f, spotlight.cutOff, 120.0f);
-      ImGui::Spacing();
+      size_t index = 0;
+      for (PointLight& pointLight : std::ranges::views::values(state.scene->pointLights)) {
+        if (ImGui::CollapsingHeader(std::format("{}##sl{}", pointLight.name, index).c_str())) {
+          ImGui::Indent();
 
-      ImGui::ColorPicker3("Ambient##sl", glm::value_ptr(spotlight.colors.ambient), lightColorEditFlags);
-      ImGui::ColorPicker3("Diffuse##sl", glm::value_ptr(spotlight.colors.diffuse), lightColorEditFlags);
-      ImGui::ColorPicker3("Specular##sl", glm::value_ptr(spotlight.colors.specular), lightColorEditFlags);
+          ImGui::DragFloat3(("Position##pl" + std::to_string(index)).c_str(), glm::value_ptr(pointLight.position), 0.001f, -1.0f, 1.0f);
+          ImGui::Spacing();
+
+          ImGui::DragFloat("Constant", &pointLight.constant, 0.1f, 1.0f, 100.0f);
+          ImGui::DragFloat("Linear", &pointLight.linear, 0.01f, 0.01f, 10.0f);
+          ImGui::DragFloat("Quadratic", &pointLight.quadratic, 0.001f, 0.01f, 1.0f);
+          ImGui::Spacing();
+
+          ImGui::ColorPicker3(("Ambient##pl" + std::to_string(index)).c_str(), glm::value_ptr(pointLight.colors.ambient), lightColorEditFlags);
+          ImGui::ColorPicker3(("Diffuse##pl" + std::to_string(index)).c_str(), glm::value_ptr(pointLight.colors.diffuse), lightColorEditFlags);
+          if (ImGui::ColorPicker3(("Specular##pl" + std::to_string(index)).c_str(), glm::value_ptr(pointLight.colors.specular), lightColorEditFlags)) {
+            (*state.lightShader)->uniforms["uLightColor"] = pointLight.colors.specular;
+          }
+
+          ImGui::Unindent();
+        }
+        ++index;
+      }
+
+      ImGui::Unindent();
+    }
+
+    if (ImGui::CollapsingHeader("Spotlights")) {
+      ImGui::Indent();
+
+      size_t index = 0;
+      for (Spotlight& spotlight : std::ranges::views::values(state.scene->spotlights)) {
+        if (ImGui::CollapsingHeader(std::format("{}##sl{}", spotlight.name, index).c_str())) {
+          ImGui::Indent();
+
+          ImGui::DragFloat3(("Position##sl" + std::to_string(index)).c_str(), glm::value_ptr(spotlight.position), 0.001f, -1.0f, 1.0f);
+          ImGui::DragFloat3(("Direction##sl" + std::to_string(index)).c_str(), glm::value_ptr(spotlight.direction), 0.001f, -1.0f, 1.0f);
+          ImGui::Spacing();
+
+          ImGui::DragFloat(("Cut off##sl" + std::to_string(index)).c_str(), &spotlight.cutOff, 0.01f, 1.0f, spotlight.outerCutOff);
+          ImGui::DragFloat(("Outer cut off##sl" + std::to_string(index)).c_str(), &spotlight.outerCutOff, 0.01f, spotlight.cutOff, 120.0f);
+          ImGui::Spacing();
+
+          ImGui::ColorPicker3(("Ambient##sl" + std::to_string(index)).c_str(), glm::value_ptr(spotlight.colors.ambient), lightColorEditFlags);
+          ImGui::ColorPicker3(("Diffuse##sl" + std::to_string(index)).c_str(), glm::value_ptr(spotlight.colors.diffuse), lightColorEditFlags);
+          ImGui::ColorPicker3(("Specular##sl" + std::to_string(index)).c_str(), glm::value_ptr(spotlight.colors.specular), lightColorEditFlags);
+
+          ImGui::Unindent();
+        }
+        ++index;
+      }
 
       ImGui::Unindent();
     }

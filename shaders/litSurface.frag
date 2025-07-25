@@ -9,9 +9,6 @@ struct Material {
 };
 
 uniform Material uMaterial;
-uniform DirectionalLight uDirectionalLight;
-uniform PointLight uPointLight;
-uniform Spotlight uSpotlight;
 
 in VS_OUT {
   vec3 position;
@@ -79,13 +76,30 @@ void main() {
     normal = -normal;
   }
 
-  LightColors directionalLightColors = directionalLight(uDirectionalLight, normal);
-  LightColors pointLightColors = pointLight(uPointLight, normal);
-  LightColors spotlightColors = spotlight(uSpotlight, normal);
+  vec3 combinedAmbient = vec3(0);
+  vec3 combinedDiffuse = vec3(0);
+  vec3 combinedSpecular = vec3(0);
 
-  vec3 combinedAmbient = directionalLightColors.ambient + pointLightColors.ambient + spotlightColors.ambient;
-  vec3 combinedDiffuse = directionalLightColors.diffuse + pointLightColors.diffuse + spotlightColors.diffuse;
-  vec3 combinedSpecular = directionalLightColors.specular + pointLightColors.specular + spotlightColors.specular;
+  for (uint i = 0; i < uDirectionalLights.count; ++i) {
+    LightColors directionalLightColors = directionalLight(uDirectionalLights.sources[i], normal);
+    combinedAmbient += directionalLightColors.ambient;
+    combinedDiffuse += directionalLightColors.diffuse;
+    combinedSpecular += directionalLightColors.specular;
+  }
+
+  for (uint i = 0; i < uPointLights.count; ++i) {
+    LightColors pointLightColors = pointLight(uPointLights.sources[i], normal);
+    combinedAmbient += pointLightColors.ambient;
+    combinedDiffuse += pointLightColors.diffuse;
+    combinedSpecular += pointLightColors.specular;
+  }
+
+  for (uint i = 0; i < uSpotlights.count; ++i) {
+    LightColors spotlightColors = spotlight(uSpotlights.sources[i], normal);
+    combinedAmbient += spotlightColors.ambient;
+    combinedDiffuse += spotlightColors.diffuse;
+    combinedSpecular += spotlightColors.specular;
+  }
 
   vec4 result = materialDiffuse * vec4(combinedAmbient, 1) +
                 materialDiffuse * vec4(combinedDiffuse, 1) +

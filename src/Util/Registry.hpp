@@ -52,7 +52,7 @@ public:
       return mID;
     }
 
-    [[nodiscard]] bool exists() {
+    [[nodiscard]] bool exists() const {
       return mOwner->contains(mID);
     }
 
@@ -94,8 +94,16 @@ public:
     return mItems.at(id);
   }
 
-  bool contains(const RegItemID id) {
+  bool contains(const RegItemID id) const {
     return mItems.contains(id);
+  }
+
+  bool empty() const {
+    return mItems.empty();
+  }
+
+  [[nodiscard]] size_t size() const {
+    return mItems.size();
   }
 
 private:

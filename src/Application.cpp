@@ -1,11 +1,10 @@
 #include <Application.hpp>
 
-#include <GUI.hpp>
-
 #include <Assets/Bitmap.hpp>
 #include <Graphics/Camera.hpp>
 #include <Graphics/RenderingEngine.hpp>
 #include <Graphics/Scene.hpp>
+#include <GUI.hpp>
 #include <Util/Macros/Errors.hpp>
 #include <Util/NotNull.hpp>
 #include <Util/Timers/TimedBlock.hpp>
@@ -130,14 +129,15 @@ Expected<void> Application::createScene() {
   // Load assets
   const Expected modelBackpack = mState.assetManager->loadModel("backpack/backpack.obj");
 
-  const Expected bitmapSkyboxRight = mState.assetManager->loadBitmap("skybox/right.jpg", false);
-  const Expected bitmapSkyboxLeft = mState.assetManager->loadBitmap("skybox/left.jpg", false);
-  const Expected bitmapSkyboxTop = mState.assetManager->loadBitmap("skybox/top.jpg", false);
-  const Expected bitmapSkyboxBottom = mState.assetManager->loadBitmap("skybox/bottom.jpg", false);
-  const Expected bitmapSkyboxBack = mState.assetManager->loadBitmap("skybox/back.jpg", false);
-  const Expected bitmapSkyboxFront = mState.assetManager->loadBitmap("skybox/front.jpg", false);
+  const Expected bitmapSkyboxRight  = mState.assetManager->loadBitmap("skybox/sea_afternoon/right.jpg", false);
+  const Expected bitmapSkyboxLeft   = mState.assetManager->loadBitmap("skybox/sea_afternoon/left.jpg", false);
+  const Expected bitmapSkyboxTop    = mState.assetManager->loadBitmap("skybox/sea_afternoon/top.jpg", false);
+  const Expected bitmapSkyboxBottom = mState.assetManager->loadBitmap("skybox/sea_afternoon/bottom.jpg", false);
+  const Expected bitmapSkyboxBack   = mState.assetManager->loadBitmap("skybox/sea_afternoon/back.jpg", false);
+  const Expected bitmapSkyboxFront  = mState.assetManager->loadBitmap("skybox/sea_afternoon/front.jpg", false);
 
   const AssetHandle<Mesh> skyboxCubeMesh = mState.assetManager->addMesh(Mesh::createCube(glm::vec3(2.0f)));
+  const AssetHandle<Mesh> lightCubeMesh = mState.assetManager->addMesh(Mesh::createCube(glm::vec3(0.2f)));
 
   RETURN_ERROR_IF_UNEXPECTED(modelBackpack);
   RETURN_ERROR_IF_UNEXPECTED(bitmapSkyboxRight);
@@ -148,17 +148,18 @@ Expected<void> Application::createScene() {
   RETURN_ERROR_IF_UNEXPECTED(bitmapSkyboxFront);
 
   // Get shader instances
-  mState.litSurfaceShader = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::LitSurface);
-  mState.lightShader = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::Light);
-  mState.reflectiveSurfaceShader = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::ReflectiveSurface);
-  mState.refractiveSurfaceShader = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::RefractiveSurface);
-  mState.visualiseDepthShader = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::VisualiseDepth);
-  mState.visualiseNormalShader = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::VisualiseNormal);
-  mState.backpackOutlineShader = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::Outline);
+  mState.litSurfaceShader         = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::LitSurface);
+  mState.lightShader              = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::Light);
+  mState.reflectiveSurfaceShader  = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::ReflectiveSurface);
+  mState.refractiveSurfaceShader  = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::RefractiveSurface);
+  mState.visualiseDepthShader     = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::VisualiseDepth);
+  mState.visualiseNormalShader    = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::VisualiseNormal);
+  mState.backpackOutlineShader    = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::Outline);
   mState.postProcessingCopyShader = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::PostProcessCopy);
 
   // Upload assets to GPU
   std::vector<RenderData> backpackMeshes = mState.renderingEngine->addModel(modelBackpack.value(), mState.litSurfaceShader.value());
+  VertexArrayHandle lightCubeVA = mState.renderingEngine->addMesh(lightCubeMesh);
 
   TextureCubeMapHandle skyboxTexture = mState.renderingEngine->addTextureCubeMap(
     TextureCubeMapBitmaps {
@@ -177,16 +178,8 @@ Expected<void> Application::createScene() {
   }
 
   // Create scene
-  mState.scene->directionalLight.direction = glm::vec3(0.3f, -1.0f, 0.3f);
-  mState.scene->directionalLight.colors.ambient = glm::vec3(0.587f);
-  mState.scene->directionalLight.colors.diffuse = glm::vec3(0.808f);
-  mState.scene->directionalLight.colors.specular = glm::vec3(1.0f);
-  mState.scene->pointLight.colors.ambient = glm::vec3(0.0f);
-  mState.scene->pointLight.colors.diffuse = glm::vec3(0.0f);
-  mState.scene->pointLight.colors.specular = glm::vec3(0.0f);
-  mState.scene->spotlight.colors.ambient = glm::vec3(0.0f);
-  mState.scene->spotlight.colors.diffuse = glm::vec3(0.0f);
-  mState.scene->spotlight.colors.specular = glm::vec3(0.0f);
+  mState.mainCamera.position = glm::vec3(0.0f, 0.0f, 3.0f);
+  mState.mainCamera.rotation = glm::vec3(-90.0f, 0.0f, 0.0f);
 
   mState.scene->skybox = Skybox {
     .cubeMesh = mState.renderingEngine->addMesh(skyboxCubeMesh),
@@ -194,7 +187,61 @@ Expected<void> Application::createScene() {
     .shader = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::Skybox),
   };
 
-  mState.scene->addActor(Actor {
+  mState.scene->directionalLights.add(DirectionalLight {
+    .name = "Sun",
+    .colors = LightColors {
+      // .ambient = glm::vec3(0.587f),
+      .ambient = glm::vec3(0.1f),
+      .diffuse = glm::vec3(0.808f),
+      .specular = glm::vec3(1.0f),
+    },
+    .direction = glm::vec3(0.3f, -1.0f, 0.3f),
+  });
+
+  mState.flashlight = mState.scene->spotlights.add(Spotlight {
+    .name = "Flashlight",
+    .colors = LightColors {
+      .ambient = glm::vec3(0.1f),
+      .diffuse = glm::vec3(0.5f),
+      .specular = glm::vec3(1.0f),
+    },
+  });
+
+  constexpr auto pointLightPositions = std::array {
+    glm::vec3(2.0f, 0.0f, 0.0f),
+    glm::vec3(0.0f, 2.0f, 0.0f),
+    glm::vec3(0.0f, 0.0f, 2.0f),
+    glm::vec3(2.0f, 2.0f, 0.0f),
+  };
+  size_t lightCubeIndex = 0;
+  for (glm::vec3 position : pointLightPositions) {
+    ShaderProgramInstanceHandle instance = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::Light);
+    instance->uniforms["uLightColor"] = position * 0.5f;
+    mState.scene->actors.add(Actor {
+      .name = "Light cube " + std::to_string(lightCubeIndex),
+      .transform = Transform {
+        .translation = position,
+      },
+      .renderData = {
+        RenderData {
+          .shaderProgramInstance = instance,
+          .vertexArray = lightCubeVA,
+        },
+      },
+    });
+    mState.scene->pointLights.add(PointLight {
+      .name = "Point light " + std::to_string(lightCubeIndex),
+      .position = position,
+      .colors = LightColors {
+        .ambient = glm::vec3(0.1f),
+        .diffuse = position * 0.25f,
+        .specular = position * 0.5f,
+      },
+    });
+    ++lightCubeIndex;
+  }
+
+  mState.scene->actors.add(Actor {
     .name = "Backpack",
     .transform = Transform {
       .translation = glm::vec3(0.0f),
@@ -278,36 +325,9 @@ void Application::updateScene() {
 
   // Flashlight
   if (mState.bFlashlightFollowCamera) {
-    mState.scene->spotlight.position = mState.mainCamera.position;
-    mState.scene->spotlight.direction = mState.mainCamera.forward();
+    mState.flashlight.value()->position = mState.mainCamera.position;
+    mState.flashlight.value()->direction = mState.mainCamera.forward();
   }
-
-  // Shaders
-  (*mState.litSurfaceShader)->uniforms["uViewPos"] = mState.mainCamera.position;
-  (*mState.litSurfaceShader)->uniforms["uDirectionalLight.colors.ambient"] = mState.scene->directionalLight.colors.ambient;
-  (*mState.litSurfaceShader)->uniforms["uDirectionalLight.colors.diffuse"] = mState.scene->directionalLight.colors.diffuse;
-  (*mState.litSurfaceShader)->uniforms["uDirectionalLight.colors.specular"] = mState.scene->directionalLight.colors.specular;
-  (*mState.litSurfaceShader)->uniforms["uDirectionalLight.direction"] = mState.scene->directionalLight.direction;
-  (*mState.litSurfaceShader)->uniforms["uPointLight.colors.ambient"] = mState.scene->pointLight.colors.ambient;
-  (*mState.litSurfaceShader)->uniforms["uPointLight.colors.diffuse"] = mState.scene->pointLight.colors.diffuse;
-  (*mState.litSurfaceShader)->uniforms["uPointLight.position"] = mState.scene->pointLight.position;
-  (*mState.litSurfaceShader)->uniforms["uPointLight.position"] = mState.scene->pointLight.position;
-  (*mState.litSurfaceShader)->uniforms["uPointLight.constant"] = mState.scene->pointLight.constant;
-  (*mState.litSurfaceShader)->uniforms["uPointLight.linear"] = mState.scene->pointLight.linear;
-  (*mState.litSurfaceShader)->uniforms["uPointLight.quadratic"] = mState.scene->pointLight.quadratic;
-  (*mState.litSurfaceShader)->uniforms["uSpotlight.colors.ambient"] = mState.scene->spotlight.colors.ambient;
-  (*mState.litSurfaceShader)->uniforms["uSpotlight.colors.diffuse"] = mState.scene->spotlight.colors.diffuse;
-  (*mState.litSurfaceShader)->uniforms["uSpotlight.colors.specular"] = mState.scene->spotlight.colors.specular;
-  (*mState.litSurfaceShader)->uniforms["uSpotlight.position"] = mState.scene->spotlight.position;
-  (*mState.litSurfaceShader)->uniforms["uSpotlight.direction"] = mState.scene->spotlight.direction;
-  (*mState.litSurfaceShader)->uniforms["uSpotlight.cutOff"] = glm::cos(glm::radians(mState.scene->spotlight.cutOff));
-  (*mState.litSurfaceShader)->uniforms["uSpotlight.outerCutOff"] = glm::cos(glm::radians(mState.scene->spotlight.outerCutOff));
-
-  (*mState.reflectiveSurfaceShader)->uniforms["uViewPos"] = mState.mainCamera.position;
-  (*mState.refractiveSurfaceShader)->uniforms["uViewPos"] = mState.mainCamera.position;
-
-  (*mState.visualiseDepthShader)->uniforms["uCamera.near"] = mState.mainCamera.near;
-  (*mState.visualiseDepthShader)->uniforms["uCamera.far"] = mState.mainCamera.far;
 }
 
 void Application::drawFrame() {

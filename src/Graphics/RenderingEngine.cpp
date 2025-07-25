@@ -8,8 +8,9 @@
 #include <Graphics/RenderPass.hpp>
 #include <Graphics/Scene.hpp>
 #include <Graphics/ShaderProgram.hpp>
-#include <Graphics/UniformBuffers/CameraUniforms.hpp>
-#include <Graphics/UniformBuffers/LightSourceUniforms.hpp>
+#include <Graphics/Buffers/BindPoints.hpp>
+#include <Graphics/Buffers/CameraUniforms.hpp>
+#include <Graphics/Buffers/LightSourceUniforms.hpp>
 #include <Graphics/Viewport.hpp>
 
 #include <glm/gtc/type_ptr.hpp>
@@ -51,10 +52,14 @@ Expected<void> RenderingEngine::init() {
 
   glGenVertexArrays(1, &mScreenQuadVAO);
 
-  UniformBuffer cameraUniforms;
+  Buffer cameraUniforms(GL_UNIFORM_BUFFER);
   cameraUniforms.allocate(sizeof(CameraUniforms));
   cameraUniforms.bindWhole(UBO_BIND_POINT_CAMERA);
-  mCameraUniformBuffer = mUniformBuffers.add(std::move(cameraUniforms));
+  mCameraUniformBuffer = mBuffers.add(std::move(cameraUniforms));
+
+  mDirectionalLightsStorageBuffer = mBuffers.add(Buffer(GL_SHADER_STORAGE_BUFFER));
+  mPointLightsStorageBuffer = mBuffers.add(Buffer(GL_SHADER_STORAGE_BUFFER));
+  mSpotlightsStorageBuffer = mBuffers.add(Buffer(GL_SHADER_STORAGE_BUFFER));
 
   bInitialised = true;
   return {};
@@ -67,17 +72,26 @@ void RenderingEngine::destroy() {
   for (VertexArray& vertexArray : std::ranges::views::values(mVertexArrays)) {
     vertexArray.destroy();
   }
-  for (Texture2D& texture : std::ranges::views::values(mTexture2Ds)) {
-    texture.destroy();
+  for (Texture2D& texture2D : std::ranges::views::values(mTexture2Ds)) {
+    texture2D.destroy();
+  }
+  for (TextureCubeMap& textureCubeMap : std::ranges::views::values(mTextureCubeMaps)) {
+    textureCubeMap.destroy();
   }
   for (Framebuffer& framebuffer : std::ranges::views::values(mFramebuffers)) {
     framebuffer.destroy();
   }
+  for (Buffer& buffer : std::ranges::views::values(mBuffers)) {
+    buffer.destroy();
+  }
 
+  mShaderPrograms.clear();
   mShaderProgramInstances.clear();
   mVertexArrays.clear();
   mTexture2Ds.clear();
+  mTextureCubeMaps.clear();
   mFramebuffers.clear();
+  mBuffers.clear();
 
   glDeleteVertexArrays(1, &mScreenQuadVAO);
   mScreenQuadVAO = GL_NONE;
@@ -94,6 +108,11 @@ void RenderingEngine::destroy() {
   mPostProcessInvertShaderProgram.reset();
   mPostProcessKernel3x3ShaderProgram.reset();
   mSkyboxShaderProgram.reset();
+
+  mCameraUniformBuffer.reset();
+  mDirectionalLightsStorageBuffer.reset();
+  mPointLightsStorageBuffer.reset();
+  mSpotlightsStorageBuffer.reset();
 
   mUploadedTextures.clear();
   mUploadedModels.clear();
@@ -164,7 +183,7 @@ ShaderProgramInstanceHandle RenderingEngine::createShaderProgramInstance(const S
     case ShaderProgramType::Skybox:
       return this->addShaderProgramInstance(ShaderProgramInstance::newSkybox(mSkyboxShaderProgram.value()));
     default:
-      PANIC("Unsupported shader program type");
+      UNREACHABLE();
   }
 }
 
@@ -308,13 +327,20 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
     return;
   }
 
-  mCameraUniformBuffer.value()->write(CameraUniforms {
-    .view = camera.view(),
-    .projection = camera.projection(dstFramebuffer->size()),
-    .position = camera.position,
-    .near = camera.near,
-    .far = camera.far,
-  });
+  const CameraUniforms cameraUniformData = CameraUniforms::from(camera, dstFramebuffer->size());
+  const DirectionalLightSourceBuffer directionalLightUniformData = scene.createDirectionalLightUniforms();
+  const PointLightSourceBuffer pointLightUniformData = scene.createPointLightUniforms();
+  const SpotlightSourceBuffer spotlightUniformData = scene.createSpotlightUniforms();
+
+  mCameraUniformBuffer.value()->write(cameraUniformData);
+  mDirectionalLightsStorageBuffer.value()->write(directionalLightUniformData);
+  mPointLightsStorageBuffer.value()->write(pointLightUniformData);
+  mSpotlightsStorageBuffer.value()->write(spotlightUniformData);
+
+  mCameraUniformBuffer.value()->bindWhole(UBO_BIND_POINT_CAMERA);
+  mDirectionalLightsStorageBuffer.value()->bindWhole(SSBO_BIND_POINT_DIRECTIONAL_LIGHTS);
+  mPointLightsStorageBuffer.value()->bindWhole(SSBO_BIND_POINT_POINT_LIGHTS);
+  mSpotlightsStorageBuffer.value()->bindWhole(SSBO_BIND_POINT_SPOTLIGHTS);
 
   const Draw* lastDraw = &draws.front();
   for (size_t drawIdx = 0; drawIdx < draws.size(); drawIdx++) {

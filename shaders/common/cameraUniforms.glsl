@@ -1,3 +1,6 @@
+#ifndef CAMERA_UNIFORMS_GLSL
+#define CAMERA_UNIFORMS_GLSL
+
 layout (std140, binding = UBO_BIND_POINT_CAMERA)
 uniform Camera {
   mat4 view;
@@ -6,3 +9,5 @@ uniform Camera {
   float near;
   float far;
 } uCamera;
+
+#endif // CAMERA_UNIFORMS_GLSL

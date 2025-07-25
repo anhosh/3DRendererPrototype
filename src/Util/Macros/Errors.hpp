@@ -6,6 +6,12 @@
 #include <expected>
 #include <print>
 
+#define UNIMPLEMENTED() \
+  TO_STATEMENT( \
+    std::println(stderr, "Unimplemented function {} at {}:{}:", __FUNCTION__, __FILE__, __LINE__); \
+    assert(false); \
+  )
+
 #define UNREACHABLE() \
   TO_STATEMENT( \
     std::println(stderr, "Reached unreachable code at {}:{}, {}:", __FILE__, __LINE__, __FUNCTION__); \

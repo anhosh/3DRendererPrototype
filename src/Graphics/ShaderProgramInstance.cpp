@@ -1,7 +1,5 @@
 #include <Graphics/ShaderProgramInstance.hpp>
 
-#include <Graphics/Light.hpp>
-
 #include <ranges>
 
 static constexpr GLint TEXTURE_SLOT_SCREEN = 0;
@@ -15,7 +13,7 @@ void ShaderProgramInstance::use() const {
 }
 
 void ShaderProgramInstance::bindUniforms() const {
-  for (const ShaderUniform& uniform : std::ranges::views::values(this->uniforms)) {
+  for (const ShaderUniform& uniform : std::ranges::views::values(uniforms)) {
     if (const GLint* int_value = std::get_if<GLint>(&uniform.value)) {
       glUniform1i(uniform.location, *int_value);
     } else if (const GLuint* uint_value = std::get_if<GLuint>(&uniform.value)) {
@@ -45,36 +43,10 @@ void ShaderProgramInstance::bindUniforms() const {
 ShaderProgramInstance ShaderProgramInstance::newLitSurface(const ShaderProgramHandle program) {
   ShaderProgramInstance instance(program);
 
-  instance.setUniform("uViewPos", glm::vec3(0.0f));
-
   instance.setUniform("uMaterial.diffuse", TEXTURE_SLOT_DIFFUSE);
   instance.setUniform("uMaterial.specular", TEXTURE_SLOT_SPECULAR);
   instance.setUniform("uMaterial.emission", TEXTURE_SLOT_EMISSION);
   instance.setUniform("uMaterial.shininess", 32.0f);
-  
-  constexpr DirectionalLight directionalLight;
-  instance.setUniform("uDirectionalLight.colors.ambient", directionalLight.colors.ambient);
-  instance.setUniform("uDirectionalLight.colors.diffuse", directionalLight.colors.diffuse);
-  instance.setUniform("uDirectionalLight.colors.specular", directionalLight.colors.specular);
-  instance.setUniform("uDirectionalLight.direction", directionalLight.direction);
-  
-  constexpr PointLight pointLight;
-  instance.setUniform("uPointLight.colors.ambient", pointLight.colors.ambient);
-  instance.setUniform("uPointLight.colors.diffuse", pointLight.colors.diffuse);
-  instance.setUniform("uPointLight.colors.specular", pointLight.colors.specular);
-  instance.setUniform("uPointLight.position", pointLight.position);
-  instance.setUniform("uPointLight.constant", pointLight.constant);
-  instance.setUniform("uPointLight.linear", pointLight.linear);
-  instance.setUniform("uPointLight.quadratic", pointLight.quadratic);
-  
-  constexpr Spotlight spotlight;
-  instance.setUniform("uSpotlight.colors.ambient", spotlight.colors.ambient);
-  instance.setUniform("uSpotlight.colors.diffuse", spotlight.colors.diffuse);
-  instance.setUniform("uSpotlight.colors.specular", spotlight.colors.specular);
-  instance.setUniform("uSpotlight.position", spotlight.position);
-  instance.setUniform("uSpotlight.direction", spotlight.direction);
-  instance.setUniform("uSpotlight.cutOff", spotlight.cutOff);
-  instance.setUniform("uSpotlight.outerCutOff", spotlight.outerCutOff);
   
   return instance;
 }
@@ -98,7 +70,6 @@ ShaderProgramInstance ShaderProgramInstance::newOutline(const ShaderProgramHandl
 ShaderProgramInstance ShaderProgramInstance::newReflectiveSurface(ShaderProgramHandle program) {
   ShaderProgramInstance instance(program);
 
-  instance.setUniform("uViewPos", glm::vec3(0.0f));
   instance.setUniform("uEnvironmentMap", TEXTURE_SLOT_ENVIRONMENT);
 
   return instance;
@@ -107,7 +78,6 @@ ShaderProgramInstance ShaderProgramInstance::newReflectiveSurface(ShaderProgramH
 ShaderProgramInstance ShaderProgramInstance::newRefractiveSurface(ShaderProgramHandle program) {
   ShaderProgramInstance instance(program);
 
-  instance.setUniform("uViewPos", glm::vec3(0.0f));
   instance.setUniform("uRefractiveIndex", 1.52f);
   instance.setUniform("uEnvironmentMap", TEXTURE_SLOT_ENVIRONMENT);
 

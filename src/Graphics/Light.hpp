@@ -7,11 +7,13 @@ struct LightColors {
 };
 
 struct DirectionalLight {
+  std::string name = "Directional light";
   LightColors colors;
   glm::vec3 direction = glm::vec3(-0.2f, -1.0f, -0.3f);
 };
 
 struct PointLight {
+  std::string name = "Point light";
   LightColors colors;
   glm::vec3 position = glm::vec3(0.0f);
   float constant = 1.0f;
@@ -20,6 +22,7 @@ struct PointLight {
 };
 
 struct Spotlight {
+  std::string name = "Spotlight";
   LightColors colors;
   glm::vec3 position = glm::vec3(0.0f);
   glm::vec3 direction = glm::vec3(0.0f);
