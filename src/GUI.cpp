@@ -13,8 +13,8 @@ constexpr ImGuiColorEditFlags lightColorEditFlags [[maybe_unused]] = ImGuiColorE
 void guiMetrics(const AppState& state) {
   ImGui::Text("FPS: %.03f", 1.0 / (state.currentFrameTime - state.lastFrameTime));
   ImGui::Text("Frame duration: %.03f ms", (state.currentFrameTime - state.lastFrameTime) * 1000.0);
-  ImGui::Text("Scene draw: %.03f ms", state.lastSceneRenderTime * 1000.0);
-  ImGui::Text("GUI draw: %.03f ms", state.lastGuiRenderTime * 1000.0);
+  ImGui::Text("Scene draw: %.03f ms", state.lastSceneRenderDuration * 1000.0);
+  ImGui::Text("GUI draw: %.03f ms", state.lastGuiRenderDuration * 1000.0);
   ImGui::Text("Window size: %ux%u", state.windowSize.x, state.windowSize.y);
 }
 
@@ -144,6 +144,7 @@ void guiActors(AppState& state) {
           static constexpr const char* fsTypeNames[] = {
             "Light",
             "Lit surface",
+            "Lit exploded",
             "Outline",
             "Reflective surface",
             "Refractive surface",
@@ -161,6 +162,9 @@ void guiActors(AppState& state) {
                 break;
               case ShaderProgramType::LitSurface:
                 actor.setShaderProgramInstance(state.litSurfaceShader.value());
+                break;
+              case ShaderProgramType::LitExploded:
+                actor.setShaderProgramInstance(state.litExplodedShader.value());
                 break;
               case ShaderProgramType::Outline:
                 actor.setShaderProgramInstance(state.backpackOutlineShader.value());
@@ -180,6 +184,11 @@ void guiActors(AppState& state) {
               default:
                 UNREACHABLE();
             }
+          }
+
+          if (state.backpackShaderProgramType == ShaderProgramType::LitExploded) {
+            auto& refractiveIndex = (*state.litExplodedShader)->uniforms["uExplosionDistance"].getRef<GLfloat>();
+            ImGui::DragFloat("Explosion distance", &refractiveIndex, 0.001f, 0.0f, 10.0f);
           }
 
           if (state.backpackShaderProgramType == ShaderProgramType::RefractiveSurface) {

@@ -66,6 +66,7 @@ private:
   GLuint mScreenQuadVAO = GL_NONE;
 
   std::optional<ShaderProgramHandle> mLitSurfaceShaderProgram = std::nullopt;
+  std::optional<ShaderProgramHandle> mLitExplodedShaderProgram = std::nullopt;
   std::optional<ShaderProgramHandle> mLightShaderProgram = std::nullopt;
   std::optional<ShaderProgramHandle> mOutlineShaderProgram = std::nullopt;
   std::optional<ShaderProgramHandle> mReflectiveSurfaceShaderProgram = std::nullopt;

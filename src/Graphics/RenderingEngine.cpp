@@ -20,6 +20,7 @@
 Expected<void> RenderingEngine::init() {
   bInitialised = true; // Set this flag temporarily to let the shader program creation pass its assertion.
   Expected litSurface        = this->createShaderProgram({.vertex = "simple.vert",     .fragment = "litSurface.frag"});
+  Expected litExploded       = this->createShaderProgram({.vertex = "worldSpace.vert", .geometry = "explode.geom", .fragment = "litSurface.frag"});
   Expected light             = this->createShaderProgram({.vertex = "simple.vert",     .fragment = "light.frag"});
   Expected visualiseDepth    = this->createShaderProgram({.vertex = "simple.vert",     .fragment = "visualiseDepth.frag"});
   Expected visualiseNormal   = this->createShaderProgram({.vertex = "simple.vert",     .fragment = "visualiseNormal.frag"});
@@ -36,6 +37,7 @@ Expected<void> RenderingEngine::init() {
 
   bInitialised = false; // Reset because some of the shader program creations might have failed.
   ASSIGN_EXPECTED_OR_RETURN(mLitSurfaceShaderProgram, litSurface);
+  ASSIGN_EXPECTED_OR_RETURN(mLitExplodedShaderProgram, litExploded);
   ASSIGN_EXPECTED_OR_RETURN(mLightShaderProgram, light);
   ASSIGN_EXPECTED_OR_RETURN(mVisualiseDepthShaderProgram, visualiseDepth);
   ASSIGN_EXPECTED_OR_RETURN(mVisualiseNormalShaderProgram, visualiseNormal);
@@ -54,7 +56,6 @@ Expected<void> RenderingEngine::init() {
 
   Buffer cameraUniforms(GL_UNIFORM_BUFFER);
   cameraUniforms.allocate(sizeof(CameraUniforms));
-  cameraUniforms.bindWhole(UBO_BIND_POINT_CAMERA);
   mCameraUniformBuffer = mBuffers.add(std::move(cameraUniforms));
 
   mDirectionalLightsStorageBuffer = mBuffers.add(Buffer(GL_SHADER_STORAGE_BUFFER));
@@ -142,6 +143,8 @@ ShaderProgramInstanceHandle RenderingEngine::createShaderProgramInstance(const S
   switch (type) {
     case ShaderProgramType::LitSurface:
       return this->addShaderProgramInstance(ShaderProgramInstance::newLitSurface(mLitSurfaceShaderProgram.value()));
+    case ShaderProgramType::LitExploded:
+      return this->addShaderProgramInstance(ShaderProgramInstance::newLitExploded(mLitExplodedShaderProgram.value()));
     case ShaderProgramType::Light:
       return this->addShaderProgramInstance(ShaderProgramInstance::newLight(mLightShaderProgram.value()));
     case ShaderProgramType::Outline:

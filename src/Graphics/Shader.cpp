@@ -26,7 +26,7 @@ bool locateShaders() {
   return false;
 }
 
-Expected<Shader> createShader(GLenum type, const fs::path& sourcePath) {
+Expected<Shader> createShader(GLenum type, const fs::path& sourcePath, std::string_view defines) {
   if (!locateShaders()) {
     PANIC("Could not locate shaders directory");
   }
@@ -37,16 +37,9 @@ Expected<Shader> createShader(GLenum type, const fs::path& sourcePath) {
     return std::unexpected(std::format("Failed to load shader '{}':\n{}", sourcePath.c_str(), error));
   }
 
-#define NEW_DEFINE(name) std::format("#define " #name " {}\n", name)
-  const std::string defines = NEW_DEFINE(UBO_BIND_POINT_CAMERA) +
-                              NEW_DEFINE(SSBO_BIND_POINT_DIRECTIONAL_LIGHTS) +
-                              NEW_DEFINE(SSBO_BIND_POINT_POINT_LIGHTS) +
-                              NEW_DEFINE(SSBO_BIND_POINT_SPOTLIGHTS);
-#undef NEW_DEFINE
-
   const auto sources = std::array {
     "#version 460 core\n",
-    defines.c_str(),
+    defines.data(),
     sourceCStr,
   };
 
@@ -74,24 +67,33 @@ Expected<GLuint> createShaderProgram(const ShaderProgramPaths& shaderStages) {
   std::vector<Shader> shaders;
   shaders.reserve(2); // mandatory vertex and fragment shaders
 
-  const auto addShader = [&](GLenum shaderType, const fs::path& sourcePath) -> Expected<void> {
-    const Expected shader = createShader(shaderType, sourcePath);
+  const auto addShader = [&](GLenum shaderType, const fs::path& sourcePath, std::string_view defines) -> Expected<void> {
+    const Expected shader = createShader(shaderType, sourcePath, defines);
     RETURN_ERROR_IF_UNEXPECTED(shader);
     shaders.push_back(shader.value());
     return {};
   };
 
-  RETURN_ERROR_IF_UNEXPECTED(addShader(GL_VERTEX_SHADER, shaderStages.vertex));
+#define NEW_DEFINE(name) std::format("#define " #name " {}\n", name)
+  const auto HAS_GEOMETRY_SHADER = static_cast<uint32_t>(shaderStages.geometry.has_value());
+  const std::string defines = NEW_DEFINE(UBO_BIND_POINT_CAMERA) +
+                              NEW_DEFINE(SSBO_BIND_POINT_DIRECTIONAL_LIGHTS) +
+                              NEW_DEFINE(SSBO_BIND_POINT_POINT_LIGHTS) +
+                              NEW_DEFINE(SSBO_BIND_POINT_SPOTLIGHTS) +
+                              NEW_DEFINE(HAS_GEOMETRY_SHADER);
+#undef NEW_DEFINE
+
+  RETURN_ERROR_IF_UNEXPECTED(addShader(GL_VERTEX_SHADER, shaderStages.vertex, defines));
   if (shaderStages.tesselationControl.has_value()) {
-    RETURN_ERROR_IF_UNEXPECTED(addShader(GL_TESS_CONTROL_SHADER, shaderStages.tesselationControl.value()));
+    RETURN_ERROR_IF_UNEXPECTED(addShader(GL_TESS_CONTROL_SHADER, shaderStages.tesselationControl.value(), defines));
   }
   if (shaderStages.tesselationEvaluation.has_value()) {
-    RETURN_ERROR_IF_UNEXPECTED(addShader(GL_TESS_EVALUATION_SHADER, shaderStages.tesselationEvaluation.value()));
+    RETURN_ERROR_IF_UNEXPECTED(addShader(GL_TESS_EVALUATION_SHADER, shaderStages.tesselationEvaluation.value(), defines));
   }
   if (shaderStages.geometry.has_value()) {
-    RETURN_ERROR_IF_UNEXPECTED(addShader(GL_GEOMETRY_SHADER, shaderStages.geometry.value()));
+    RETURN_ERROR_IF_UNEXPECTED(addShader(GL_GEOMETRY_SHADER, shaderStages.geometry.value(), defines));
   }
-  RETURN_ERROR_IF_UNEXPECTED(addShader(GL_FRAGMENT_SHADER, shaderStages.fragment));
+  RETURN_ERROR_IF_UNEXPECTED(addShader(GL_FRAGMENT_SHADER, shaderStages.fragment, defines));
 
   const GLuint program = glCreateProgram();
   for (const Shader shader : shaders) {

@@ -10,11 +10,19 @@ struct Material {
 
 uniform Material uMaterial;
 
+#if HAS_GEOMETRY_SHADER
+in GS_OUT {
+  vec3 position;
+  vec3 normal;
+  vec2 texCoord;
+} fsIn;
+#else
 in VS_OUT {
   vec3 position;
   vec3 normal;
   vec2 texCoord;
 } fsIn;
+#endif
 
 out vec4 outColor;
 

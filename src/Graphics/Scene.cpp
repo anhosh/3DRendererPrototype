@@ -64,6 +64,16 @@ std::vector<Draw> Scene::draw(const Camera& camera) const {
     });
   }
 
+  // Skybox
+  if (skybox.has_value()) {
+    draws.push_back(Draw {
+      .shaderProgramInstance = skybox->shader,
+      .vertexArray = skybox->cubeMesh,
+      .environmentMap = skybox->texture,
+      .bBackfaceCulling = false,
+    });
+  }
+
   // Object outlines
   for (const auto& [actor, resIdx]: meshesWithOutlines) {
     const RenderData& resources = actor->renderData[resIdx];
@@ -76,16 +86,6 @@ std::vector<Draw> Scene::draw(const Camera& camera) const {
       .bBackfaceCulling = true,
       .bStencilTest = true,
       .bDepthTest = false,
-    });
-  }
-
-  // Skybox
-  if (skybox.has_value()) {
-    draws.push_back(Draw {
-      .shaderProgramInstance = skybox->shader,
-      .vertexArray = skybox->cubeMesh,
-      .environmentMap = skybox->texture,
-      .bBackfaceCulling = false,
     });
   }
 

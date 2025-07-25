@@ -149,6 +149,7 @@ Expected<void> Application::createScene() {
 
   // Get shader instances
   mState.litSurfaceShader         = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::LitSurface);
+  mState.litExplodedShader        = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::LitExploded);
   mState.lightShader              = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::Light);
   mState.reflectiveSurfaceShader  = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::ReflectiveSurface);
   mState.refractiveSurfaceShader  = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::RefractiveSurface);
@@ -175,6 +176,7 @@ Expected<void> Application::createScene() {
 
   for (RenderData& mesh : backpackMeshes) {
     mesh.environmentMap = skyboxTexture;
+    mesh.renderOptions.bBackfaceCulling = false;
   }
 
   // Create scene
@@ -224,19 +226,19 @@ Expected<void> Application::createScene() {
       },
       .renderData = {
         RenderData {
-          .shaderProgramInstance = instance,
           .vertexArray = lightCubeVA,
+          .shaderProgramInstance = instance,
         },
       },
     });
     mState.scene->pointLights.add(PointLight {
       .name = "Point light " + std::to_string(lightCubeIndex),
-      .position = position,
       .colors = LightColors {
         .ambient = glm::vec3(0.1f),
         .diffuse = position * 0.25f,
         .specular = position * 0.5f,
       },
+      .position = position,
     });
     ++lightCubeIndex;
   }
@@ -364,10 +366,10 @@ void Application::drawFrame() {
     });
   }
 
-  mState.lastSceneRenderTime = timedBlock([&, this] {
+  mState.lastSceneRenderDuration = timedBlock([&, this] {
     mState.renderingEngine->submitRenderPasses(mState.renderPasses);
     mState.renderingEngine->present(mState.windowSize, mState.renderPasses.back().dstFramebuffer);
   });
 
-  mState.lastGuiRenderTime = timedBlock(renderImGui);
+  mState.lastGuiRenderDuration = timedBlock(renderImGui);
 }

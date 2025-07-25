@@ -16,8 +16,8 @@ struct AppState {
 
   double currentFrameTime = 0.0f;
   double lastFrameTime = 0.0f;
-  double lastSceneRenderTime = 0.0f;
-  double lastGuiRenderTime = 0.0f;
+  double lastSceneRenderDuration = 0.0f;
+  double lastGuiRenderDuration = 0.0f;
 
   bool bFreeCursorPressed = false;
   bool bFreeCursor = true;
@@ -47,6 +47,7 @@ struct AppState {
   std::vector<RenderPass> renderPasses;
 
   std::optional<ShaderProgramInstanceHandle> litSurfaceShader = std::nullopt;
+  std::optional<ShaderProgramInstanceHandle> litExplodedShader = std::nullopt;
   std::optional<ShaderProgramInstanceHandle> reflectiveSurfaceShader = std::nullopt;
   std::optional<ShaderProgramInstanceHandle> refractiveSurfaceShader = std::nullopt;
   std::optional<ShaderProgramInstanceHandle> lightShader = std::nullopt;

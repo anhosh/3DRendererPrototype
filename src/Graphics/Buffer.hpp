@@ -17,12 +17,12 @@ public:
   void bindWhole(uint32_t bindPoint) const;
   void bindRange(uint32_t bindPoint, size_t offset, size_t size) const;
 
-  template <typename UniformData> requires
-    requires (UniformData t, std::vector<uint8_t> buffer) {
+  template <typename BufferData> requires
+    requires (BufferData t, std::vector<uint8_t> buffer) {
       { t.size() } -> std::same_as<size_t>;
       { t.writeToBuffer(buffer) } -> std::same_as<void>;
     }
-  void write(const UniformData& data, const size_t offset = 0) {
+  void write(const BufferData& data, const size_t offset = 0) {
     const size_t requiredSize = data.size();
     if (mSize < offset + requiredSize) {
       this->reallocate(offset + requiredSize);

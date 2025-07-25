@@ -9,6 +9,7 @@
 enum class ShaderProgramType : int32_t {
   Light,
   LitSurface,
+  LitExploded,
   Outline,
   ReflectiveSurface,
   RefractiveSurface,
@@ -55,6 +56,7 @@ private:
   explicit ShaderProgramInstance(const ShaderProgramHandle program) : shaderProgram(program) {}
 
   static ShaderProgramInstance newLitSurface(ShaderProgramHandle program);
+  static ShaderProgramInstance newLitExploded(ShaderProgramHandle program);
   static ShaderProgramInstance newLight(ShaderProgramHandle program);
   static ShaderProgramInstance newOutline(ShaderProgramHandle program);
   static ShaderProgramInstance newReflectiveSurface(ShaderProgramHandle program);

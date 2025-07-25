@@ -29,5 +29,5 @@ struct ShaderProgramShaders {
 
 bool locateShaders();
 
-Expected<Shader> createShader(GLenum type, const fs::path& sourcePath);
+Expected<Shader> createShader(GLenum type, const fs::path& sourcePath, std::string_view defines);
 Expected<GLuint> createShaderProgram(const ShaderProgramPaths& shaderStages);
