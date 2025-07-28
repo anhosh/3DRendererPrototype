@@ -14,25 +14,27 @@ void ShaderProgramInstance::use() const {
 
 void ShaderProgramInstance::bindUniforms() const {
   for (const ShaderUniform& uniform : std::ranges::views::values(uniforms)) {
-    if (const GLint* int_value = std::get_if<GLint>(&uniform.value)) {
+    if (const bool* bool_value = uniform.getPtr<bool>()) {
+      glUniform1i(uniform.location, *bool_value ? GL_TRUE : GL_FALSE);
+    } else if (const GLint* int_value = uniform.getPtr<GLint>()) {
       glUniform1i(uniform.location, *int_value);
-    } else if (const GLuint* uint_value = std::get_if<GLuint>(&uniform.value)) {
+    } else if (const GLuint* uint_value = uniform.getPtr<GLuint>()) {
       glUniform1ui(uniform.location, *uint_value);
-    } else if (const GLfloat* float_value = std::get_if<GLfloat>(&uniform.value)) {
+    } else if (const GLfloat* float_value = uniform.getPtr<GLfloat>()) {
       glUniform1f(uniform.location, *float_value);
-    } else if (const GLdouble* double_value = std::get_if<GLdouble>(&uniform.value)) {
+    } else if (const GLdouble* double_value = uniform.getPtr<GLdouble>()) {
       glUniform1d(uniform.location, *double_value);
-    } else if (const glm::vec2* vec2_value = std::get_if<glm::vec2>(&uniform.value)) {
+    } else if (const glm::vec2* vec2_value = uniform.getPtr<glm::vec2>()) {
       glUniform2f(uniform.location, vec2_value->x, vec2_value->y);
-    } else if (const glm::vec3* vec3_value = std::get_if<glm::vec3>(&uniform.value)) {
+    } else if (const glm::vec3* vec3_value = uniform.getPtr<glm::vec3>()) {
       glUniform3f(uniform.location, vec3_value->x, vec3_value->y, vec3_value->z);
-    } else if (const glm::vec4* vec4_value = std::get_if<glm::vec4>(&uniform.value)) {
+    } else if (const glm::vec4* vec4_value = uniform.getPtr<glm::vec4>()) {
       glUniform4f(uniform.location, vec4_value->x, vec4_value->y, vec4_value->z, vec4_value->w);
-    } else if (const glm::mat2* mat2_value = std::get_if<glm::mat2>(&uniform.value)) {
+    } else if (const glm::mat2* mat2_value = uniform.getPtr<glm::mat2>()) {
       glUniformMatrix2fv(uniform.location, 1, GL_FALSE, glm::value_ptr(*mat2_value));
-    } else if (const glm::mat3* mat3_value = std::get_if<glm::mat3>(&uniform.value)) {
+    } else if (const glm::mat3* mat3_value = uniform.getPtr<glm::mat3>()) {
       glUniformMatrix3fv(uniform.location, 1, GL_FALSE, glm::value_ptr(*mat3_value));
-    } else if (const glm::mat4* mat4_value = std::get_if<glm::mat4>(&uniform.value)) {
+    } else if (const glm::mat4* mat4_value = uniform.getPtr<glm::mat4>()) {
       glUniformMatrix4fv(uniform.location, 1, GL_FALSE, glm::value_ptr(*mat4_value));
     } else {
       PANIC("Unsupported uniform type");
@@ -99,9 +101,6 @@ ShaderProgramInstance ShaderProgramInstance::newRefractiveSurface(ShaderProgramH
 
 ShaderProgramInstance ShaderProgramInstance::newVisualiseDepth(const ShaderProgramHandle program) {
   ShaderProgramInstance instance(program);
-
-  instance.setUniform("uCamera.near", 0.01f);
-  instance.setUniform("uCamera.far", 30.0f);  
 
   return instance;
 }

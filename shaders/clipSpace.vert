@@ -17,6 +17,6 @@ void main() {
   vec4 vertexPosWorld = uModelTransform * vec4(inPosition, 1);
   gl_Position = uCamera.projection * uCamera.view * vertexPosWorld;
   vsOut.position = vertexPosWorld.xyz;
-  vsOut.normal = uNormalTransform * inNormal;
+  vsOut.normal = normalize(uNormalTransform * inNormal);
   vsOut.texCoord = inTexCoord;
 }

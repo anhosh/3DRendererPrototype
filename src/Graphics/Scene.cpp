@@ -71,6 +71,7 @@ std::vector<Draw> Scene::draw(const Camera& camera) const {
       .vertexArray = skybox->cubeMesh,
       .environmentMap = skybox->texture,
       .bBackfaceCulling = false,
+      .bIsSkybox = true,
     });
   }
 

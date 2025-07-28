@@ -23,6 +23,13 @@ struct Viewport;
 
 class RenderingEngine {
 public:
+  enum class SceneRenderMode {
+    Normal,
+    Wireframe,
+    SurfaceNormal,
+    SurfaceDepth,
+  };
+
   ~RenderingEngine() { this->destroy(); }
 
   Expected<void> init();
@@ -48,12 +55,17 @@ public:
 
   void submitRenderPasses(std::span<const RenderPass> renderPasses);
   void renderScene(const Scene& scene, const Camera& camera, const Viewport& viewport, FramebufferHandle dstFramebuffer);
+  void renderVertexNormals(const Scene& scene, const Camera& camera, const Viewport& viewport, FramebufferHandle dstFramebuffer);
   void postProcess(const Viewport& viewport, ShaderProgramInstanceHandle postProcessingShader,
                    FramebufferHandle srcFramebuffer, FramebufferHandle dstFramebuffer) const;
   void present(glm::uvec2 windowSize, FramebufferHandle srcFramebuffer) const;
 
+public:
+  SceneRenderMode sceneRenderMode = SceneRenderMode::Normal;
+  bool bVisualiseVertexNormals = false;
+
 private:
-  bool bInitialised = false;
+  bool mInitialised = false;
 
   Registry<ShaderProgram> mShaderPrograms;
   Registry<ShaderProgramInstance> mShaderProgramInstances;
@@ -71,8 +83,9 @@ private:
   std::optional<ShaderProgramHandle> mOutlineShaderProgram = std::nullopt;
   std::optional<ShaderProgramHandle> mReflectiveSurfaceShaderProgram = std::nullopt;
   std::optional<ShaderProgramHandle> mRefractiveSurfaceShaderProgram = std::nullopt;
-  std::optional<ShaderProgramHandle> mVisualiseDepthShaderProgram = std::nullopt;
-  std::optional<ShaderProgramHandle> mVisualiseNormalShaderProgram = std::nullopt;
+  std::optional<ShaderProgramHandle> mSurfaceDepthShaderProgram = std::nullopt;
+  std::optional<ShaderProgramHandle> mSurfaceNormalShaderProgram = std::nullopt;
+  std::optional<ShaderProgramHandle> mVertexNormalShaderProgram = std::nullopt;
   std::optional<ShaderProgramHandle> mPostProcessCopyShaderProgram = std::nullopt;
   std::optional<ShaderProgramHandle> mPostProcessFlipHorizontallyShaderProgram = std::nullopt;
   std::optional<ShaderProgramHandle> mPostProcessFlipVerticallyShaderProgram = std::nullopt;

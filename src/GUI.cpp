@@ -10,12 +10,30 @@
 
 constexpr ImGuiColorEditFlags lightColorEditFlags [[maybe_unused]] = ImGuiColorEditFlags_Float | ImGuiColorEditFlags_HDR;
 
-void guiMetrics(const AppState& state) {
+void guiDebug(const AppState& state) {
   ImGui::Text("FPS: %.03f", 1.0 / (state.currentFrameTime - state.lastFrameTime));
   ImGui::Text("Frame duration: %.03f ms", (state.currentFrameTime - state.lastFrameTime) * 1000.0);
   ImGui::Text("Scene draw: %.03f ms", state.lastSceneRenderDuration * 1000.0);
   ImGui::Text("GUI draw: %.03f ms", state.lastGuiRenderDuration * 1000.0);
   ImGui::Text("Window size: %ux%u", state.windowSize.x, state.windowSize.y);
+
+  if (ImGui::CollapsingHeader("Debug")) {
+    ImGui::Indent();
+
+    static constexpr auto sceneRenderModeNames = std::array {
+      "Normal",
+      "Wireframe",
+      "Surface normal",
+      "Surface depth",
+    };
+    ImGui::Combo("Render mode", reinterpret_cast<int32_t*>(&state.renderingEngine->sceneRenderMode),
+                 sceneRenderModeNames.data(), sceneRenderModeNames.size());
+
+    ImGui::Checkbox("Draw vertex normals", &state.renderingEngine->bVisualiseVertexNormals);
+
+
+    ImGui::Unindent();
+  }
 }
 
 void guiCamera(AppState& state) {
@@ -83,7 +101,7 @@ void guiLight(AppState& state) {
           ImGui::ColorPicker3(("Ambient##pl" + std::to_string(index)).c_str(), glm::value_ptr(pointLight.colors.ambient), lightColorEditFlags);
           ImGui::ColorPicker3(("Diffuse##pl" + std::to_string(index)).c_str(), glm::value_ptr(pointLight.colors.diffuse), lightColorEditFlags);
           if (ImGui::ColorPicker3(("Specular##pl" + std::to_string(index)).c_str(), glm::value_ptr(pointLight.colors.specular), lightColorEditFlags)) {
-            (*state.lightShader)->uniforms["uLightColor"] = pointLight.colors.specular;
+            state.lightShader.value()->uniforms["uLightColor"] = pointLight.colors.specular;
           }
 
           ImGui::Unindent();
@@ -141,20 +159,19 @@ void guiActors(AppState& state) {
         ImGui::DragFloat3(("Scale##" + actor.name).c_str(), glm::value_ptr(grassTransform.scale), 0.01f);
 
         if (actor.name.contains("Backpack")) {
-          static constexpr const char* fsTypeNames[] = {
+          static constexpr auto fsTypeNames = std::array {
             "Light",
             "Lit surface",
             "Lit exploded",
             "Outline",
             "Reflective surface",
             "Refractive surface",
-            "Visualise depth",
-            "Visualise normal",
           };
+
           if (ImGui::Combo("Fragment shader",
                            reinterpret_cast<int32_t*>(&state.backpackShaderProgramType),
-                           fsTypeNames,
-                           std::size(fsTypeNames)))
+                           fsTypeNames.data(),
+                           fsTypeNames.size()))
           {
             switch (state.backpackShaderProgramType) {
               case ShaderProgramType::Light:
@@ -174,12 +191,6 @@ void guiActors(AppState& state) {
                 break;
               case ShaderProgramType::RefractiveSurface:
                 actor.setShaderProgramInstance(state.refractiveSurfaceShader.value());
-                break;
-              case ShaderProgramType::VisualiseDepth:
-                actor.setShaderProgramInstance(state.visualiseDepthShader.value());
-                break;
-              case ShaderProgramType::VisualiseNormal:
-                actor.setShaderProgramInstance(state.visualiseNormalShader.value());
                 break;
               default:
                 UNREACHABLE();
@@ -221,11 +232,11 @@ void guiPostProcessing(AppState& state) {
     constexpr auto firstPostProcessingEffectIndex = static_cast<int32_t>(ShaderProgramType::PostProcessCopy);
     std::optional<int32_t> effectToDelete = std::nullopt;
     for (size_t effectIndex = 0; effectIndex < state.postProcessingShaderProgramTypes.size(); effectIndex++) {
-      const int32_t fsTypeNameIndex = static_cast<int32_t>(state.postProcessingShaderProgramTypes[effectIndex]) - firstPostProcessingEffectIndex;
+      const size_t fsTypeNameIndex = static_cast<size_t>(state.postProcessingShaderProgramTypes[effectIndex]) - firstPostProcessingEffectIndex;
       ShaderProgramType& shaderProgramType = state.postProcessingShaderProgramTypes[effectIndex];
       ShaderProgramInstanceHandle& shaderProgramInstance = state.postProcessingShaderProgramInstances[effectIndex];
 
-      static constexpr const char* fsTypeNames[] = {
+      static constexpr auto fsTypeNames = std::array {
         "Copy",
         "Blur",
         "Edge detection",
@@ -244,7 +255,7 @@ void guiPostProcessing(AppState& state) {
       const std::string effectIndexStr = std::to_string(effectIndex);
 
       if (ImGui::BeginCombo(("##postProcessingEffect" + effectIndexStr).c_str(), fsTypeNames[fsTypeNameIndex])) {
-        for (size_t fsTypeOptionIndex = 0; fsTypeOptionIndex < std::size(fsTypeNames); fsTypeOptionIndex++) {
+        for (size_t fsTypeOptionIndex = 0; fsTypeOptionIndex < fsTypeNames.size(); fsTypeOptionIndex++) {
           if (ImGui::MenuItem(fsTypeNames[fsTypeOptionIndex])) {
             shaderProgramType = static_cast<ShaderProgramType>(fsTypeOptionIndex + firstPostProcessingEffectIndex);
             shaderProgramInstance.erase();
@@ -290,7 +301,7 @@ void guiPostProcessing(AppState& state) {
 
 void gui(AppState& state) {
   if (ImGui::Begin("Test")) {
-    guiMetrics(state);
+    guiDebug(state);
     guiCamera(state);
     guiLight(state);
     guiActors(state);

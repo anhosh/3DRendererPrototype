@@ -37,33 +37,33 @@ public:
     const ItemType* operator->() const { return &get(); }
 
     void erase() {
-      mOwner->erase(mID);
+      mOwner->erase(mItemID);
     }
 
     [[nodiscard]] ItemType& get() {
-      return mOwner->at(mID);
+      return mOwner->at(mItemID);
     }
 
     [[nodiscard]] const ItemType& get() const {
-      return mOwner->at(mID);
+      return mOwner->at(mItemID);
     }
 
-    [[nodiscard]] RegItemID id() const {
-      return mID;
+    [[nodiscard]] RegItemID itemID() const {
+      return mItemID;
     }
 
     [[nodiscard]] bool exists() const {
-      return mOwner->contains(mID);
+      return mOwner->contains(mItemID);
     }
 
     auto operator<=>(const Handle&) const = default;
 
   private:
-    Handle(NotNull<Registry> owner, const RegItemID id) : mOwner(owner), mID(id) {}
+    Handle(NotNull<Registry> owner, const RegItemID id) : mOwner(owner), mItemID(id) {}
 
   private:
     NotNull<Registry> mOwner;
-    RegItemID mID;
+    RegItemID mItemID;
   };
 
   iterator begin() { return mItems.begin(); }

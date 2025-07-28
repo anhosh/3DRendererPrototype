@@ -23,4 +23,5 @@ struct Draw {
   bool bWriteToDepth = true;
   bool bDepthTest = true;
   bool bTransparent = false;
+  bool bIsSkybox = false;
 };

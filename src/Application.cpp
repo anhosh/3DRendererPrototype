@@ -153,8 +153,6 @@ Expected<void> Application::createScene() {
   mState.lightShader              = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::Light);
   mState.reflectiveSurfaceShader  = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::ReflectiveSurface);
   mState.refractiveSurfaceShader  = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::RefractiveSurface);
-  mState.visualiseDepthShader     = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::VisualiseDepth);
-  mState.visualiseNormalShader    = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::VisualiseNormal);
   mState.backpackOutlineShader    = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::Outline);
   mState.postProcessingCopyShader = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::PostProcessCopy);
 

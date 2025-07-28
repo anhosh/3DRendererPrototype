@@ -13,8 +13,6 @@ enum class ShaderProgramType : int32_t {
   Outline,
   ReflectiveSurface,
   RefractiveSurface,
-  VisualiseDepth,
-  VisualiseNormal,
   PostProcessCopy,
   PostProcessBlur,
   PostProcessEdgeDetection,
