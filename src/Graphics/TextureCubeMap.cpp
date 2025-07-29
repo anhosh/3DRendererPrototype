@@ -19,9 +19,11 @@ void TextureCubeMap::generate(const TextureCubeMapBitmaps& bitmaps, const Sample
   this->bind();
 
   const auto faces = std::array { bitmaps.right, bitmaps.left, bitmaps.top, bitmaps.bottom, bitmaps.front, bitmaps.back };
+  static constexpr GLenum formats[] = { GL_RED, GL_RG, GL_RGB, GL_RGBA };
   for (size_t i = 0; i < faces.size(); ++i) {
-    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB, faces[i]->size().x, faces[i]->size().y,
-                 0, GL_RGB, GL_UNSIGNED_BYTE, faces[i]->bytes());
+    const GLenum format = formats[faces[i]->channels() - 1];
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, format, faces[i]->size().x, faces[i]->size().y,
+                 0, format, GL_UNSIGNED_BYTE, faces[i]->bytes());
   }
 
   glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, options.minFilter);

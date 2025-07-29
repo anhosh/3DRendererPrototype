@@ -11,6 +11,8 @@
 
 #include <backends/imgui_impl_glfw.h>
 
+#include <random>
+
 static Application* gApp = nullptr;
 
 Application::Application(Application&& other) noexcept {
@@ -127,19 +129,19 @@ Expected<void> Application::createContext(std::string_view title, glm::uvec2 ini
 
 Expected<void> Application::createScene() {
   // Load assets
-  const Expected modelBackpack = mState.assetManager->loadModel("backpack/backpack.obj");
+  const Expected modelPlanet = mState.assetManager->loadModel("planet/planet.obj");
+  const Expected modelRock = mState.assetManager->loadModel("rock/rock.obj");
 
-  const Expected bitmapSkyboxRight  = mState.assetManager->loadBitmap("skybox/sea_afternoon/right.jpg", false);
-  const Expected bitmapSkyboxLeft   = mState.assetManager->loadBitmap("skybox/sea_afternoon/left.jpg", false);
-  const Expected bitmapSkyboxTop    = mState.assetManager->loadBitmap("skybox/sea_afternoon/top.jpg", false);
-  const Expected bitmapSkyboxBottom = mState.assetManager->loadBitmap("skybox/sea_afternoon/bottom.jpg", false);
-  const Expected bitmapSkyboxBack   = mState.assetManager->loadBitmap("skybox/sea_afternoon/back.jpg", false);
-  const Expected bitmapSkyboxFront  = mState.assetManager->loadBitmap("skybox/sea_afternoon/front.jpg", false);
+  const Expected bitmapSkyboxRight  = mState.assetManager->loadBitmap("skybox/space/right.png", false);
+  const Expected bitmapSkyboxLeft   = mState.assetManager->loadBitmap("skybox/space/left.png", false);
+  const Expected bitmapSkyboxTop    = mState.assetManager->loadBitmap("skybox/space/top.png", false);
+  const Expected bitmapSkyboxBottom = mState.assetManager->loadBitmap("skybox/space/bottom.png", false);
+  const Expected bitmapSkyboxBack   = mState.assetManager->loadBitmap("skybox/space/back.png", false);
+  const Expected bitmapSkyboxFront  = mState.assetManager->loadBitmap("skybox/space/front.png", false);
 
   const AssetHandle<Mesh> skyboxCubeMesh = mState.assetManager->addMesh(Mesh::createCube(glm::vec3(2.0f)));
-  const AssetHandle<Mesh> lightCubeMesh = mState.assetManager->addMesh(Mesh::createCube(glm::vec3(0.2f)));
 
-  RETURN_ERROR_IF_UNEXPECTED(modelBackpack);
+  RETURN_ERROR_IF_UNEXPECTED(modelPlanet);
   RETURN_ERROR_IF_UNEXPECTED(bitmapSkyboxRight);
   RETURN_ERROR_IF_UNEXPECTED(bitmapSkyboxLeft);
   RETURN_ERROR_IF_UNEXPECTED(bitmapSkyboxTop);
@@ -149,16 +151,11 @@ Expected<void> Application::createScene() {
 
   // Get shader instances
   mState.litSurfaceShader         = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::LitSurface);
-  mState.litExplodedShader        = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::LitExploded);
-  mState.lightShader              = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::Light);
-  mState.reflectiveSurfaceShader  = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::ReflectiveSurface);
-  mState.refractiveSurfaceShader  = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::RefractiveSurface);
-  mState.backpackOutlineShader    = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::Outline);
   mState.postProcessingCopyShader = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::PostProcessCopy);
 
   // Upload assets to GPU
-  std::vector<RenderData> backpackMeshes = mState.renderingEngine->addModel(modelBackpack.value(), mState.litSurfaceShader.value());
-  VertexArrayHandle lightCubeVA = mState.renderingEngine->addMesh(lightCubeMesh);
+  std::vector<RenderData> planetMeshes = mState.renderingEngine->addModel(modelPlanet.value(), mState.litSurfaceShader.value());
+  std::vector<RenderData> rockMeshes   = mState.renderingEngine->addModel(modelRock.value(), mState.litSurfaceShader.value());
 
   TextureCubeMapHandle skyboxTexture = mState.renderingEngine->addTextureCubeMap(
     TextureCubeMapBitmaps {
@@ -172,13 +169,8 @@ Expected<void> Application::createScene() {
     SamplerOptions { .minFilter = GL_LINEAR }
   );
 
-  for (RenderData& mesh : backpackMeshes) {
-    mesh.environmentMap = skyboxTexture;
-    mesh.renderOptions.bBackfaceCulling = false;
-  }
-
   // Create scene
-  mState.mainCamera.position = glm::vec3(0.0f, 0.0f, 3.0f);
+  mState.mainCamera.position = glm::vec3(0.0f, 0.0f, 10.0f);
   mState.mainCamera.rotation = glm::vec3(-90.0f, 0.0f, 0.0f);
 
   mState.scene->skybox = Skybox {
@@ -190,64 +182,45 @@ Expected<void> Application::createScene() {
   mState.scene->directionalLights.add(DirectionalLight {
     .name = "Sun",
     .colors = LightColors {
-      // .ambient = glm::vec3(0.587f),
-      .ambient = glm::vec3(0.1f),
-      .diffuse = glm::vec3(0.808f),
-      .specular = glm::vec3(1.0f),
+      .ambient = glm::vec3(0.05f),
+      .diffuse = glm::vec3(1.2f),
+      .specular = glm::vec3(3.0f),
     },
-    .direction = glm::vec3(0.3f, -1.0f, 0.3f),
+    .direction = glm::vec3(0.3f, -1.0f, -0.3f),
   });
-
-  mState.flashlight = mState.scene->spotlights.add(Spotlight {
-    .name = "Flashlight",
-    .colors = LightColors {
-      .ambient = glm::vec3(0.1f),
-      .diffuse = glm::vec3(0.5f),
-      .specular = glm::vec3(1.0f),
-    },
-  });
-
-  constexpr auto pointLightPositions = std::array {
-    glm::vec3(2.0f, 0.0f, 0.0f),
-    glm::vec3(0.0f, 2.0f, 0.0f),
-    glm::vec3(0.0f, 0.0f, 2.0f),
-    glm::vec3(2.0f, 2.0f, 0.0f),
-  };
-  size_t lightCubeIndex = 0;
-  for (glm::vec3 position : pointLightPositions) {
-    ShaderProgramInstanceHandle instance = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::Light);
-    instance->uniforms["uLightColor"] = position * 0.5f;
-    mState.scene->actors.add(Actor {
-      .name = "Light cube " + std::to_string(lightCubeIndex),
-      .transform = Transform {
-        .translation = position,
-      },
-      .renderData = {
-        RenderData {
-          .vertexArray = lightCubeVA,
-          .shaderProgramInstance = instance,
-        },
-      },
-    });
-    mState.scene->pointLights.add(PointLight {
-      .name = "Point light " + std::to_string(lightCubeIndex),
-      .colors = LightColors {
-        .ambient = glm::vec3(0.1f),
-        .diffuse = position * 0.25f,
-        .specular = position * 0.5f,
-      },
-      .position = position,
-    });
-    ++lightCubeIndex;
-  }
 
   mState.scene->actors.add(Actor {
-    .name = "Backpack",
+    .name = "Planet Mars",
     .transform = Transform {
       .translation = glm::vec3(0.0f),
     },
-    .renderData = std::move(backpackMeshes),
+    .renderData = std::move(planetMeshes),
   });
+
+  constexpr uint32_t numAsteroids = 2000;
+  constexpr float radius = 50.0f;
+  constexpr float offset = 2.5f;
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_real_distribution displacementDistribution(-offset, offset);
+  std::uniform_real_distribution rotationAngleDistribution(0.0f, 360.0f);
+  std::uniform_real_distribution scaleDistribution(0.05f, 0.25f);
+  for (uint32_t i = 0; i < numAsteroids; ++i) {
+    const float angle = static_cast<float>(i) / static_cast<float>(numAsteroids) * 360.0f;
+    mState.scene->actors.add(Actor {
+      .name = std::format("Asteroid {}", i),
+      .transform = Transform {
+        .translation = {
+          glm::sin(glm::radians(angle)) * radius + displacementDistribution(gen),
+          0.4f * displacementDistribution(gen),
+          glm::cos(glm::radians(angle)) * radius + displacementDistribution(gen),
+        },
+        .rotation = rotationAngleDistribution(gen) * glm::vec3(0.4f, 0.6f, 0.8f),
+        .scale = glm::vec3(scaleDistribution(gen)),
+      },
+      .renderData = rockMeshes,
+    });
+  }
 
   return {};
 }
@@ -322,12 +295,6 @@ void Application::updateScene() {
   mState.backCamera = mState.mainCamera;
   mState.backCamera.rotation.x += 180.0f;
   mState.backCamera.rotation.y *= -1.0f;
-
-  // Flashlight
-  if (mState.bFlashlightFollowCamera) {
-    mState.flashlight.value()->position = mState.mainCamera.position;
-    mState.flashlight.value()->direction = mState.mainCamera.forward();
-  }
 }
 
 void Application::drawFrame() {

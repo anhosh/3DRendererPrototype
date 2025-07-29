@@ -16,6 +16,7 @@ public:
   GLuint vao = GL_NONE;
   GLuint vbo = GL_NONE;
   GLuint ebo = GL_NONE;
+  GLuint ibo = GL_NONE;
   GLsizei indexCount = 0;
 };
 

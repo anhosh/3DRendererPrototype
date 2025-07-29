@@ -17,6 +17,7 @@ void VertexArray::init() {
   glGenVertexArrays(1, &vao);
   glGenBuffers(1, &vbo);
   glGenBuffers(1, &ebo);
+  glGenBuffers(1, &ibo);
 }
 
 void VertexArray::destroy() {
@@ -27,6 +28,10 @@ void VertexArray::destroy() {
   if (ebo != GL_NONE) {
     glDeleteBuffers(1, &ebo);
     ebo = GL_NONE;
+  }
+  if (ibo != GL_NONE) {
+    glDeleteBuffers(1, &ibo);
+    ibo = GL_NONE;
   }
   if (vao != GL_NONE) {
     glDeleteVertexArrays(1, &vao);

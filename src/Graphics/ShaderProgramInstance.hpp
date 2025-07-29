@@ -27,6 +27,8 @@ enum class ShaderProgramType : int32_t {
   PostProcessSobelRight,
   PostProcessSobelTop,
   Skybox,
+  SurfaceDepth,
+  SurfaceNormal,
 };
 
 class ShaderProgramInstance {
@@ -48,10 +50,14 @@ public:
   void bindUniforms() const;
 
   const ShaderProgramHandle shaderProgram;
+  const ShaderProgramType type;
   std::unordered_map<std::string, ShaderUniform> uniforms;
 
 private:
-  explicit ShaderProgramInstance(const ShaderProgramHandle program) : shaderProgram(program) {}
+  explicit ShaderProgramInstance(const ShaderProgramHandle program, const ShaderProgramType type)
+    : shaderProgram(program)
+    , type(type)
+  {}
 
   static ShaderProgramInstance newLitSurface(ShaderProgramHandle program);
   static ShaderProgramInstance newLitExploded(ShaderProgramHandle program);
@@ -59,8 +65,8 @@ private:
   static ShaderProgramInstance newOutline(ShaderProgramHandle program);
   static ShaderProgramInstance newReflectiveSurface(ShaderProgramHandle program);
   static ShaderProgramInstance newRefractiveSurface(ShaderProgramHandle program);
-  static ShaderProgramInstance newVisualiseDepth(ShaderProgramHandle program);
-  static ShaderProgramInstance newVisualiseNormal(ShaderProgramHandle program);
+  static ShaderProgramInstance newSurfaceDepth(ShaderProgramHandle program);
+  static ShaderProgramInstance newSurfaceNormal(ShaderProgramHandle program);
   static ShaderProgramInstance newPostProcessingCopy(ShaderProgramHandle program);
   static ShaderProgramInstance newPostProcessingBlur(ShaderProgramHandle program);
   static ShaderProgramInstance newPostProcessingEdgeDetection(ShaderProgramHandle program);

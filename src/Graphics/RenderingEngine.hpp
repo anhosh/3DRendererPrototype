@@ -53,6 +53,8 @@ public:
 
   FramebufferHandle addFramebuffer(const FramebufferCreateInfo& info);
 
+  BufferHandle createBuffer(GLenum type);
+
   void submitRenderPasses(std::span<const RenderPass> renderPasses);
   void renderScene(const Scene& scene, const Camera& camera, const Viewport& viewport, FramebufferHandle dstFramebuffer);
   void renderVertexNormals(const Scene& scene, const Camera& camera, const Viewport& viewport, FramebufferHandle dstFramebuffer);

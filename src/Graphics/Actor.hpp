@@ -20,7 +20,7 @@ struct Actor {
 
   void setOutlineShaderInstance(const std::optional<ShaderProgramInstanceHandle>& outlineShaderInstance) {
     for (RenderData& videoResource : renderData) {
-      videoResource.renderOptions.outlineShaderInstance = outlineShaderInstance;
+      videoResource.outlineShaderInstance = outlineShaderInstance;
     }
   }
 };

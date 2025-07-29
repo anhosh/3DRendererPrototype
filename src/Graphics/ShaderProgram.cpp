@@ -1,15 +1,19 @@
 #include <Graphics/ShaderProgram.hpp>
 
-#include <glm/gtc/type_ptr.hpp>
+#include <Util/Macros/Errors.hpp>
+
+#include <filesystem>
+
+namespace fs = std::filesystem;
 
 ShaderProgram::ShaderProgram(const GLuint shaderProgram)
   : mID(shaderProgram)
 {}
 
-void ShaderProgram::bindTransforms(const TransformMatrices& transforms) const {
-  (void)mID;
-  glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(transforms.model));
-  glUniformMatrix3fv(1, 1, GL_FALSE, glm::value_ptr(transforms.normal));
+Expected<ShaderProgram> ShaderProgram::fromShaders(const ShaderProgramPaths& shaderPaths) {
+  const Expected shaderProgram = createShaderProgram(shaderPaths);
+  RETURN_ERROR_IF_UNEXPECTED(shaderProgram);
+  return ShaderProgram(shaderProgram.value());
 }
 
 void ShaderProgram::destroy() {

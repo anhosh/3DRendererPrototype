@@ -4,6 +4,7 @@
 #include <Graphics/Buffers/LightSourceUniforms.hpp>
 #include <Graphics/Camera.hpp>
 #include <Graphics/Draw.hpp>
+#include <Graphics/Buffer.hpp>
 #include <Graphics/Light.hpp>
 #include <Graphics/Scene.hpp>
 #include <Graphics/Skybox.hpp>
@@ -18,7 +19,7 @@ public:
 
   void destroy();
 
-  [[nodiscard]] std::vector<Draw> draw(const Camera& camera) const;
+  [[nodiscard]] std::vector<Draw> draw(const Camera& camera, Registry<Buffer>& buffers) const;
   [[nodiscard]] DirectionalLightSourceBuffer createDirectionalLightUniforms() const;
   [[nodiscard]] PointLightSourceBuffer createPointLightUniforms() const;
   [[nodiscard]] SpotlightSourceBuffer createSpotlightUniforms() const;
@@ -30,6 +31,12 @@ public:
   Registry<Spotlight> spotlights;
 
   std::optional<Skybox> skybox = std::nullopt;
+
+private:
+  BufferHandle obtainInstanceBuffer(size_t bufferIndex, Registry<Buffer>& buffers) const;
+
+private:
+  mutable std::vector<BufferHandle> mCachedInstanceBuffers;
 };
 
 template <typename T> requires

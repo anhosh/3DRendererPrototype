@@ -8,7 +8,7 @@
 
 #include <ranges>
 
-constexpr ImGuiColorEditFlags lightColorEditFlags [[maybe_unused]] = ImGuiColorEditFlags_Float | ImGuiColorEditFlags_HDR;
+constexpr ImGuiColorEditFlags lightColorEditFlags = ImGuiColorEditFlags_Float | ImGuiColorEditFlags_HDR;
 
 void guiDebug(const AppState& state) {
   ImGui::Text("FPS: %.03f", 1.0 / (state.currentFrameTime - state.lastFrameTime));
@@ -100,9 +100,7 @@ void guiLight(AppState& state) {
 
           ImGui::ColorPicker3(("Ambient##pl" + std::to_string(index)).c_str(), glm::value_ptr(pointLight.colors.ambient), lightColorEditFlags);
           ImGui::ColorPicker3(("Diffuse##pl" + std::to_string(index)).c_str(), glm::value_ptr(pointLight.colors.diffuse), lightColorEditFlags);
-          if (ImGui::ColorPicker3(("Specular##pl" + std::to_string(index)).c_str(), glm::value_ptr(pointLight.colors.specular), lightColorEditFlags)) {
-            state.lightShader.value()->uniforms["uLightColor"] = pointLight.colors.specular;
-          }
+          ImGui::ColorPicker3(("Specular##pl" + std::to_string(index)).c_str(), glm::value_ptr(pointLight.colors.specular), lightColorEditFlags);
 
           ImGui::Unindent();
         }
@@ -157,65 +155,6 @@ void guiActors(AppState& state) {
         ImGui::DragFloat3(("Translation##" + actor.name).c_str(), glm::value_ptr(grassTransform.translation), 0.01f);
         ImGui::DragFloat3(("Rotation##" + actor.name).c_str(), glm::value_ptr(grassTransform.rotation), 0.01f);
         ImGui::DragFloat3(("Scale##" + actor.name).c_str(), glm::value_ptr(grassTransform.scale), 0.01f);
-
-        if (actor.name.contains("Backpack")) {
-          static constexpr auto fsTypeNames = std::array {
-            "Light",
-            "Lit surface",
-            "Lit exploded",
-            "Outline",
-            "Reflective surface",
-            "Refractive surface",
-          };
-
-          if (ImGui::Combo("Fragment shader",
-                           reinterpret_cast<int32_t*>(&state.backpackShaderProgramType),
-                           fsTypeNames.data(),
-                           fsTypeNames.size()))
-          {
-            switch (state.backpackShaderProgramType) {
-              case ShaderProgramType::Light:
-                actor.setShaderProgramInstance(state.lightShader.value());
-                break;
-              case ShaderProgramType::LitSurface:
-                actor.setShaderProgramInstance(state.litSurfaceShader.value());
-                break;
-              case ShaderProgramType::LitExploded:
-                actor.setShaderProgramInstance(state.litExplodedShader.value());
-                break;
-              case ShaderProgramType::Outline:
-                actor.setShaderProgramInstance(state.backpackOutlineShader.value());
-                break;
-              case ShaderProgramType::ReflectiveSurface:
-                actor.setShaderProgramInstance(state.reflectiveSurfaceShader.value());
-                break;
-              case ShaderProgramType::RefractiveSurface:
-                actor.setShaderProgramInstance(state.refractiveSurfaceShader.value());
-                break;
-              default:
-                UNREACHABLE();
-            }
-          }
-
-          if (state.backpackShaderProgramType == ShaderProgramType::LitExploded) {
-            auto& refractiveIndex = (*state.litExplodedShader)->uniforms["uExplosionDistance"].getRef<GLfloat>();
-            ImGui::DragFloat("Explosion distance", &refractiveIndex, 0.001f, 0.0f, 10.0f);
-          }
-
-          if (state.backpackShaderProgramType == ShaderProgramType::RefractiveSurface) {
-            auto& refractiveIndex = (*state.refractiveSurfaceShader)->uniforms["uRefractiveIndex"].getRef<GLfloat>();
-            ImGui::DragFloat("Refractive index", &refractiveIndex, 0.01f, 1.0f, 10.0f);
-          }
-
-          if (ImGui::Checkbox("Draw outline##backpack", &state.bDrawBackpackOutline)) {
-            actor.setOutlineShaderInstance(state.bDrawBackpackOutline ? state.backpackOutlineShader : std::nullopt);
-          }
-
-          ImGui::BeginDisabled(!state.bDrawBackpackOutline);
-          std::unordered_map<std::string, ShaderUniform>& outlineUniforms = (*state.backpackOutlineShader)->uniforms;
-          ImGui::ColorPicker3("Outline color##backpack", outlineUniforms["uOutlineColor"].getValuePtr<glm::vec3>(), ImGuiColorEditFlags_Float);
-          ImGui::EndDisabled();
-        }
 
         ImGui::Unindent();
       }

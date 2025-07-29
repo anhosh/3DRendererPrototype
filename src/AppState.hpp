@@ -34,8 +34,6 @@ struct AppState {
   Camera mainCamera;
   Camera backCamera;
 
-  std::optional<SceneHandle<Spotlight>> flashlight = std::nullopt;
-
   ShaderProgramType backpackShaderProgramType = ShaderProgramType::LitSurface;
   std::vector<ShaderProgramType> postProcessingShaderProgramTypes;
   std::vector<ShaderProgramInstanceHandle> postProcessingShaderProgramInstances;
@@ -47,10 +45,5 @@ struct AppState {
   std::vector<RenderPass> renderPasses;
 
   std::optional<ShaderProgramInstanceHandle> litSurfaceShader = std::nullopt;
-  std::optional<ShaderProgramInstanceHandle> litExplodedShader = std::nullopt;
-  std::optional<ShaderProgramInstanceHandle> reflectiveSurfaceShader = std::nullopt;
-  std::optional<ShaderProgramInstanceHandle> refractiveSurfaceShader = std::nullopt;
-  std::optional<ShaderProgramInstanceHandle> lightShader = std::nullopt;
-  std::optional<ShaderProgramInstanceHandle> backpackOutlineShader = std::nullopt;
   std::optional<ShaderProgramInstanceHandle> postProcessingCopyShader = std::nullopt;
 };

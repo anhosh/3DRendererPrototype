@@ -1,16 +1,18 @@
 #pragma once
 
+#include <Graphics/Buffer.hpp>
 #include <Graphics/ShaderProgramInstance.hpp>
 #include <Graphics/Texture2D.hpp>
 #include <Graphics/TextureCubeMap.hpp>
-#include <Graphics/Transform.hpp>
 #include <Graphics/VertexArray.hpp>
 
-struct Draw {
-  Transform transform = {};
+#include <optional>
 
+struct Draw {
   ShaderProgramInstanceHandle shaderProgramInstance;
   VertexArrayHandle vertexArray;
+
+  size_t instanceCount = 1;
 
   std::optional<Texture2DHandle> diffuseMap = std::nullopt;
   std::optional<Texture2DHandle> specularMap = std::nullopt;
@@ -23,5 +25,5 @@ struct Draw {
   bool bWriteToDepth = true;
   bool bDepthTest = true;
   bool bTransparent = false;
-  bool bIsSkybox = false;
+  bool bSkybox = false;
 };

@@ -12,13 +12,13 @@
 #include <Graphics/Buffers/CameraUniforms.hpp>
 #include <Graphics/Buffers/LightSourceUniforms.hpp>
 #include <Graphics/Viewport.hpp>
+#include <Util/Macros/Errors.hpp>
 
 #include <glm/gtc/type_ptr.hpp>
 
 #include <ranges>
 
 Expected<void> RenderingEngine::init() {
-  mInitialised = true; // Set this flag temporarily to let the shader program creation pass its assertion.
   Expected litSurface        = this->createShaderProgram({.vertex = "clipSpace.vert",  .fragment = "litSurface.frag"});
   Expected litExploded       = this->createShaderProgram({.vertex = "worldSpace.vert", .geometry = "explode.geom", .fragment = "litSurface.frag"});
   Expected light             = this->createShaderProgram({.vertex = "clipSpace.vert",  .fragment = "light.frag"});
@@ -36,7 +36,6 @@ Expected<void> RenderingEngine::init() {
   Expected flipVertically    = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/flipVertically.frag"});
   Expected skybox            = this->createShaderProgram({.vertex = "skybox.vert",     .fragment = "skybox.frag"});
 
-  mInitialised = false; // Reset because some of the shader program creations might have failed.
   ASSIGN_EXPECTED_OR_RETURN(mLitSurfaceShaderProgram, litSurface);
   ASSIGN_EXPECTED_OR_RETURN(mLitExplodedShaderProgram, litExploded);
   ASSIGN_EXPECTED_OR_RETURN(mLightShaderProgram, light);
@@ -56,13 +55,12 @@ Expected<void> RenderingEngine::init() {
 
   glGenVertexArrays(1, &mScreenQuadVAO);
 
-  Buffer cameraUniforms(GL_UNIFORM_BUFFER);
-  cameraUniforms.allocate(sizeof(CameraUniforms));
-  mCameraUniformBuffer = mBuffers.add(std::move(cameraUniforms));
+  mCameraUniformBuffer = this->createBuffer(GL_UNIFORM_BUFFER);
+  mCameraUniformBuffer.value()->allocate(sizeof(CameraUniforms));
 
-  mDirectionalLightsStorageBuffer = mBuffers.add(Buffer(GL_SHADER_STORAGE_BUFFER));
-  mPointLightsStorageBuffer = mBuffers.add(Buffer(GL_SHADER_STORAGE_BUFFER));
-  mSpotlightsStorageBuffer = mBuffers.add(Buffer(GL_SHADER_STORAGE_BUFFER));
+  mDirectionalLightsStorageBuffer = this->createBuffer(GL_SHADER_STORAGE_BUFFER);
+  mPointLightsStorageBuffer = this->createBuffer(GL_SHADER_STORAGE_BUFFER);
+  mSpotlightsStorageBuffer = this->createBuffer(GL_SHADER_STORAGE_BUFFER);
 
   mInitialised = true;
   return {};
@@ -127,22 +125,16 @@ void RenderingEngine::destroy() {
 }
 
 Expected<ShaderProgramHandle> RenderingEngine::createShaderProgram(const ShaderProgramPaths& shaderPaths) {
-  assert(mInitialised);
-
-  Expected shaderProgram = ShaderPrograms::fromShaders(shaderPaths);
+  Expected shaderProgram = ShaderProgram::fromShaders(shaderPaths);
   RETURN_ERROR_IF_UNEXPECTED(shaderProgram);
   return mShaderPrograms.add(std::move(shaderProgram.value()));
 }
 
 ShaderProgramHandle RenderingEngine::addShaderProgram(ShaderProgram&& shaderProgram) {
-  assert(mInitialised);
-
   return mShaderPrograms.add(std::forward<ShaderProgram>(shaderProgram));
 }
 
 ShaderProgramInstanceHandle RenderingEngine::createShaderProgramInstance(const ShaderProgramType type) {
-  assert(mInitialised);
-
   switch (type) {
     case ShaderProgramType::LitSurface:
       return this->addShaderProgramInstance(ShaderProgramInstance::newLitSurface(mLitSurfaceShaderProgram.value()));
@@ -190,14 +182,10 @@ ShaderProgramInstanceHandle RenderingEngine::createShaderProgramInstance(const S
 }
 
 ShaderProgramInstanceHandle RenderingEngine::addShaderProgramInstance(ShaderProgramInstance&& instance) {
-  assert(mInitialised);
-
   return mShaderProgramInstances.add(std::forward<ShaderProgramInstance>(instance));
 }
 
 const std::vector<RenderData>& RenderingEngine::addModel(AssetHandle<Model> model, ShaderProgramInstanceHandle initialShader) {
-  assert(mInitialised);
-
   if (mUploadedModels.contains(model.itemID())) {
     return mUploadedModels.at(model.itemID());
   }
@@ -230,8 +218,6 @@ const std::vector<RenderData>& RenderingEngine::addModel(AssetHandle<Model> mode
 }
 
 std::vector<VertexArrayHandle> RenderingEngine::addMeshes(std::span<const AssetHandle<Mesh>> meshes) {
-  assert(mInitialised);
-
   std::vector<VertexArrayHandle> refs;
   refs.reserve(meshes.size());
   for (const AssetHandle<Mesh>& mesh : meshes) {
@@ -242,15 +228,12 @@ std::vector<VertexArrayHandle> RenderingEngine::addMeshes(std::span<const AssetH
 }
 
 VertexArrayHandle RenderingEngine::addMesh(AssetHandle<Mesh> mesh) {
-  assert(mInitialised);
-
   return mVertexArrays.add(VertexArray(mesh.get()));
 }
 
 auto RenderingEngine::addTexture2Ds(std::span<const std::optional<AssetHandle<Bitmap>>> bitmaps, std::span<const SamplerOptions> options)
   -> std::vector<std::optional<Texture2DHandle>>
 {
-  assert(mInitialised);
   assert(bitmaps.size() == options.size());
 
   std::vector<std::optional<Texture2DHandle>> handles;
@@ -268,8 +251,6 @@ auto RenderingEngine::addTexture2Ds(std::span<const std::optional<AssetHandle<Bi
 }
 
 Texture2DHandle RenderingEngine::addTexture2D(AssetHandle<Bitmap> bitmap, const SamplerOptions& options) {
-  assert(mInitialised);
-
   if (mUploadedTextures.contains(bitmap.itemID())) {
     return mUploadedTextures.at(bitmap.itemID());
   }
@@ -280,15 +261,15 @@ Texture2DHandle RenderingEngine::addTexture2D(AssetHandle<Bitmap> bitmap, const 
 }
 
 TextureCubeMapHandle RenderingEngine::addTextureCubeMap(const TextureCubeMapBitmaps& bitmaps, const SamplerOptions& options) {
-  assert(mInitialised);
-
   return mTextureCubeMaps.add(TextureCubeMap(bitmaps, options));
 }
 
 FramebufferHandle RenderingEngine::addFramebuffer(const FramebufferCreateInfo& info) {
-  assert(mInitialised);
-
   return mFramebuffers.add(Framebuffer(info));
+}
+
+BufferHandle RenderingEngine::createBuffer(const GLenum type) {
+  return mBuffers.add(Buffer(type));
 }
 
 void RenderingEngine::submitRenderPasses(const std::span<const RenderPass> renderPasses) {
@@ -327,7 +308,7 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
   glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-  const std::vector<Draw> draws = scene.draw(camera);
+  const std::vector<Draw> draws = scene.draw(camera, mBuffers);
   if (draws.empty()) {
     return;
   }
@@ -369,7 +350,7 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
   for (size_t drawIdx = 0; drawIdx < draws.size(); drawIdx++) {
     const Draw* currDraw = &draws[drawIdx];
 
-    if (currDraw->bIsSkybox) {
+    if (currDraw->bSkybox) {
       switch (sceneRenderMode) {
         case SceneRenderMode::Normal:
         case SceneRenderMode::Wireframe:
@@ -428,30 +409,8 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
       currShader.bindUniforms();
     }
 
-    if (drawIdx == 0 || currDraw->shaderProgramInstance.itemID() != lastDraw->shaderProgramInstance.itemID() ||
-        currDraw->transform != lastDraw->transform)
-    {
-      TransformMatrices transforms;
-      transforms.model = currDraw->transform.matrix();
-      transforms.normal = glm::transpose(glm::inverse(transforms.model));
-      switch (sceneRenderMode) {
-        case SceneRenderMode::Normal:
-        case SceneRenderMode::Wireframe:
-          currShader.shaderProgram->bindTransforms(transforms);
-          break;
-
-        case SceneRenderMode::SurfaceDepth:
-          mSurfaceDepthShaderProgram.value()->bindTransforms(transforms);
-          break;
-
-        case SceneRenderMode::SurfaceNormal:
-          mSurfaceNormalShaderProgram.value()->bindTransforms(transforms);
-          break;
-      }
-    }
-
     GLuint slot = GL_TEXTURE0;
-    const auto bindTexture = [&, this](const auto& currTexture, const auto& lastTexture, GLenum target) {
+    const auto bindTexture = [&, this](const auto& currTexture, const auto& lastTexture, const GLenum target) {
       if (drawIdx == 0 || currTexture != lastTexture) {
         if (currTexture.has_value()) {
           currTexture->get().bind(slot);
@@ -469,11 +428,9 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
     bindTexture(currDraw->emissionMap, lastDraw->emissionMap, GL_TEXTURE_2D);
     bindTexture(currDraw->environmentMap, lastDraw->environmentMap, GL_TEXTURE_CUBE_MAP);
 
-    const VertexArray& currVA = currDraw->vertexArray.get();
-    if (drawIdx == 0 || currDraw->vertexArray != lastDraw->vertexArray) {
-      glBindVertexArray(currVA.vao);
-    }
-    glDrawElements(GL_TRIANGLES, currVA.indexCount, GL_UNSIGNED_INT, nullptr);
+    glBindVertexArray(currDraw->vertexArray->vao);
+    glDrawElementsInstanced(GL_TRIANGLES, currDraw->vertexArray->indexCount, GL_UNSIGNED_INT, nullptr,
+                            static_cast<GLsizei>(currDraw->instanceCount));
 
     lastDraw = currDraw;
   }
@@ -502,7 +459,7 @@ void RenderingEngine::renderVertexNormals(const Scene& scene, const Camera& came
 
   glEnable(GL_DEPTH_TEST);
 
-  const std::vector<Draw> draws = scene.draw(camera);
+  const std::vector<Draw> draws = scene.draw(camera, mBuffers);
   if (draws.empty()) {
     return;
   }
@@ -513,15 +470,8 @@ void RenderingEngine::renderVertexNormals(const Scene& scene, const Camera& came
   for (size_t drawIdx = 0; drawIdx < draws.size(); drawIdx++) {
     const Draw* currDraw = &draws[drawIdx];
 
-    if (currDraw->bIsSkybox) {
+    if (currDraw->bSkybox) {
       continue;
-    }
-
-    if (drawIdx == 0 || currDraw->transform != lastDraw->transform) {
-      TransformMatrices transforms;
-      transforms.model = currDraw->transform.matrix();
-      transforms.normal = glm::transpose(glm::inverse(transforms.model));
-      mVertexNormalShaderProgram.value()->bindTransforms(transforms);
     }
 
     const VertexArray& currVA = currDraw->vertexArray.get();
