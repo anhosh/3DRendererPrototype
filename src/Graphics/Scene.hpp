@@ -22,7 +22,7 @@ public:
 
   void destroy();
 
-  [[nodiscard]] std::span<const Draw> draw(const Camera& camera, Registry<Buffer>& buffers) const;
+  [[nodiscard]] std::span<const Draw> draw(const Camera& camera, Registry<Buffer>& buffers);
   [[nodiscard]] DirectionalLightSourceBuffer createDirectionalLightUniforms() const;
   [[nodiscard]] PointLightSourceBuffer createPointLightUniforms() const;
   [[nodiscard]] SpotlightSourceBuffer createSpotlightUniforms() const;

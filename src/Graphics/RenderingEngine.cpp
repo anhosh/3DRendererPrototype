@@ -375,7 +375,7 @@ void RenderingEngine::renderScene(Scene& scene, const Camera& camera, const View
   mCameraUniformBuffer.value()->write(cameraUniformData);
   mCameraUniformBuffer.value()->bindWhole(UBO_BIND_POINT_CAMERA);
 
-  const entt::basic_view dirtyDirectionalLights = scene.ecs.view<CompDirectionalLight, CompDirty>();
+  const entt::basic_view dirtyDirectionalLights = scene.ecs.view<const CompDirectionalLight, const CompDirty>();
   if (dirtyDirectionalLights.begin() != dirtyDirectionalLights.end()) {
     const DirectionalLightSourceBuffer directionalLightUniformData = scene.createDirectionalLightUniforms();
     mDirectionalLightsStorageBuffer.value()->write(directionalLightUniformData);
@@ -383,7 +383,7 @@ void RenderingEngine::renderScene(Scene& scene, const Camera& camera, const View
     scene.ecs.erase<CompDirty>(dirtyDirectionalLights.begin(), dirtyDirectionalLights.end());
   }
 
-  const entt::basic_view dirtyPointLights = scene.ecs.view<CompPointLight, CompDirty>();
+  const entt::basic_view dirtyPointLights = scene.ecs.view<const CompPointLight, const CompDirty>();
   if (dirtyPointLights.begin() != dirtyPointLights.end()) {
     const PointLightSourceBuffer pointLightUniformData = scene.createPointLightUniforms();
     mPointLightsStorageBuffer.value()->write(pointLightUniformData);
@@ -391,7 +391,7 @@ void RenderingEngine::renderScene(Scene& scene, const Camera& camera, const View
     scene.ecs.erase<CompDirty>(dirtyPointLights.begin(), dirtyPointLights.end());
   }
 
-  const entt::basic_view dirtySpotlights = scene.ecs.view<CompSpotlight, CompDirty>();
+  const entt::basic_view dirtySpotlights = scene.ecs.view<const CompSpotlight, const CompDirty>();
   if (dirtySpotlights.begin() != dirtySpotlights.end()) {
     const SpotlightSourceBuffer spotlightUniformData = scene.createSpotlightUniforms();
     mSpotlightsStorageBuffer.value()->write(spotlightUniformData);
@@ -501,7 +501,7 @@ void RenderingEngine::renderScene(Scene& scene, const Camera& camera, const View
   }
 }
 
-void RenderingEngine::renderVertexNormals(const Scene& scene, const Camera& camera, const Viewport& viewport, FramebufferHandle dstFramebuffer) {
+void RenderingEngine::renderVertexNormals(Scene& scene, const Camera& camera, const Viewport& viewport, FramebufferHandle dstFramebuffer) {
   ZoneScoped;
   TracyGpuZone("renderVertexNormals");
 

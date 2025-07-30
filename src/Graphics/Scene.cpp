@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <execution>
 #include <ranges>
+#include <Graphics/Components/Dirty.hpp>
 #include <Graphics/Components/Graphics.hpp>
 #include <Graphics/Components/Name.hpp>
 
@@ -15,7 +16,7 @@ void Scene::destroy() {
   ecs.clear();
 }
 
-std::span<const Draw> Scene::draw(const Camera& camera, Registry<Buffer>& buffers) const {
+std::span<const Draw> Scene::draw(const Camera& camera, Registry<Buffer>& buffers) {
   ZoneScoped;
 
   struct MeshDataReference {
@@ -29,6 +30,8 @@ std::span<const Draw> Scene::draw(const Camera& camera, Registry<Buffer>& buffer
   };
 
   mCachedDraws.clear();
+  entt::basic_view dirtyActors = ecs.view<const CompDirty, entt::exclude_t<CompDirectionalLight, CompPointLight, CompSpotlight>>();
+  ecs.erase<CompDirty>(dirtyActors.begin(), dirtyActors.end());
 
   if (ecs.view<const CompGraphics>().empty()) {
     return mCachedDraws;
@@ -208,7 +211,7 @@ std::span<const Draw> Scene::draw(const Camera& camera, Registry<Buffer>& buffer
 DirectionalLightSourceBuffer Scene::createDirectionalLightUniforms() const {
   ZoneScoped;
 
-  entt::basic_view directionalLights = ecs.view<const CompDirectionalLight>();
+  const entt::basic_view directionalLights = ecs.view<const CompDirectionalLight>();
 
   DirectionalLightSourceBuffer buffer;
   buffer.sources.reserve(directionalLights.size());
@@ -221,7 +224,7 @@ DirectionalLightSourceBuffer Scene::createDirectionalLightUniforms() const {
 PointLightSourceBuffer Scene::createPointLightUniforms() const {
   ZoneScoped;
 
-  entt::basic_view pointLights = ecs.view<const CompPointLight>();
+  const entt::basic_view pointLights = ecs.view<const CompPointLight>();
 
   PointLightSourceBuffer buffer;
   buffer.sources.reserve(pointLights.size());
@@ -234,7 +237,7 @@ PointLightSourceBuffer Scene::createPointLightUniforms() const {
 SpotlightSourceBuffer Scene::createSpotlightUniforms() const {
   ZoneScoped;
 
-  entt::basic_view spotlights = ecs.view<const CompSpotlight>();
+  const entt::basic_view spotlights = ecs.view<const CompSpotlight>();
 
   SpotlightSourceBuffer buffer;
   buffer.sources.reserve(spotlights.size());

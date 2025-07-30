@@ -10,6 +10,7 @@
 #include <backends/imgui_impl_opengl3.h>
 
 #include <ranges>
+#include <Graphics/Components/Dirty.hpp>
 
 constexpr ImGuiColorEditFlags lightColorEditFlags = ImGuiColorEditFlags_Float | ImGuiColorEditFlags_HDR;
 
@@ -76,12 +77,18 @@ void guiLight(AppState& state) {
         if (ImGui::CollapsingHeader(std::format("{}##sl{}", name.name, index).c_str())) {
           ImGui::Indent();
 
-          ImGui::DragFloat3(("Direction##dl" + std::to_string(index)).c_str(), glm::value_ptr(directionalLight.direction), 0.001f, -1.0f, 1.0f);
+          bool bChanged = false;
+
+          bChanged |= ImGui::DragFloat3(("Direction##dl" + std::to_string(index)).c_str(), glm::value_ptr(directionalLight.direction), 0.001f, -1.0f, 1.0f);
           ImGui::Spacing();
 
-          ImGui::ColorPicker3(("Ambient##dl" + std::to_string(index)).c_str(), glm::value_ptr(directionalLight.colors.ambient), lightColorEditFlags);
-          ImGui::ColorPicker3(("Diffuse##dl" + std::to_string(index)).c_str(), glm::value_ptr(directionalLight.colors.diffuse), lightColorEditFlags);
-          ImGui::ColorPicker3(("Specular##dl" + std::to_string(index)).c_str(), glm::value_ptr(directionalLight.colors.specular), lightColorEditFlags);
+          bChanged |= ImGui::ColorPicker3(("Ambient##dl" + std::to_string(index)).c_str(), glm::value_ptr(directionalLight.colors.ambient), lightColorEditFlags);
+          bChanged |= ImGui::ColorPicker3(("Diffuse##dl" + std::to_string(index)).c_str(), glm::value_ptr(directionalLight.colors.diffuse), lightColorEditFlags);
+          bChanged |= ImGui::ColorPicker3(("Specular##dl" + std::to_string(index)).c_str(), glm::value_ptr(directionalLight.colors.specular), lightColorEditFlags);
+
+          if (bChanged) {
+            state.scene->ecs.emplace<CompDirty>(entity);
+          }
 
           ImGui::Unindent();
         }
@@ -100,17 +107,22 @@ void guiLight(AppState& state) {
         if (ImGui::CollapsingHeader(std::format("{}##sl{}", name.name, index).c_str())) {
           ImGui::Indent();
 
-          ImGui::DragFloat3(("Position##pl" + std::to_string(index)).c_str(), glm::value_ptr(pointLight.position), 0.001f, -1.0f, 1.0f);
+          bool bChanged = false;
+          bChanged |= ImGui::DragFloat3(("Position##pl" + std::to_string(index)).c_str(), glm::value_ptr(pointLight.position), 0.001f, -1.0f, 1.0f);
           ImGui::Spacing();
 
-          ImGui::DragFloat("Constant", &pointLight.constant, 0.1f, 1.0f, 100.0f);
-          ImGui::DragFloat("Linear", &pointLight.linear, 0.01f, 0.01f, 10.0f);
-          ImGui::DragFloat("Quadratic", &pointLight.quadratic, 0.001f, 0.01f, 1.0f);
+          bChanged |= ImGui::DragFloat("Constant", &pointLight.constant, 0.1f, 1.0f, 100.0f);
+          bChanged |= ImGui::DragFloat("Linear", &pointLight.linear, 0.01f, 0.01f, 10.0f);
+          bChanged |= ImGui::DragFloat("Quadratic", &pointLight.quadratic, 0.001f, 0.01f, 1.0f);
           ImGui::Spacing();
 
-          ImGui::ColorPicker3(("Ambient##pl" + std::to_string(index)).c_str(), glm::value_ptr(pointLight.colors.ambient), lightColorEditFlags);
-          ImGui::ColorPicker3(("Diffuse##pl" + std::to_string(index)).c_str(), glm::value_ptr(pointLight.colors.diffuse), lightColorEditFlags);
-          ImGui::ColorPicker3(("Specular##pl" + std::to_string(index)).c_str(), glm::value_ptr(pointLight.colors.specular), lightColorEditFlags);
+          bChanged |= ImGui::ColorPicker3(("Ambient##pl" + std::to_string(index)).c_str(), glm::value_ptr(pointLight.colors.ambient), lightColorEditFlags);
+          bChanged |= ImGui::ColorPicker3(("Diffuse##pl" + std::to_string(index)).c_str(), glm::value_ptr(pointLight.colors.diffuse), lightColorEditFlags);
+          bChanged |= ImGui::ColorPicker3(("Specular##pl" + std::to_string(index)).c_str(), glm::value_ptr(pointLight.colors.specular), lightColorEditFlags);
+
+          if (bChanged) {
+            state.scene->ecs.emplace<CompDirty>(entity);
+          }
 
           ImGui::Unindent();
         }
@@ -128,18 +140,23 @@ void guiLight(AppState& state) {
       for (auto [entity, name, spotlight] : spotlights.each()) {
         if (ImGui::CollapsingHeader(std::format("{}##sl{}", name.name, index).c_str())) {
           ImGui::Indent();
+          bool bChanged = false;
 
-          ImGui::DragFloat3(("Position##sl" + std::to_string(index)).c_str(), glm::value_ptr(spotlight.position), 0.001f, -1.0f, 1.0f);
-          ImGui::DragFloat3(("Direction##sl" + std::to_string(index)).c_str(), glm::value_ptr(spotlight.direction), 0.001f, -1.0f, 1.0f);
+          bChanged |= ImGui::DragFloat3(("Position##sl" + std::to_string(index)).c_str(), glm::value_ptr(spotlight.position), 0.001f, -1.0f, 1.0f);
+          bChanged |= ImGui::DragFloat3(("Direction##sl" + std::to_string(index)).c_str(), glm::value_ptr(spotlight.direction), 0.001f, -1.0f, 1.0f);
           ImGui::Spacing();
 
-          ImGui::DragFloat(("Cut off##sl" + std::to_string(index)).c_str(), &spotlight.cutOff, 0.01f, 1.0f, spotlight.outerCutOff);
-          ImGui::DragFloat(("Outer cut off##sl" + std::to_string(index)).c_str(), &spotlight.outerCutOff, 0.01f, spotlight.cutOff, 120.0f);
+          bChanged |= ImGui::DragFloat(("Cut off##sl" + std::to_string(index)).c_str(), &spotlight.cutOff, 0.01f, 1.0f, spotlight.outerCutOff);
+          bChanged |= ImGui::DragFloat(("Outer cut off##sl" + std::to_string(index)).c_str(), &spotlight.outerCutOff, 0.01f, spotlight.cutOff, 120.0f);
           ImGui::Spacing();
 
-          ImGui::ColorPicker3(("Ambient##sl" + std::to_string(index)).c_str(), glm::value_ptr(spotlight.colors.ambient), lightColorEditFlags);
-          ImGui::ColorPicker3(("Diffuse##sl" + std::to_string(index)).c_str(), glm::value_ptr(spotlight.colors.diffuse), lightColorEditFlags);
-          ImGui::ColorPicker3(("Specular##sl" + std::to_string(index)).c_str(), glm::value_ptr(spotlight.colors.specular), lightColorEditFlags);
+          bChanged |= ImGui::ColorPicker3(("Ambient##sl" + std::to_string(index)).c_str(), glm::value_ptr(spotlight.colors.ambient), lightColorEditFlags);
+          bChanged |= ImGui::ColorPicker3(("Diffuse##sl" + std::to_string(index)).c_str(), glm::value_ptr(spotlight.colors.diffuse), lightColorEditFlags);
+          bChanged |= ImGui::ColorPicker3(("Specular##sl" + std::to_string(index)).c_str(), glm::value_ptr(spotlight.colors.specular), lightColorEditFlags);
+
+          if (bChanged) {
+            state.scene->ecs.emplace<CompDirty>(entity);
+          }
 
           ImGui::Unindent();
         }
@@ -164,10 +181,15 @@ void guiActors(AppState& state) {
       if (ImGui::CollapsingHeader(name.name.c_str())) {
         ImGui::Indent();
 
+        bool bChanged = false;
         ImGui::Text("Transform");
-        ImGui::DragFloat3(("Translation##" + name.name).c_str(), glm::value_ptr(transform.translation), 0.01f);
-        ImGui::DragFloat3(("Rotation##" + name.name).c_str(), glm::value_ptr(transform.rotation), 0.01f);
-        ImGui::DragFloat3(("Scale##" + name.name).c_str(), glm::value_ptr(transform.scale), 0.01f);
+        bChanged |= ImGui::DragFloat3(("Translation##" + name.name).c_str(), glm::value_ptr(transform.translation), 0.01f);
+        bChanged |= ImGui::DragFloat3(("Rotation##" + name.name).c_str(), glm::value_ptr(transform.rotation), 0.01f);
+        bChanged |= ImGui::DragFloat3(("Scale##" + name.name).c_str(), glm::value_ptr(transform.scale), 0.01f);
+
+        if (bChanged) {
+          state.scene->ecs.emplace<CompDirty>(entity);
+        }
 
         ImGui::Unindent();
       }
