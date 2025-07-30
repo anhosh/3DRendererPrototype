@@ -16,9 +16,13 @@
 
 #include <glm/gtc/type_ptr.hpp>
 
+#include <tracy/TracyOpenGL.hpp>
+
 #include <ranges>
 
 Expected<void> RenderingEngine::init() {
+  ZoneScoped;
+
   Expected litSurface        = this->createShaderProgram({.vertex = "clipSpace.vert",  .fragment = "litSurface.frag"});
   Expected litExploded       = this->createShaderProgram({.vertex = "worldSpace.vert", .geometry = "explode.geom", .fragment = "litSurface.frag"});
   Expected light             = this->createShaderProgram({.vertex = "clipSpace.vert",  .fragment = "light.frag"});
@@ -67,6 +71,8 @@ Expected<void> RenderingEngine::init() {
 }
 
 void RenderingEngine::destroy() {
+  ZoneScoped;
+
   for (ShaderProgram& shaderProgram : std::ranges::views::values(mShaderPrograms)) {
     shaderProgram.destroy();
   }
@@ -125,16 +131,22 @@ void RenderingEngine::destroy() {
 }
 
 Expected<ShaderProgramHandle> RenderingEngine::createShaderProgram(const ShaderProgramPaths& shaderPaths) {
+  ZoneScoped;
+
   Expected shaderProgram = ShaderProgram::fromShaders(shaderPaths);
   RETURN_ERROR_IF_UNEXPECTED(shaderProgram);
   return mShaderPrograms.add(std::move(shaderProgram.value()));
 }
 
 ShaderProgramHandle RenderingEngine::addShaderProgram(ShaderProgram&& shaderProgram) {
+  ZoneScoped;
+
   return mShaderPrograms.add(std::forward<ShaderProgram>(shaderProgram));
 }
 
 ShaderProgramInstanceHandle RenderingEngine::createShaderProgramInstance(const ShaderProgramType type) {
+  ZoneScoped;
+
   switch (type) {
     case ShaderProgramType::LitSurface:
       return this->addShaderProgramInstance(ShaderProgramInstance::newLitSurface(mLitSurfaceShaderProgram.value()));
@@ -182,10 +194,14 @@ ShaderProgramInstanceHandle RenderingEngine::createShaderProgramInstance(const S
 }
 
 ShaderProgramInstanceHandle RenderingEngine::addShaderProgramInstance(ShaderProgramInstance&& instance) {
+  ZoneScoped;
+
   return mShaderProgramInstances.add(std::forward<ShaderProgramInstance>(instance));
 }
 
 const std::vector<RenderData>& RenderingEngine::addModel(AssetHandle<Model> model, ShaderProgramInstanceHandle initialShader) {
+  ZoneScoped;
+
   if (mUploadedModels.contains(model.itemID())) {
     return mUploadedModels.at(model.itemID());
   }
@@ -218,6 +234,8 @@ const std::vector<RenderData>& RenderingEngine::addModel(AssetHandle<Model> mode
 }
 
 std::vector<VertexArrayHandle> RenderingEngine::addMeshes(std::span<const AssetHandle<Mesh>> meshes) {
+  ZoneScoped;
+
   std::vector<VertexArrayHandle> refs;
   refs.reserve(meshes.size());
   for (const AssetHandle<Mesh>& mesh : meshes) {
@@ -228,12 +246,16 @@ std::vector<VertexArrayHandle> RenderingEngine::addMeshes(std::span<const AssetH
 }
 
 VertexArrayHandle RenderingEngine::addMesh(AssetHandle<Mesh> mesh) {
+  ZoneScoped;
+
   return mVertexArrays.add(VertexArray(mesh.get()));
 }
 
 auto RenderingEngine::addTexture2Ds(std::span<const std::optional<AssetHandle<Bitmap>>> bitmaps, std::span<const SamplerOptions> options)
   -> std::vector<std::optional<Texture2DHandle>>
 {
+  ZoneScoped;
+
   assert(bitmaps.size() == options.size());
 
   std::vector<std::optional<Texture2DHandle>> handles;
@@ -251,6 +273,8 @@ auto RenderingEngine::addTexture2Ds(std::span<const std::optional<AssetHandle<Bi
 }
 
 Texture2DHandle RenderingEngine::addTexture2D(AssetHandle<Bitmap> bitmap, const SamplerOptions& options) {
+  ZoneScoped;
+
   if (mUploadedTextures.contains(bitmap.itemID())) {
     return mUploadedTextures.at(bitmap.itemID());
   }
@@ -261,18 +285,26 @@ Texture2DHandle RenderingEngine::addTexture2D(AssetHandle<Bitmap> bitmap, const 
 }
 
 TextureCubeMapHandle RenderingEngine::addTextureCubeMap(const TextureCubeMapBitmaps& bitmaps, const SamplerOptions& options) {
+  ZoneScoped;
+
   return mTextureCubeMaps.add(TextureCubeMap(bitmaps, options));
 }
 
 FramebufferHandle RenderingEngine::addFramebuffer(const FramebufferCreateInfo& info) {
+  ZoneScoped;
+
   return mFramebuffers.add(Framebuffer(info));
 }
 
 BufferHandle RenderingEngine::createBuffer(const GLenum type) {
+  ZoneScoped;
+
   return mBuffers.add(Buffer(type));
 }
 
 void RenderingEngine::submitRenderPasses(const std::span<const RenderPass> renderPasses) {
+  ZoneScoped;
+
   assert(mInitialised);
 
   for (const auto& [viewport, dstFramebuffer, pass] : renderPasses) {
@@ -288,6 +320,9 @@ void RenderingEngine::submitRenderPasses(const std::span<const RenderPass> rende
 }
 
 void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, const Viewport& viewport, FramebufferHandle dstFramebuffer) {
+  ZoneScoped;
+  TracyGpuZone("renderScene");
+
   assert(mInitialised);
 
   dstFramebuffer->bind();
@@ -459,6 +494,9 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
 }
 
 void RenderingEngine::renderVertexNormals(const Scene& scene, const Camera& camera, const Viewport& viewport, FramebufferHandle dstFramebuffer) {
+  ZoneScoped;
+  TracyGpuZone("renderVertexNormals");
+
   assert(mInitialised);
 
   dstFramebuffer->bind();
@@ -500,6 +538,9 @@ void RenderingEngine::renderVertexNormals(const Scene& scene, const Camera& came
 void RenderingEngine::postProcess(const Viewport& viewport, ShaderProgramInstanceHandle postProcessingShader,
                                   FramebufferHandle srcFramebuffer, FramebufferHandle dstFramebuffer) const
 {
+  ZoneScoped;
+  TracyGpuZone("postProcess");
+
   assert(mInitialised);
 
   const glm::ivec2 viewportPositionPx = glm::round(viewport.position * glm::vec2(dstFramebuffer->size()));
@@ -526,6 +567,9 @@ void RenderingEngine::postProcess(const Viewport& viewport, ShaderProgramInstanc
 }
 
 void RenderingEngine::present(const glm::uvec2 windowSize, FramebufferHandle srcFramebuffer) const {
+  ZoneScoped;
+  TracyGpuZone("present");
+
   assert(mInitialised);
 
   glBindFramebuffer(GL_FRAMEBUFFER, 0);

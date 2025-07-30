@@ -15,6 +15,8 @@ static fs::path sShadersDir = "shaders";
 static bool sLocatedShaders = false;
 
 bool locateShaders() {
+  ZoneScoped;
+
   if (sLocatedShaders) {
     return true;
   }
@@ -27,6 +29,8 @@ bool locateShaders() {
 }
 
 Expected<Shader> createShader(GLenum type, const fs::path& sourcePath, std::string_view defines) {
+  ZoneScoped;
+
   if (!locateShaders()) {
     PANIC("Could not locate shaders directory");
   }
@@ -64,6 +68,8 @@ Expected<Shader> createShader(GLenum type, const fs::path& sourcePath, std::stri
 }
 
 Expected<GLuint> createShaderProgram(const ShaderProgramPaths& shaderStages) {
+  ZoneScoped;
+
   std::vector<Shader> shaders;
   shaders.reserve(2); // mandatory vertex and fragment shaders
 

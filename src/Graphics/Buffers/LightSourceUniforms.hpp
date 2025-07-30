@@ -11,6 +11,8 @@ struct LightColorUniforms {
   glm::vec3 specular; float _padding2 = 0.0f;
 
   static LightColorUniforms from(const LightColors& colors) {
+    ZoneScoped;
+
     return LightColorUniforms {
       .ambient = colors.ambient,
       .diffuse = colors.diffuse,
@@ -28,13 +30,12 @@ struct LightSourceBuffer {
     return sizeof(glm::uvec4) + this->sources.size() * sizeof(LightSourceUniforms);
   }
 
-  void writeToBuffer(std::vector<uint8_t>& buffer) const {
-    const std::array lengthBytes = asBytes(glm::uvec4(this->sources.size(), 0, 0, 0));
-    buffer.append_range(lengthBytes);
+  void writeToBuffer(GLenum target, size_t offset) const {
+    ZoneScoped;
 
-    for (const LightSourceUniforms& source : this->sources) {
-      buffer.append_range(asBytes(source));
-    }
+    const std::array lengthBytes = asBytes(glm::uvec4(this->sources.size(), 0, 0, 0));
+    glBufferSubData(target, offset, lengthBytes.size(), lengthBytes.data());
+    glBufferSubData(target, offset + lengthBytes.size(), size() - lengthBytes.size(), this->sources.data());
   }
 };
 
@@ -44,6 +45,8 @@ struct DirectionalLightUniforms {
   float _padding0 = 0.0f;
 
   static DirectionalLightUniforms from(const DirectionalLight& light) {
+    ZoneScoped;
+
     return DirectionalLightUniforms {
       .colors = LightColorUniforms::from(light.colors),
       .direction = light.direction,
@@ -60,6 +63,8 @@ struct PointLightUniforms {
   float _padding1 = 0.0f;
 
   static PointLightUniforms from(const PointLight& light) {
+    ZoneScoped;
+
     return PointLightUniforms {
       .colors = LightColorUniforms::from(light.colors),
       .position = light.position,
@@ -81,6 +86,8 @@ struct SpotlightUniforms {
   float _padding3 = 0.0f;
 
   static SpotlightUniforms from(const Spotlight& light) {
+    ZoneScoped;
+
     return SpotlightUniforms {
       .colors = LightColorUniforms::from(light.colors),
       .position = light.position,

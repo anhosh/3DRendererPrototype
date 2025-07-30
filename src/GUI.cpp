@@ -11,6 +11,8 @@
 constexpr ImGuiColorEditFlags lightColorEditFlags = ImGuiColorEditFlags_Float | ImGuiColorEditFlags_HDR;
 
 void guiDebug(const AppState& state) {
+  ZoneScoped;
+
   ImGui::Text("FPS: %.03f", 1.0 / (state.currentFrameTime - state.lastFrameTime));
   ImGui::Text("Frame duration: %.03f ms", (state.currentFrameTime - state.lastFrameTime) * 1000.0);
   ImGui::Text("Scene draw: %.03f ms", state.lastSceneRenderDuration * 1000.0);
@@ -31,12 +33,13 @@ void guiDebug(const AppState& state) {
 
     ImGui::Checkbox("Draw vertex normals", &state.renderingEngine->bVisualiseVertexNormals);
 
-
     ImGui::Unindent();
   }
 }
 
 void guiCamera(AppState& state) {
+  ZoneScoped;
+
   if (ImGui::CollapsingHeader("Camera")) {
     ImGui::Indent();
     Camera& camera = state.mainCamera;
@@ -56,6 +59,8 @@ void guiCamera(AppState& state) {
 }
 
 void guiLight(AppState& state) {
+  ZoneScoped;
+
   if (ImGui::CollapsingHeader("Light")) {
     ImGui::Indent();
 
@@ -143,6 +148,8 @@ void guiLight(AppState& state) {
 }
 
 void guiActors(AppState& state) {
+  ZoneScoped;
+
   if (ImGui::CollapsingHeader("Actors")) {
     ImGui::Indent();
 
@@ -165,6 +172,8 @@ void guiActors(AppState& state) {
 }
 
 void guiPostProcessing(AppState& state) {
+  ZoneScoped;
+
   if (ImGui::CollapsingHeader("Post processing")) {
     ImGui::Indent();
 
@@ -239,6 +248,8 @@ void guiPostProcessing(AppState& state) {
 }
 
 void gui(AppState& state) {
+  ZoneScoped;
+
   if (ImGui::Begin("Test")) {
     guiDebug(state);
     guiCamera(state);
@@ -250,6 +261,8 @@ void gui(AppState& state) {
 }
 
 void initialiseImGui(GLFWwindow* window) {
+  ZoneScoped;
+
   ImGui::CreateContext();
   ImGuiIO& io = ImGui::GetIO();
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
@@ -261,12 +274,16 @@ void initialiseImGui(GLFWwindow* window) {
 }
 
 void shutdownImGui() {
+  ZoneScoped;
+
   ImGui_ImplOpenGL3_Shutdown();
   ImGui_ImplGlfw_Shutdown();
   ImGui::DestroyContext();
 }
 
 void runImGui(AppState& state) {
+  ZoneScoped;
+
   ImGui_ImplOpenGL3_NewFrame();
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
@@ -275,5 +292,7 @@ void runImGui(AppState& state) {
 }
 
 void renderImGui() {
+  ZoneScoped;
+
   ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }

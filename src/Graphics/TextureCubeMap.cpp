@@ -1,21 +1,30 @@
 #include <Graphics/TextureCubeMap.hpp>
 
-#include <array>
 #include <Assets/Bitmap.hpp>
 
+#include <array>
+
 TextureCubeMap::TextureCubeMap() {
+  ZoneScoped;
+
   this->init();
 }
 
 TextureCubeMap::TextureCubeMap(const TextureCubeMapBitmaps& bitmaps, const SamplerOptions& options) : TextureCubeMap() {
+  ZoneScoped;
+
   this->generate(bitmaps, options);
 }
 
 void TextureCubeMap::init() {
+  ZoneScoped;
+
   glGenTextures(1, &mID);
 }
 
 void TextureCubeMap::generate(const TextureCubeMapBitmaps& bitmaps, const SamplerOptions& options) const {
+  ZoneScoped;
+
   this->bind();
 
   const auto faces = std::array { bitmaps.right, bitmaps.left, bitmaps.top, bitmaps.bottom, bitmaps.front, bitmaps.back };
@@ -36,6 +45,8 @@ void TextureCubeMap::generate(const TextureCubeMapBitmaps& bitmaps, const Sample
 }
 
 void TextureCubeMap::destroy() {
+  ZoneScoped;
+
   if (mID != GL_NONE) {
     glDeleteTextures(1, &mID);
     mID = GL_NONE;

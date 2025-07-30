@@ -4,6 +4,8 @@
 #include <vector>
 
 Mesh Mesh::createCube(const glm::vec3 size) {
+  ZoneScoped;
+
   const glm::vec3 halfSize = size * 0.5f;
 
   const auto positions = std::array {
@@ -68,6 +70,8 @@ Mesh Mesh::createCube(const glm::vec3 size) {
 }
 
 Mesh Mesh::createQuad(const glm::vec2 size) {
+  ZoneScoped;
+
   const glm::vec2 halfSize = size * 0.5f;
   
   const auto vertices = std::vector {

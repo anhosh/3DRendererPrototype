@@ -5,7 +5,7 @@ message(STATUS "[assimp]")
 add_subdirectory(assimp)
 
 # add GLAD to build tree
-message(STATUS "[glm]")
+message(STATUS "[GLAD]")
 add_library(glad)
 add_library(glad::glad ALIAS glad)
 target_include_directories(glad SYSTEM PUBLIC glad/include)
@@ -56,25 +56,24 @@ target_sources(imgui PRIVATE
   imgui/backends/imgui_impl_opengl3_loader.h
 )
 
-# setup stb_image library
-message(STATUS "[stb_image]")
-add_library(stb_image)
-add_library(stb_image::stb_image ALIAS stb_image)
-target_include_directories(stb_image SYSTEM PUBLIC stb)
-target_sources(stb_image PRIVATE
+# setup stb library
+message(STATUS "[stb]")
+add_library(stb)
+add_library(stb::stb ALIAS stb)
+target_include_directories(stb SYSTEM PUBLIC stb)
+target_sources(stb PRIVATE
   stb/stb_image.cpp
-  stb/stb_image.h
-)
-
-# setup stb_include library
-message(STATUS "[stb_include]")
-add_library(stb_include)
-add_library(stb_include::stb_include ALIAS stb_include)
-target_include_directories(stb_include SYSTEM PUBLIC stb)
-target_sources(stb_include PRIVATE
   stb/stb_include.cpp
+
+  stb/stb_image.h
   stb/stb_include.h
 )
+
+# add tracy to build tree
+message(STATUS "[tracy]")
+option(TRACY_ENABLE "" ON)
+option(TRACY_ON_DEMAND "" ON)
+add_subdirectory(tracy)
 
 # declare ext library target
 add_library(${PROJECT_NAME} INTERFACE)
@@ -86,8 +85,8 @@ target_link_libraries(${PROJECT_NAME} INTERFACE
   glad::glad
   glm::glm
   imgui::imgui
-  stb_image::stb_image
-  stb_include::stb_include
+  stb::stb
+  TracyClient
 )
 
 if(CMAKE_SYSTEM_NAME STREQUAL Linux)

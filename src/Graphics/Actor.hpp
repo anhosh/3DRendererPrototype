@@ -13,12 +13,16 @@ struct Actor {
   std::vector<RenderData> renderData;
 
   void setShaderProgramInstance(const ShaderProgramInstanceHandle shaderInstance) {
+    ZoneScoped;
+
     for (RenderData& videoResource : renderData) {
       videoResource.shaderProgramInstance = shaderInstance;
     }
   }
 
   void setOutlineShaderInstance(const std::optional<ShaderProgramInstanceHandle>& outlineShaderInstance) {
+    ZoneScoped;
+
     for (RenderData& videoResource : renderData) {
       videoResource.outlineShaderInstance = outlineShaderInstance;
     }

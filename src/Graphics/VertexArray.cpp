@@ -5,22 +5,29 @@
 #include <cassert>
 
 VertexArray::VertexArray() {
+  ZoneScoped;
+
   this->init();
 }
 
 VertexArray::VertexArray(const Mesh& mesh) {
+  ZoneScoped;
+
   this->init();
   this->generateMesh(mesh);
 }
 
 void VertexArray::init() {
+  ZoneScoped;
+
   glGenVertexArrays(1, &vao);
   glGenBuffers(1, &vbo);
   glGenBuffers(1, &ebo);
-  glGenBuffers(1, &ibo);
 }
 
 void VertexArray::destroy() {
+  ZoneScoped;
+
   if (vbo != GL_NONE) {
     glDeleteBuffers(1, &vbo);
     vbo = GL_NONE;
@@ -29,10 +36,6 @@ void VertexArray::destroy() {
     glDeleteBuffers(1, &ebo);
     ebo = GL_NONE;
   }
-  if (ibo != GL_NONE) {
-    glDeleteBuffers(1, &ibo);
-    ibo = GL_NONE;
-  }
   if (vao != GL_NONE) {
     glDeleteVertexArrays(1, &vao);
     vao = GL_NONE;
@@ -40,6 +43,8 @@ void VertexArray::destroy() {
 }
 
 void VertexArray::generateMesh(const Mesh& mesh) {
+  ZoneScoped;
+
   assert(mesh.indices.size() % 3 == 0);
 
   glGenVertexArrays(1, &vao);

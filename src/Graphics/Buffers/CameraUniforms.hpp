@@ -11,6 +11,8 @@ struct CameraUniforms {
   float _padding3 = 0.0f;
 
   static CameraUniforms from(const Camera& camera, const glm::uvec2 screenSize) {
+    ZoneScoped;
+
     return CameraUniforms {
       .view = camera.view(),
       .projection = camera.projection(screenSize),
@@ -20,11 +22,13 @@ struct CameraUniforms {
     };
   }
 
-  static size_t size() {
+  static constexpr size_t size() {
     return sizeof(CameraUniforms);
   }
 
-  void writeToBuffer(std::vector<uint8_t>& buffer) const {
-    buffer.append_range(asBytes(*this));
+  void writeToBuffer(GLenum target, size_t offset) const {
+    ZoneScoped;
+
+    glBufferSubData(target, offset, size(), this);
   }
 };

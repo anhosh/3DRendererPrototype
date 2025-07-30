@@ -11,12 +11,16 @@ ShaderProgram::ShaderProgram(const GLuint shaderProgram)
 {}
 
 Expected<ShaderProgram> ShaderProgram::fromShaders(const ShaderProgramPaths& shaderPaths) {
+  ZoneScoped;
+
   const Expected shaderProgram = createShaderProgram(shaderPaths);
   RETURN_ERROR_IF_UNEXPECTED(shaderProgram);
   return ShaderProgram(shaderProgram.value());
 }
 
 void ShaderProgram::destroy() {
+  ZoneScoped;
+
   glDeleteProgram(mID);
   mID = 0;
 }

@@ -1,6 +1,5 @@
 #include <Application.hpp>
 
-#include <Assets/Bitmap.hpp>
 #include <Graphics/Camera.hpp>
 #include <Graphics/RenderingEngine.hpp>
 #include <Graphics/Scene.hpp>
@@ -12,6 +11,7 @@
 #include <backends/imgui_impl_glfw.h>
 
 #include <random>
+#include <tracy/TracyOpenGL.hpp>
 
 static Application* gApp = nullptr;
 
@@ -24,6 +24,8 @@ Application::Application(Application&& other) noexcept {
 }
 
 Expected<Application> Application::create(std::string_view title, glm::uvec2 initialWindowSize) {
+  ZoneScoped;
+
   Application app;
 
   RETURN_ERROR_IF_UNEXPECTED(app.createContext(title, initialWindowSize));
@@ -48,6 +50,8 @@ Expected<Application> Application::create(std::string_view title, glm::uvec2 ini
 
 void Application::run() {
   while (!glfwWindowShouldClose(mState.window)) {
+    ZoneScopedN("Frame");
+
     mState.lastFrameTime = mState.currentFrameTime;
     mState.currentFrameTime = glfwGetTime();
 
@@ -64,6 +68,9 @@ void Application::run() {
     this->drawFrame();
 
     glfwSwapBuffers(mState.window);
+
+    FrameMark;
+    TracyGpuCollect;
   }
 }
 
@@ -87,6 +94,8 @@ Application::Application() {
 }
 
 Expected<void> Application::createContext(std::string_view title, glm::uvec2 initialWindowSize) {
+  ZoneScoped;
+
   glfwInit();
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
@@ -124,10 +133,14 @@ Expected<void> Application::createContext(std::string_view title, glm::uvec2 ini
     NotNull(gApp)->processMousePosition(glm::vec2(xpos, ypos));
   });
 
+  TracyGpuContext;
+
   return {};
 }
 
 Expected<void> Application::createScene() {
+  ZoneScoped;
+
   // Load assets
   const Expected modelPlanet = mState.assetManager->loadModel("planet/planet.obj");
   const Expected modelRock = mState.assetManager->loadModel("rock/rock.obj");
@@ -197,7 +210,7 @@ Expected<void> Application::createScene() {
     .renderData = std::move(planetMeshes),
   });
 
-  constexpr uint32_t numAsteroids = 5000;
+  constexpr uint32_t numAsteroids = 3000;
   constexpr float radius = 50.0f;
   constexpr float offset = 25.0f;
   std::random_device rd;
@@ -226,6 +239,8 @@ Expected<void> Application::createScene() {
 }
 
 void Application::processKeyboard() {
+  ZoneScoped;
+
   if (glfwGetKey(mState.window, GLFW_KEY_LEFT_SUPER) == GLFW_PRESS) {
     return;
   }
@@ -269,6 +284,8 @@ void Application::processKeyboard() {
 }
 
 void Application::processMousePosition(glm::vec2 mousePosition) {
+  ZoneScoped;
+
   if (mState.bFreeCursor) {
     return;
   }
@@ -291,6 +308,8 @@ void Application::processMousePosition(glm::vec2 mousePosition) {
 }
 
 void Application::updateScene() {
+  ZoneScoped;
+
   // Back mirror camera
   mState.backCamera = mState.mainCamera;
   mState.backCamera.rotation.x += 180.0f;
@@ -298,6 +317,8 @@ void Application::updateScene() {
 }
 
 void Application::drawFrame() {
+  ZoneScoped;
+
   mState.renderPasses.clear();
   if (mState.bBackMirror) {
     mState.renderPasses.emplace_back(Viewport {}, mState.backCameraSceneFramebuffer.value(),

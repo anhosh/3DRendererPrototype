@@ -4,6 +4,7 @@
 #include <Graphics/Buffers/InstanceBufferData.hpp>
 
 #include <algorithm>
+#include <execution>
 #include <ranges>
 
 namespace views = std::ranges::views;
@@ -13,6 +14,12 @@ void Scene::destroy() {
 }
 
 std::span<const Draw> Scene::draw(const Camera& camera, Registry<Buffer>& buffers) const {
+  ZoneScoped;
+  //
+  // if (actors.empty()) {
+  //   return {};
+  // }
+
   if (!actors.hasDirtyItems()) {
     return mCachedDraws;
   }
@@ -21,130 +28,165 @@ std::span<const Draw> Scene::draw(const Camera& camera, Registry<Buffer>& buffer
   // Sort meshes so they are easier to group into instanced calls.
   std::vector<MeshDataReference> sortedMeshes;
   std::vector<MeshDataReference> outlinedMeshes;
-  for (const Actor& actor : actors | views::values) {
-    for (size_t renderDataIndex = 0; renderDataIndex < actor.renderData.size(); ++renderDataIndex) {
-      const MeshDataReference& mesh = sortedMeshes.emplace_back(&actor, renderDataIndex);
-      if (mesh.renderData().outlineShaderInstance.has_value()) {
-        assert(mesh.renderData().outlineShaderInstance.value()->type == ShaderProgramType::Outline);
-        outlinedMeshes.push_back(sortedMeshes.back());
+  {
+    ZoneScopedN("Segregate meshes");
+    {
+      ZoneScopedN("Collect");
+      for (const Actor& actor : actors | views::values) {
+        for (size_t renderDataIndex = 0; renderDataIndex < actor.renderData.size(); ++renderDataIndex) {
+          const MeshDataReference& mesh = sortedMeshes.emplace_back(&actor, renderDataIndex);
+          if (mesh.renderData().outlineShaderInstance.has_value()) {
+            assert(mesh.renderData().outlineShaderInstance.value()->type == ShaderProgramType::Outline);
+            outlinedMeshes.push_back(sortedMeshes.back());
+          }
+        }
       }
     }
+    {
+      ZoneScopedN("Sort all");
+      std::sort(std::execution::par_unseq, sortedMeshes.begin(), sortedMeshes.end(), [&](const MeshDataReference& a, const MeshDataReference& b) {
+        const RenderData& rdA = a.renderData();
+        const RenderData& rdB = b.renderData();
+
+        if (rdA.renderOptions.bTransparent != rdB.renderOptions.bTransparent) {
+          return !rdA.renderOptions.bTransparent; // Opaque objects should be rendered before transparent objects.
+        }
+
+        if (rdA.renderOptions.bTransparent && rdB.renderOptions.bTransparent) {
+          const float distanceA = glm::length(camera.position - a.actor->transform.translation);
+          const float distanceB = glm::length(camera.position - b.actor->transform.translation);
+          return distanceA > distanceB; // Transparent objects further away should be rendered before those closer to the camera.
+        }
+
+        return rdA.shaderProgramInstance.itemID() < rdB.shaderProgramInstance.itemID() ||
+               rdA.vertexArray.itemID() < rdB.vertexArray.itemID();
+      });
+    }
+    {
+      ZoneScopedN("Sort outlined");
+      std::sort(std::execution::par_unseq, outlinedMeshes.begin(), outlinedMeshes.end(), [&](const MeshDataReference& a, const MeshDataReference& b) {
+        const RenderData& rdA = a.renderData();
+        const RenderData& rdB = b.renderData();
+
+        return rdA.outlineShaderInstance->itemID() < rdB.outlineShaderInstance->itemID() ||
+               rdA.vertexArray.itemID() < rdB.vertexArray.itemID();
+      });
+    }
   }
-
-  std::ranges::sort(sortedMeshes, [&](const MeshDataReference& a, const MeshDataReference& b) {
-    const RenderData& rdA = a.renderData();
-    const RenderData& rdB = b.renderData();
-
-    if (rdA.renderOptions.bTransparent != rdB.renderOptions.bTransparent) {
-      return !rdA.renderOptions.bTransparent; // Opaque objects should be rendered before transparent objects.
-    }
-
-    if (rdA.renderOptions.bTransparent && rdB.renderOptions.bTransparent) {
-      const float distanceA = glm::length(camera.position - a.actor->transform.translation);
-      const float distanceB = glm::length(camera.position - b.actor->transform.translation);
-      return distanceA > distanceB; // Transparent objects further away should be rendered before those closer to the camera.
-    }
-
-    return rdA.shaderProgramInstance.itemID() < rdB.shaderProgramInstance.itemID() ||
-           rdA.vertexArray.itemID() < rdB.vertexArray.itemID();
-  });
-
-  std::ranges::sort(outlinedMeshes, [&](const MeshDataReference& a, const MeshDataReference& b) {
-    const RenderData& rdA = a.renderData();
-    const RenderData& rdB = b.renderData();
-
-    return rdA.outlineShaderInstance->itemID() < rdB.outlineShaderInstance->itemID() ||
-           rdA.vertexArray.itemID() < rdB.vertexArray.itemID();
-  });
 
   // Schedule instanced draws for meshes.
   std::vector<Draw> draws;
   draws.reserve(sortedMeshes.size() + outlinedMeshes.size());
+  {
+    ZoneScopedN("Schedule draws");
+    size_t instanceBufferIndex = 0;
+    size_t firstInstance = 0;
+    size_t instanceCount = 0;
+    {
+      ZoneScopedN("Meshes");
+      for (const MeshDataReference& mesh : sortedMeshes) {
+        ZoneScoped;
+        ZoneNameF("Mesh: %s", mesh.actor->name.c_str());
+        const RenderData& firstInstanceRD = sortedMeshes[firstInstance].renderData();
 
-  size_t instanceBufferIndex = 0;
-  size_t firstInstance = 0;
-  size_t instanceCount = 0;
+        if (&mesh != &sortedMeshes.back() && (instanceCount == 0 || firstInstanceRD.eqIgnoreOutline(mesh.renderData()))) {
+          ++instanceCount;
+          continue;
+        }
 
-  for (const MeshDataReference& mesh: sortedMeshes) {
-    const RenderData& firstInstanceRD = sortedMeshes[firstInstance].renderData();
+        {
+          ZoneScopedN("Transforms");
+          InstanceBufferData instanceBufferData;
+          instanceBufferData.instances.resize(instanceCount);
+          const auto rangeStart = sortedMeshes.begin() + static_cast<long>(firstInstance);
+          const auto rangeEnd = rangeStart + static_cast<long>(instanceCount);
+          std::transform(std::execution::par_unseq, rangeStart, rangeEnd, instanceBufferData.instances.begin(),
+            [&](const MeshDataReference& meshRef) {
+              const glm::mat4 modelTransform  = meshRef.actor->transform.matrix();
+              const glm::mat3 normalTransform = glm::transpose(glm::inverse(modelTransform));
+              return InstanceData(modelTransform, normalTransform);
+            });
 
-    if (&mesh != &sortedMeshes.back() && (instanceCount == 0 || firstInstanceRD.eqIgnoreOutline(mesh.renderData()))) {
-      ++instanceCount;
-      continue;
+          BufferHandle instanceBuffer = this->obtainInstanceBuffer(instanceBufferIndex, buffers);
+          instanceBuffer->write(instanceBufferData);
+          instanceBufferData.setupInstanceVertexAttributes(firstInstanceRD.vertexArray, instanceBuffer);
+        }
+
+        draws.push_back(Draw {
+          .shaderProgramInstance = firstInstanceRD.shaderProgramInstance,
+          .vertexArray = firstInstanceRD.vertexArray,
+          .instanceCount = instanceCount,
+          .diffuseMap = firstInstanceRD.diffuseMap,
+          .specularMap = firstInstanceRD.specularMap,
+          .emissionMap = firstInstanceRD.emissionMap,
+          .environmentMap = firstInstanceRD.environmentMap,
+          .bBackfaceCulling = firstInstanceRD.renderOptions.bBackfaceCulling,
+          .bWriteToStencil = firstInstanceRD.outlineShaderInstance.has_value(),
+        });
+
+        ++instanceBufferIndex;
+        firstInstance += instanceCount;
+        instanceCount = 0;
+      }
     }
 
-    InstanceBufferData instanceBufferData;
-    for (size_t i = firstInstance; i < firstInstance + instanceCount; ++i) {
-      const glm::mat4 modelTransform = sortedMeshes[i].actor->transform.matrix();
-      const glm::mat3 normalTransform = glm::transpose(glm::inverse(modelTransform));
-      instanceBufferData.instances.emplace_back(modelTransform, normalTransform);
+    if (skybox.has_value()) {
+      ZoneScopedN("Skybox");
+      draws.push_back(Draw {
+        .shaderProgramInstance = skybox->shader,
+        .vertexArray = skybox->cubeMesh,
+        .environmentMap = skybox->texture,
+        .bBackfaceCulling = false,
+        .bSkybox = true,
+      });
     }
 
-    BufferHandle instanceBuffer = this->obtainInstanceBuffer(instanceBufferIndex, buffers);
-    instanceBuffer->write(instanceBufferData);
-    instanceBufferData.setupInstanceVertexAttributes(firstInstanceRD.vertexArray, instanceBuffer);
+    {
+      ZoneScopedN("Outlines");
+      firstInstance = 0;
+      for (const MeshDataReference& mesh: outlinedMeshes) {
+        ZoneScopedN("Outline");
+        const RenderData& firstInstanceRD = outlinedMeshes[firstInstance].renderData();
 
-    draws.push_back(Draw {
-      .shaderProgramInstance = firstInstanceRD.shaderProgramInstance,
-      .vertexArray = firstInstanceRD.vertexArray,
-      .instanceCount = instanceCount,
-      .diffuseMap = firstInstanceRD.diffuseMap,
-      .specularMap = firstInstanceRD.specularMap,
-      .emissionMap = firstInstanceRD.emissionMap,
-      .environmentMap = firstInstanceRD.environmentMap,
-      .bBackfaceCulling = firstInstanceRD.renderOptions.bBackfaceCulling,
-      .bWriteToStencil = firstInstanceRD.outlineShaderInstance.has_value(),
-    });
+        if (&mesh != &outlinedMeshes.back() && (instanceCount == 0 || firstInstanceRD.eqIgnoreOutline(mesh.renderData()))) {
+          ++instanceCount;
+          continue;
+        }
 
-    ++instanceBufferIndex;
-    firstInstance += instanceCount;
-    instanceCount = 0;
-  }
+        {
+          ZoneScopedN("Transforms");
+          InstanceBufferData instanceBufferData;
+          instanceBufferData.instances.resize(instanceCount);
+          const auto rangeStart = outlinedMeshes.begin() + static_cast<long>(firstInstance);
+          const auto rangeEnd = rangeStart + static_cast<long>(instanceCount);
+          std::transform(std::execution::par_unseq, rangeStart, rangeEnd, instanceBufferData.instances.begin(),
+            [&](const MeshDataReference& meshRef) {
+              Transform outlineTransform = meshRef.actor->transform;
+              outlineTransform.scale *= 1.05f;
+              const glm::mat4 modelTransform  = outlineTransform.matrix();
+              const glm::mat3 normalTransform = glm::transpose(glm::inverse(modelTransform));
+              return InstanceData(modelTransform, normalTransform);
+            });
 
-  if (skybox.has_value()) {
-    draws.push_back(Draw {
-      .shaderProgramInstance = skybox->shader,
-      .vertexArray = skybox->cubeMesh,
-      .environmentMap = skybox->texture,
-      .bBackfaceCulling = false,
-      .bSkybox = true,
-    });
-  }
+          BufferHandle instanceBuffer = this->obtainInstanceBuffer(instanceBufferIndex, buffers);
+          instanceBuffer->write(instanceBufferData);
+          instanceBufferData.setupInstanceVertexAttributes(firstInstanceRD.vertexArray, instanceBuffer);
+        }
 
-  firstInstance = 0;
-  for (const MeshDataReference& mesh: outlinedMeshes) {
-    const RenderData& firstInstanceRD = outlinedMeshes[firstInstance].renderData();
+        draws.push_back(Draw {
+          .shaderProgramInstance = firstInstanceRD.outlineShaderInstance.value(),
+          .vertexArray = firstInstanceRD.vertexArray,
+          .instanceCount = instanceCount,
+          .bBackfaceCulling = true,
+          .bStencilTest = true,
+          .bDepthTest = false,
+        });
 
-    if (&mesh != &outlinedMeshes.back() && (instanceCount == 0 || firstInstanceRD.eqIgnoreOutline(mesh.renderData()))) {
-      ++instanceCount;
-      continue;
+        ++instanceBufferIndex;
+        firstInstance = instanceCount;
+        instanceCount = 0;
+      }
     }
-
-    InstanceBufferData instanceBufferData;
-    for (size_t i = firstInstance; i < firstInstance + instanceCount; ++i) {
-      Transform outlineTransform = mesh.actor->transform;
-      outlineTransform.scale *= 1.05f;
-      const glm::mat4 model = outlinedMeshes[i].actor->transform.matrix();
-      const glm::mat3 normal = glm::transpose(glm::inverse(model));
-      instanceBufferData.instances.emplace_back(model, normal);
-    }
-
-    BufferHandle instanceBuffer = this->obtainInstanceBuffer(instanceBufferIndex, buffers);
-    instanceBuffer->write(instanceBufferData);
-    instanceBufferData.setupInstanceVertexAttributes(firstInstanceRD.vertexArray, instanceBuffer);
-
-    draws.push_back(Draw {
-      .shaderProgramInstance = firstInstanceRD.outlineShaderInstance.value(),
-      .vertexArray = firstInstanceRD.vertexArray,
-      .instanceCount = instanceCount,
-      .bBackfaceCulling = true,
-      .bStencilTest = true,
-      .bDepthTest = false,
-    });
-
-    ++instanceBufferIndex;
-    firstInstance = instanceCount;
-    instanceCount = 0;
   }
 
   mCachedDraws = draws;
@@ -152,6 +194,8 @@ std::span<const Draw> Scene::draw(const Camera& camera, Registry<Buffer>& buffer
 }
 
 DirectionalLightSourceBuffer Scene::createDirectionalLightUniforms() const {
+  ZoneScoped;
+
   DirectionalLightSourceBuffer buffer;
   buffer.sources.reserve(directionalLights.size());
   for (const DirectionalLight& directionalLight: directionalLights | views::values) {
@@ -161,6 +205,8 @@ DirectionalLightSourceBuffer Scene::createDirectionalLightUniforms() const {
 }
 
 PointLightSourceBuffer Scene::createPointLightUniforms() const {
+  ZoneScoped;
+
   PointLightSourceBuffer buffer;
   buffer.sources.reserve(pointLights.size());
   for (const PointLight& directionalLight: pointLights | views::values) {
@@ -170,6 +216,8 @@ PointLightSourceBuffer Scene::createPointLightUniforms() const {
 }
 
 SpotlightSourceBuffer Scene::createSpotlightUniforms() const {
+  ZoneScoped;
+
   SpotlightSourceBuffer buffer;
   buffer.sources.reserve(spotlights.size());
   for (const Spotlight& directionalLight: spotlights | views::values) {
@@ -179,6 +227,8 @@ SpotlightSourceBuffer Scene::createSpotlightUniforms() const {
 }
 
 BufferHandle Scene::obtainInstanceBuffer(const size_t bufferIndex, Registry<Buffer>& buffers) const {
+  ZoneScoped;
+
   assert(bufferIndex < mCachedInstanceBuffers.size() + 1);
 
   if (mCachedInstanceBuffers.size() > bufferIndex) {

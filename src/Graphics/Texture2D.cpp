@@ -3,20 +3,28 @@
 #include <Assets/Bitmap.hpp>
 
 Texture2D::Texture2D() {
+  ZoneScoped;
+
   this->init();
 }
 
 Texture2D::Texture2D(AssetHandle<Bitmap> bitmap, const SamplerOptions& options)
   : Texture2D()
 {
+  ZoneScoped;
+
   this->generate(bitmap, options);
 }
 
 void Texture2D::init() {
+  ZoneScoped;
+
   glGenTextures(1, &mID);
 }
 
 void Texture2D::generate(AssetHandle<Bitmap> bitmap, const SamplerOptions& options) const {
+  ZoneScoped;
+
   this->bind();
 
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, options.wrapS);
@@ -36,6 +44,8 @@ void Texture2D::generate(AssetHandle<Bitmap> bitmap, const SamplerOptions& optio
 }
 
 void Texture2D::destroy() {
+  ZoneScoped;
+
   if (mID == GL_NONE) {
     glDeleteTextures(1, &mID);
     mID = GL_NONE;

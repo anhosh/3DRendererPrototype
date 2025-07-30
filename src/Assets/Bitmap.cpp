@@ -7,6 +7,8 @@
 namespace fs = std::filesystem;
 
 Expected<Bitmap> Bitmap::fromFile(const fs::path& fileName, bool bFlipVertically) {
+  ZoneScoped;
+
   stbi_set_flip_vertically_on_load(bFlipVertically);
   int32_t width, height, channels;
   uint8_t* loadedData = stbi_load(fileName.c_str(), &width, &height, &channels, 0);
@@ -23,6 +25,8 @@ Expected<Bitmap> Bitmap::fromFile(const fs::path& fileName, bool bFlipVertically
 }
 
 Expected<Bitmap> Bitmap::fromMemory(std::span<const uint8_t> bytes, glm::uvec2 size, uint32_t channels) {
+  ZoneScoped;
+
   if (bytes.size() != size.x * size.y * channels) {
     return std::unexpected(std::format("Bitmap size does not match data length: {} != {} [width({}) * height({}) * channels({})]",
                                             bytes.size(), size.x * size.y * channels, size.x, size.y, channels));

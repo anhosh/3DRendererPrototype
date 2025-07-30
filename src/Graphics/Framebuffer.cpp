@@ -3,10 +3,14 @@
 #include <Util/Macros/Errors.hpp>
 
 Framebuffer::Framebuffer(const FramebufferCreateInfo& info) : mInfo(info) {
+  ZoneScoped;
+
   this->init(info);
 }
 
 void Framebuffer::init(const FramebufferCreateInfo& info) {
+  ZoneScoped;
+
   glGenFramebuffers(1, &mFBO);
   this->bind();
 
@@ -37,6 +41,8 @@ void Framebuffer::init(const FramebufferCreateInfo& info) {
 }
 
 void Framebuffer::destroy() {
+  ZoneScoped;
+
   if (mFBO != GL_NONE) {
     glDeleteFramebuffers(1, &mFBO);
     mFBO = GL_NONE;
@@ -49,16 +55,22 @@ void Framebuffer::destroy() {
 }
 
 void Framebuffer::resize(const glm::uvec2 size) {
+  ZoneScoped;
+
   this->destroy();
   mInfo.size = size;
   this->init(mInfo);
 }
 
 void Framebuffer::bind() const {
+  ZoneScoped;
+
   glBindFramebuffer(GL_FRAMEBUFFER, mFBO);
 }
 
 void Framebuffer::unbind() const {
+  ZoneScoped;
+
   (void)mFBO;
   glBindFramebuffer(GL_FRAMEBUFFER, GL_NONE);
 }

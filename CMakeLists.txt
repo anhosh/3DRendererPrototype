@@ -20,6 +20,7 @@ add_executable(${PROJECT_NAME})
 # link to ext target
 target_link_libraries(${PROJECT_NAME} PRIVATE
   LearnOpenGL::ext
+  tbb
 )
 
 # setup precompiled header
@@ -27,6 +28,7 @@ target_precompile_headers(${PROJECT_NAME} PRIVATE
   <glad/glad.h>
   <GLFW/glfw3.h>
   <glm/glm.hpp>
+  <tracy/Tracy.hpp>
   <cstdint>
 )
 

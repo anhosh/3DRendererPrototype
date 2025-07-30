@@ -40,6 +40,8 @@ public:
 
   template <typename UniformType>
   void setUniform(const GLchar* name, const UniformType& value) {
+    ZoneScoped;
+
     this->uniforms[name] = ShaderUniform {
       .location = glGetUniformLocation(this->shaderProgram->id(), name),
       .value = value,

@@ -16,15 +16,21 @@
 #include <print>
 
 AssetManager::AssetManager() {
+  ZoneScoped;
+
   PANIC_IF_UNEXPECTED(locateModels());
   PANIC_IF_UNEXPECTED(locateTextures());
 }
 
 AssetHandle<Mesh> AssetManager::addMesh(Mesh&& mesh) {
+  ZoneScoped;
+
   return mMeshes.add(std::forward<Mesh>(mesh));
 }
 
 Expected<AssetHandle<Bitmap>> AssetManager::loadBitmap(const std::filesystem::path& filePath, bool bFlipVertically) {
+  ZoneScoped;
+
   const std::filesystem::path fullPath = mTexturesDir / filePath;
   if (const auto found = mLoadedBitmaps.find(fullPath); found != mLoadedBitmaps.end()) {
     const auto& [_, handle] = *found;
@@ -39,6 +45,8 @@ Expected<AssetHandle<Bitmap>> AssetManager::loadBitmap(const std::filesystem::pa
 }
 
 Expected<AssetHandle<Model>> AssetManager::loadModel(const std::filesystem::path& filePath) {
+  ZoneScoped;
+
   const std::filesystem::path fullPath = mModelsDir / filePath;
   if (const auto found = mLoadedModels.find(fullPath); found != mLoadedModels.end()) {
     const auto& [_, handle] = *found;
@@ -61,6 +69,8 @@ Expected<AssetHandle<Model>> AssetManager::loadModel(const std::filesystem::path
 }
 
 Expected<void> AssetManager::locateModels() {
+  ZoneScoped;
+
   if (std::optional<fs::path> modelsDir = locateDirectory("models")) {
     mModelsDir = std::move(modelsDir.value());
     return {};
@@ -69,6 +79,8 @@ Expected<void> AssetManager::locateModels() {
 }
 
 Expected<void> AssetManager::locateTextures() {
+  ZoneScoped;
+
   if (const std::optional<fs::path> texturesDir = locateDirectory("textures")) {
     mTexturesDir = texturesDir.value();
     return {};
@@ -77,6 +89,8 @@ Expected<void> AssetManager::locateTextures() {
 }
 
 Expected<void> AssetManager::processNode(Model& model, aiNode* node, const aiScene* scene) {
+  ZoneScoped;
+
   for (size_t i = 0; i < node->mNumMeshes; ++i) {
     aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
     RETURN_ERROR_IF_UNEXPECTED(this->processMesh(model, mesh, scene));
@@ -90,6 +104,8 @@ Expected<void> AssetManager::processNode(Model& model, aiNode* node, const aiSce
 }
 
 Expected<void> AssetManager::processMesh(Model& model, aiMesh* mesh, const aiScene* scene) {
+  ZoneScoped;
+
   std::vector<Vertex> vertices;
   std::vector<uint32_t> indices;
 
@@ -133,6 +149,8 @@ Expected<void> AssetManager::processMesh(Model& model, aiMesh* mesh, const aiSce
 }
 
 Expected<AssetHandle<Bitmap>> AssetManager::processTexture(const aiMaterial* material, aiTextureType type) {
+  ZoneScoped;
+
   if (material->GetTextureCount(type) == 0) {
     return std::unexpected(std::format("Could not find a {} texture", aiTextureTypeToString(type)));
   }

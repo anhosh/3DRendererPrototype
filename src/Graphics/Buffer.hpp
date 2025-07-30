@@ -18,22 +18,20 @@ public:
   void bindRange(uint32_t bindPoint, size_t offset, size_t size) const;
 
   template <typename BufferData> requires
-    requires (BufferData t, std::vector<uint8_t> buffer) {
+    requires (BufferData t, GLenum target, size_t offset) {
       { t.size() } -> std::same_as<size_t>;
-      { t.writeToBuffer(buffer) } -> std::same_as<void>;
+      { t.writeToBuffer(target, offset) } -> std::same_as<void>;
     }
   void write(const BufferData& data, const size_t offset = 0) {
+    ZoneScoped;
+
     const size_t requiredSize = data.size();
     if (mSize < offset + requiredSize) {
       this->reallocate(offset + requiredSize);
     }
 
-    std::vector<uint8_t> buffer;
-    buffer.reserve(requiredSize);
-    data.writeToBuffer(buffer);
-
     glBindBuffer(mTarget, mID);
-    glBufferSubData(mTarget, offset, requiredSize, buffer.data());
+    data.writeToBuffer(mTarget, offset);
     glBindBuffer(mTarget, GL_NONE);
   }
 
