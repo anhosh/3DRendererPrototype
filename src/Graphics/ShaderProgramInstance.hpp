@@ -4,7 +4,7 @@
 #include <Graphics/ShaderUniform.hpp>
 #include <Util/Registry.hpp>
 
-#include <unordered_map>
+#include <entt/container/dense_map.hpp>
 
 enum class ShaderProgramType : int32_t {
   Light,
@@ -38,12 +38,15 @@ public:
   ShaderProgramInstance(const ShaderProgramInstance&) = default;
   ShaderProgramInstance(ShaderProgramInstance&&) = default;
 
+  ShaderProgramInstance& operator=(const ShaderProgramInstance&) = default;
+  ShaderProgramInstance& operator=(ShaderProgramInstance&&) = default;
+
   template <typename UniformType>
   void setUniform(const GLchar* name, const UniformType& value) {
     ZoneScoped;
 
     this->uniforms[name] = ShaderUniform {
-      .location = glGetUniformLocation(this->shaderProgram->id(), name),
+      .location = glGetUniformLocation(mShaderProgram->id(), name),
       .value = value,
     };
   }
@@ -51,14 +54,16 @@ public:
   void use() const;
   void bindUniforms() const;
 
-  const ShaderProgramHandle shaderProgram;
-  const ShaderProgramType type;
-  std::unordered_map<std::string, ShaderUniform> uniforms;
+  ShaderProgramHandle shaderProgram() const { return mShaderProgram; }
+  ShaderProgramType type() const { return mType; }
+
+public:
+  entt::dense_map<std::string, ShaderUniform> uniforms;
 
 private:
   explicit ShaderProgramInstance(const ShaderProgramHandle program, const ShaderProgramType type)
-    : shaderProgram(program)
-    , type(type)
+    : mShaderProgram(program)
+    , mType(type)
   {}
 
   static ShaderProgramInstance newLitSurface(ShaderProgramHandle program);
@@ -83,6 +88,10 @@ private:
   static ShaderProgramInstance newPostProcessingSobelRight(ShaderProgramHandle program);
   static ShaderProgramInstance newPostProcessingSobelTop(ShaderProgramHandle program);
   static ShaderProgramInstance newSkybox(ShaderProgramHandle program);
+
+private:
+  ShaderProgramHandle mShaderProgram;
+  ShaderProgramType mType;
 };
 
 using ShaderProgramInstanceHandle = Registry<ShaderProgramInstance>::Handle;

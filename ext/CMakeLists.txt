@@ -4,6 +4,10 @@ project(LearnOpenGL-ext)
 message(STATUS "[assimp]")
 add_subdirectory(assimp)
 
+# add EnTT to build tree
+message(STATUS "[EnTT]")
+add_subdirectory(entt)
+
 # add GLAD to build tree
 message(STATUS "[GLAD]")
 add_library(glad)
@@ -82,6 +86,7 @@ add_library(LearnOpenGL::ext ALIAS ${PROJECT_NAME})
 # link to all dependencies
 target_link_libraries(${PROJECT_NAME} INTERFACE
   assimp::assimp
+  EnTT::EnTT
   glad::glad
   glm::glm
   imgui::imgui

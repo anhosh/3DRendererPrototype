@@ -1,6 +1,9 @@
 #include <GUI.hpp>
 
 #include <AppState.hpp>
+#include <Graphics/Components/Name.hpp>
+
+#include <entt/entity/registry.hpp>
 
 #include <imgui.h>
 #include <backends/imgui_impl_glfw.h>
@@ -67,9 +70,10 @@ void guiLight(AppState& state) {
     if (ImGui::CollapsingHeader("Directional lights")) {
       ImGui::Indent();
 
+      entt::basic_view directionalLights = state.scene->ecs.view<const CompName, CompDirectionalLight>();
       size_t index = 0;
-      for (DirectionalLight& directionalLight : std::ranges::views::values(state.scene->directionalLights)) {
-        if (ImGui::CollapsingHeader(std::format("{}##sl{}", directionalLight.name, index).c_str())) {
+      for (auto [entity, name, directionalLight] : directionalLights.each()) {
+        if (ImGui::CollapsingHeader(std::format("{}##sl{}", name.name, index).c_str())) {
           ImGui::Indent();
 
           ImGui::DragFloat3(("Direction##dl" + std::to_string(index)).c_str(), glm::value_ptr(directionalLight.direction), 0.001f, -1.0f, 1.0f);
@@ -90,9 +94,10 @@ void guiLight(AppState& state) {
     if (ImGui::CollapsingHeader("Point lights")) {
       ImGui::Indent();
 
+      entt::basic_view pointLights = state.scene->ecs.view<const CompName, CompPointLight>();
       size_t index = 0;
-      for (PointLight& pointLight : std::ranges::views::values(state.scene->pointLights)) {
-        if (ImGui::CollapsingHeader(std::format("{}##sl{}", pointLight.name, index).c_str())) {
+      for (auto [entity, name, pointLight] : pointLights.each()) {
+        if (ImGui::CollapsingHeader(std::format("{}##sl{}", name.name, index).c_str())) {
           ImGui::Indent();
 
           ImGui::DragFloat3(("Position##pl" + std::to_string(index)).c_str(), glm::value_ptr(pointLight.position), 0.001f, -1.0f, 1.0f);
@@ -118,9 +123,10 @@ void guiLight(AppState& state) {
     if (ImGui::CollapsingHeader("Spotlights")) {
       ImGui::Indent();
 
+      entt::basic_view spotlights = state.scene->ecs.view<const CompName, CompSpotlight>();
       size_t index = 0;
-      for (Spotlight& spotlight : std::ranges::views::values(state.scene->spotlights)) {
-        if (ImGui::CollapsingHeader(std::format("{}##sl{}", spotlight.name, index).c_str())) {
+      for (auto [entity, name, spotlight] : spotlights.each()) {
+        if (ImGui::CollapsingHeader(std::format("{}##sl{}", name.name, index).c_str())) {
           ImGui::Indent();
 
           ImGui::DragFloat3(("Position##sl" + std::to_string(index)).c_str(), glm::value_ptr(spotlight.position), 0.001f, -1.0f, 1.0f);
@@ -153,15 +159,15 @@ void guiActors(AppState& state) {
   if (ImGui::CollapsingHeader("Actors")) {
     ImGui::Indent();
 
-    for (Actor& actor : std::ranges::views::values(state.scene->actors)) {
-      if (ImGui::CollapsingHeader(actor.name.c_str())) {
+    entt::basic_view transforms = state.scene->ecs.view<const CompName, CompTransform>();
+    for (auto [entity, name, transform] : transforms.each()) {
+      if (ImGui::CollapsingHeader(name.name.c_str())) {
         ImGui::Indent();
 
         ImGui::Text("Transform");
-        Transform& grassTransform = actor.transform;
-        ImGui::DragFloat3(("Translation##" + actor.name).c_str(), glm::value_ptr(grassTransform.translation), 0.01f);
-        ImGui::DragFloat3(("Rotation##" + actor.name).c_str(), glm::value_ptr(grassTransform.rotation), 0.01f);
-        ImGui::DragFloat3(("Scale##" + actor.name).c_str(), glm::value_ptr(grassTransform.scale), 0.01f);
+        ImGui::DragFloat3(("Translation##" + name.name).c_str(), glm::value_ptr(transform.translation), 0.01f);
+        ImGui::DragFloat3(("Rotation##" + name.name).c_str(), glm::value_ptr(transform.rotation), 0.01f);
+        ImGui::DragFloat3(("Scale##" + name.name).c_str(), glm::value_ptr(transform.scale), 0.01f);
 
         ImGui::Unindent();
       }

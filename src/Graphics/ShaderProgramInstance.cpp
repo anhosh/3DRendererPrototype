@@ -11,7 +11,7 @@ static constexpr GLint TEXTURE_SLOT_EMISSION = 2;
 static constexpr GLint TEXTURE_SLOT_ENVIRONMENT = 3;
 
 void ShaderProgramInstance::use() const {
-  glUseProgram(shaderProgram->id());
+  glUseProgram(mShaderProgram->id());
 }
 
 void ShaderProgramInstance::bindUniforms() const {

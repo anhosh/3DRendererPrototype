@@ -1,15 +1,15 @@
 #pragma once
 
+#include <Graphics/Components/CompTransform.hpp>
 #include <Graphics/RenderData.hpp>
 #include <Graphics/ShaderProgramInstance.hpp>
-#include <Graphics/Transform.hpp>
 
 #include <optional>
 #include <vector>
 
 struct Actor {
   std::string name = "Unnamed";
-  Transform transform = {};
+  CompTransform transform = {};
   std::vector<RenderData> renderData;
 
   void setShaderProgramInstance(const ShaderProgramInstanceHandle shaderInstance) {

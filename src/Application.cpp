@@ -11,6 +11,9 @@
 #include <backends/imgui_impl_glfw.h>
 
 #include <random>
+#include <Graphics/Components/Dirty.hpp>
+#include <Graphics/Components/Graphics.hpp>
+#include <Graphics/Components/Name.hpp>
 #include <tracy/TracyOpenGL.hpp>
 
 static Application* gApp = nullptr;
@@ -25,6 +28,8 @@ Application::Application(Application&& other) noexcept {
 
 Expected<Application> Application::create(std::string_view title, glm::uvec2 initialWindowSize) {
   ZoneScoped;
+  static constexpr std::string_view markerName = "Application init";
+  FrameMarkStart(markerName.data());
 
   Application app;
 
@@ -45,10 +50,12 @@ Expected<Application> Application::create(std::string_view title, glm::uvec2 ini
   });
 
   RETURN_ERROR_IF_UNEXPECTED(app.createScene());
+  FrameMarkEnd(markerName.data());
   return app;
 }
 
 void Application::run() {
+  FrameMark;
   while (!glfwWindowShouldClose(mState.window)) {
     ZoneScopedN("Frame");
 
@@ -192,25 +199,27 @@ Expected<void> Application::createScene() {
     .shader = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::Skybox),
   };
 
-  mState.scene->directionalLights.add(DirectionalLight {
-    .name = "Sun",
-    .colors = LightColors {
+  const entt::entity entitySun = mState.scene->ecs.create();
+  mState.scene->ecs.emplace<CompName>(entitySun, "Sun");
+  mState.scene->ecs.emplace<CompDirectionalLight>(entitySun, CompDirectionalLight {
+    .colors =  LightColors {
       .ambient = glm::vec3(0.05f),
       .diffuse = glm::vec3(1.2f),
       .specular = glm::vec3(3.0f),
     },
     .direction = glm::vec3(0.3f, -1.0f, -0.3f),
   });
+  mState.scene->ecs.emplace<CompDirty>(entitySun);
 
-  mState.scene->actors.add(Actor {
-    .name = "Planet Mars",
-    .transform = Transform {
-      .translation = glm::vec3(0.0f),
-    },
-    .renderData = std::move(planetMeshes),
+  const entt::entity entityPlanet = mState.scene->ecs.create();
+  mState.scene->ecs.emplace<CompName>(entityPlanet, "Planet Mars");
+  mState.scene->ecs.emplace<CompTransform>(entityPlanet, CompTransform {
+    .translation = glm::vec3(0.0f),
   });
+  mState.scene->ecs.emplace<CompGraphics>(entityPlanet, planetMeshes);
+  mState.scene->ecs.emplace<CompDirty>(entityPlanet);
 
-  constexpr uint32_t numAsteroids = 3000;
+  constexpr uint32_t numAsteroids = 2000;
   constexpr float radius = 50.0f;
   constexpr float offset = 25.0f;
   std::random_device rd;
@@ -220,19 +229,19 @@ Expected<void> Application::createScene() {
   std::uniform_real_distribution scaleDistribution(0.05f, 0.25f);
   for (uint32_t i = 0; i < numAsteroids; ++i) {
     const float angle = static_cast<float>(i) / static_cast<float>(numAsteroids) * 360.0f;
-    mState.scene->actors.add(Actor {
-      .name = std::format("Asteroid {}", i),
-      .transform = Transform {
-        .translation = {
-          glm::sin(glm::radians(angle)) * radius + displacementDistribution(gen),
-          0.4f * displacementDistribution(gen),
-          glm::cos(glm::radians(angle)) * radius + displacementDistribution(gen),
-        },
-        .rotation = rotationAngleDistribution(gen) * glm::vec3(0.4f, 0.6f, 0.8f),
-        .scale = glm::vec3(scaleDistribution(gen)),
+    const entt::entity entityAsteroid = mState.scene->ecs.create();
+    mState.scene->ecs.emplace<CompName>(entityAsteroid, std::format("Asteroid {}", i));
+    mState.scene->ecs.emplace<CompTransform>(entityAsteroid, CompTransform {
+      .translation = {
+        glm::sin(glm::radians(angle)) * radius + displacementDistribution(gen),
+        0.4f * displacementDistribution(gen),
+        glm::cos(glm::radians(angle)) * radius + displacementDistribution(gen),
       },
-      .renderData = rockMeshes,
+      .rotation = rotationAngleDistribution(gen) * glm::vec3(0.4f, 0.6f, 0.8f),
+      .scale = glm::vec3(scaleDistribution(gen)),
     });
+    mState.scene->ecs.emplace<CompGraphics>(entityAsteroid, rockMeshes);
+    mState.scene->ecs.emplace<CompDirty>(entityAsteroid);
   }
 
   return {};

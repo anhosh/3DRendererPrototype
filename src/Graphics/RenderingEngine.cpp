@@ -19,6 +19,7 @@
 #include <tracy/TracyOpenGL.hpp>
 
 #include <ranges>
+#include <Graphics/Components/Dirty.hpp>
 
 Expected<void> RenderingEngine::init() {
   ZoneScoped;
@@ -188,6 +189,10 @@ ShaderProgramInstanceHandle RenderingEngine::createShaderProgramInstance(const S
       return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingSobelTop(mPostProcessKernel3x3ShaderProgram.value()));
     case ShaderProgramType::Skybox:
       return this->addShaderProgramInstance(ShaderProgramInstance::newSkybox(mSkyboxShaderProgram.value()));
+    case ShaderProgramType::SurfaceDepth:
+      return this->addShaderProgramInstance(ShaderProgramInstance::newSurfaceDepth(mSurfaceDepthShaderProgram.value()));
+    case ShaderProgramType::SurfaceNormal:
+      return this->addShaderProgramInstance(ShaderProgramInstance::newSurfaceNormal(mSurfaceNormalShaderProgram.value()));
     default:
       UNREACHABLE();
   }
@@ -302,13 +307,13 @@ BufferHandle RenderingEngine::createBuffer(const GLenum type) {
   return mBuffers.add(Buffer(type));
 }
 
-void RenderingEngine::submitRenderPasses(const std::span<const RenderPass> renderPasses) {
+void RenderingEngine::submitRenderPasses(const std::span<RenderPass> renderPasses) {
   ZoneScoped;
 
   assert(mInitialised);
 
-  for (const auto& [viewport, dstFramebuffer, pass] : renderPasses) {
-    if (const auto* renderScenePass = std::get_if<RenderScenePass>(&pass)) {
+  for (auto& [viewport, dstFramebuffer, pass] : renderPasses) {
+    if (auto* renderScenePass = std::get_if<RenderScenePass>(&pass)) {
       this->renderScene(*renderScenePass->scene, *renderScenePass->camera, viewport, dstFramebuffer);
       if (bVisualiseVertexNormals) {
         this->renderVertexNormals(*renderScenePass->scene, *renderScenePass->camera, viewport, dstFramebuffer);
@@ -319,7 +324,7 @@ void RenderingEngine::submitRenderPasses(const std::span<const RenderPass> rende
   }
 }
 
-void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, const Viewport& viewport, FramebufferHandle dstFramebuffer) {
+void RenderingEngine::renderScene(Scene& scene, const Camera& camera, const Viewport& viewport, FramebufferHandle dstFramebuffer) {
   ZoneScoped;
   TracyGpuZone("renderScene");
 
@@ -370,25 +375,28 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
   mCameraUniformBuffer.value()->write(cameraUniformData);
   mCameraUniformBuffer.value()->bindWhole(UBO_BIND_POINT_CAMERA);
 
-  if (scene.directionalLights.hasDirtyItems()) {
+  const entt::basic_view dirtyDirectionalLights = scene.ecs.view<CompDirectionalLight, CompDirty>();
+  if (dirtyDirectionalLights.begin() != dirtyDirectionalLights.end()) {
     const DirectionalLightSourceBuffer directionalLightUniformData = scene.createDirectionalLightUniforms();
     mDirectionalLightsStorageBuffer.value()->write(directionalLightUniformData);
     mDirectionalLightsStorageBuffer.value()->bindWhole(SSBO_BIND_POINT_DIRECTIONAL_LIGHTS);
-    scene.directionalLights.clearDirtyItems();
+    scene.ecs.erase<CompDirty>(dirtyDirectionalLights.begin(), dirtyDirectionalLights.end());
   }
 
-  if (scene.pointLights.hasDirtyItems()) {
+  const entt::basic_view dirtyPointLights = scene.ecs.view<CompPointLight, CompDirty>();
+  if (dirtyPointLights.begin() != dirtyPointLights.end()) {
     const PointLightSourceBuffer pointLightUniformData = scene.createPointLightUniforms();
     mPointLightsStorageBuffer.value()->write(pointLightUniformData);
     mPointLightsStorageBuffer.value()->bindWhole(SSBO_BIND_POINT_POINT_LIGHTS);
-    scene.pointLights.clearDirtyItems();
+    scene.ecs.erase<CompDirty>(dirtyPointLights.begin(), dirtyPointLights.end());
   }
 
-  if (scene.spotlights.hasDirtyItems()) {
+  const entt::basic_view dirtySpotlights = scene.ecs.view<CompSpotlight, CompDirty>();
+  if (dirtySpotlights.begin() != dirtySpotlights.end()) {
     const SpotlightSourceBuffer spotlightUniformData = scene.createSpotlightUniforms();
     mSpotlightsStorageBuffer.value()->write(spotlightUniformData);
     mSpotlightsStorageBuffer.value()->bindWhole(SSBO_BIND_POINT_SPOTLIGHTS);
-    scene.spotlights.clearDirtyItems();
+    scene.ecs.erase<CompDirty>(dirtySpotlights.begin(), dirtySpotlights.end());
   }
 
   const Draw* lastDraw = &draws.front();
@@ -448,7 +456,7 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
         (drawIdx == 0 || currDraw->shaderProgramInstance.itemID() != lastDraw->shaderProgramInstance.itemID()))
     {
       const ShaderProgramInstance& lastShader = lastDraw->shaderProgramInstance.get();
-      if (drawIdx == 0 || currShader.shaderProgram != lastShader.shaderProgram) {
+      if (drawIdx == 0 || currShader.shaderProgram() != lastShader.shaderProgram()) {
         currShader.use();
       }
       currShader.bindUniforms();

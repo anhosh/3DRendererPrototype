@@ -29,6 +29,7 @@ struct RenderData {
 
   RenderOptions renderOptions = {};
 
+  [[nodiscard]]
   bool eqIgnoreOutline(const RenderData& other) const {
     return vertexArray == other.vertexArray &&
            shaderProgramInstance == other.shaderProgramInstance &&
@@ -39,6 +40,7 @@ struct RenderData {
            renderOptions == other.renderOptions;
   }
 
+  [[nodiscard]]
   bool eqIgnoreMainShader(const RenderData& other) const {
     return vertexArray == other.vertexArray &&
            outlineShaderInstance == other.outlineShaderInstance &&

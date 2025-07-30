@@ -6,24 +6,33 @@
 #include <algorithm>
 #include <execution>
 #include <ranges>
+#include <Graphics/Components/Graphics.hpp>
+#include <Graphics/Components/Name.hpp>
 
 namespace views = std::ranges::views;
 
 void Scene::destroy() {
-  actors.clear();
+  ecs.clear();
 }
 
 std::span<const Draw> Scene::draw(const Camera& camera, Registry<Buffer>& buffers) const {
   ZoneScoped;
-  //
-  // if (actors.empty()) {
-  //   return {};
-  // }
 
-  if (!actors.hasDirtyItems()) {
+  struct MeshDataReference {
+    const entt::registry* ecs;
+    entt::entity entity;
+    size_t renderDataIndex = SIZE_MAX;
+
+    [[nodiscard]] const RenderData& renderData() const {
+      return ecs->get<CompGraphics>(entity).renderData[renderDataIndex];
+    }
+  };
+
+  mCachedDraws.clear();
+
+  if (ecs.view<const CompGraphics>().empty()) {
     return mCachedDraws;
   }
-  actors.clearDirtyItems();
 
   // Sort meshes so they are easier to group into instanced calls.
   std::vector<MeshDataReference> sortedMeshes;
@@ -32,19 +41,21 @@ std::span<const Draw> Scene::draw(const Camera& camera, Registry<Buffer>& buffer
     ZoneScopedN("Segregate meshes");
     {
       ZoneScopedN("Collect");
-      for (const Actor& actor : actors | views::values) {
-        for (size_t renderDataIndex = 0; renderDataIndex < actor.renderData.size(); ++renderDataIndex) {
-          const MeshDataReference& mesh = sortedMeshes.emplace_back(&actor, renderDataIndex);
+      entt::basic_view actors = ecs.view<const CompGraphics>();
+      for (const auto [entity, graphics] : actors.each()) {
+        for (size_t renderDataIndex = 0; renderDataIndex < graphics.renderData.size(); ++renderDataIndex) {
+          const MeshDataReference& mesh = sortedMeshes.emplace_back(&ecs, entity, renderDataIndex);
           if (mesh.renderData().outlineShaderInstance.has_value()) {
-            assert(mesh.renderData().outlineShaderInstance.value()->type == ShaderProgramType::Outline);
+            assert(mesh.renderData().outlineShaderInstance.value()->type() == ShaderProgramType::Outline);
             outlinedMeshes.push_back(sortedMeshes.back());
           }
         }
       }
     }
     {
-      ZoneScopedN("Sort all");
+      ZoneScopedN("Sort meshes");
       std::sort(std::execution::par_unseq, sortedMeshes.begin(), sortedMeshes.end(), [&](const MeshDataReference& a, const MeshDataReference& b) {
+        ZoneScopedN("Compare meshes");
         const RenderData& rdA = a.renderData();
         const RenderData& rdB = b.renderData();
 
@@ -53,8 +64,8 @@ std::span<const Draw> Scene::draw(const Camera& camera, Registry<Buffer>& buffer
         }
 
         if (rdA.renderOptions.bTransparent && rdB.renderOptions.bTransparent) {
-          const float distanceA = glm::length(camera.position - a.actor->transform.translation);
-          const float distanceB = glm::length(camera.position - b.actor->transform.translation);
+          const float distanceA = glm::length(camera.position - ecs.get<const CompTransform>(a.entity).translation);
+          const float distanceB = glm::length(camera.position - ecs.get<const CompTransform>(b.entity).translation);
           return distanceA > distanceB; // Transparent objects further away should be rendered before those closer to the camera.
         }
 
@@ -63,8 +74,9 @@ std::span<const Draw> Scene::draw(const Camera& camera, Registry<Buffer>& buffer
       });
     }
     {
-      ZoneScopedN("Sort outlined");
+      ZoneScopedN("Sort outlines");
       std::sort(std::execution::par_unseq, outlinedMeshes.begin(), outlinedMeshes.end(), [&](const MeshDataReference& a, const MeshDataReference& b) {
+        ZoneScopedN("Compare outlines");
         const RenderData& rdA = a.renderData();
         const RenderData& rdB = b.renderData();
 
@@ -86,7 +98,7 @@ std::span<const Draw> Scene::draw(const Camera& camera, Registry<Buffer>& buffer
       ZoneScopedN("Meshes");
       for (const MeshDataReference& mesh : sortedMeshes) {
         ZoneScoped;
-        ZoneNameF("Mesh: %s", mesh.actor->name.c_str());
+        ZoneNameF("Mesh: %s", ecs.get<const CompName>(mesh.entity).name.c_str());
         const RenderData& firstInstanceRD = sortedMeshes[firstInstance].renderData();
 
         if (&mesh != &sortedMeshes.back() && (instanceCount == 0 || firstInstanceRD.eqIgnoreOutline(mesh.renderData()))) {
@@ -102,7 +114,7 @@ std::span<const Draw> Scene::draw(const Camera& camera, Registry<Buffer>& buffer
           const auto rangeEnd = rangeStart + static_cast<long>(instanceCount);
           std::transform(std::execution::par_unseq, rangeStart, rangeEnd, instanceBufferData.instances.begin(),
             [&](const MeshDataReference& meshRef) {
-              const glm::mat4 modelTransform  = meshRef.actor->transform.matrix();
+              const glm::mat4 modelTransform  = ecs.get<const CompTransform>(meshRef.entity).matrix();
               const glm::mat3 normalTransform = glm::transpose(glm::inverse(modelTransform));
               return InstanceData(modelTransform, normalTransform);
             });
@@ -161,7 +173,7 @@ std::span<const Draw> Scene::draw(const Camera& camera, Registry<Buffer>& buffer
           const auto rangeEnd = rangeStart + static_cast<long>(instanceCount);
           std::transform(std::execution::par_unseq, rangeStart, rangeEnd, instanceBufferData.instances.begin(),
             [&](const MeshDataReference& meshRef) {
-              Transform outlineTransform = meshRef.actor->transform;
+              CompTransform outlineTransform = ecs.get<const CompTransform>(meshRef.entity);
               outlineTransform.scale *= 1.05f;
               const glm::mat4 modelTransform  = outlineTransform.matrix();
               const glm::mat3 normalTransform = glm::transpose(glm::inverse(modelTransform));
@@ -196,9 +208,11 @@ std::span<const Draw> Scene::draw(const Camera& camera, Registry<Buffer>& buffer
 DirectionalLightSourceBuffer Scene::createDirectionalLightUniforms() const {
   ZoneScoped;
 
+  entt::basic_view directionalLights = ecs.view<const CompDirectionalLight>();
+
   DirectionalLightSourceBuffer buffer;
   buffer.sources.reserve(directionalLights.size());
-  for (const DirectionalLight& directionalLight: directionalLights | views::values) {
+  for (const auto& [entity, directionalLight]: directionalLights.each()) {
     buffer.sources.push_back(DirectionalLightUniforms::from(directionalLight));
   }
   return buffer;
@@ -207,9 +221,11 @@ DirectionalLightSourceBuffer Scene::createDirectionalLightUniforms() const {
 PointLightSourceBuffer Scene::createPointLightUniforms() const {
   ZoneScoped;
 
+  entt::basic_view pointLights = ecs.view<const CompPointLight>();
+
   PointLightSourceBuffer buffer;
   buffer.sources.reserve(pointLights.size());
-  for (const PointLight& directionalLight: pointLights | views::values) {
+  for (const auto& [entity, directionalLight]: pointLights.each()) {
     buffer.sources.push_back(PointLightUniforms::from(directionalLight));
   }
   return buffer;
@@ -218,9 +234,11 @@ PointLightSourceBuffer Scene::createPointLightUniforms() const {
 SpotlightSourceBuffer Scene::createSpotlightUniforms() const {
   ZoneScoped;
 
+  entt::basic_view spotlights = ecs.view<const CompSpotlight>();
+
   SpotlightSourceBuffer buffer;
   buffer.sources.reserve(spotlights.size());
-  for (const Spotlight& directionalLight: spotlights | views::values) {
+  for (const auto& [entity, directionalLight]: spotlights.each()) {
     buffer.sources.push_back(SpotlightUniforms::from(directionalLight));
   }
   return buffer;

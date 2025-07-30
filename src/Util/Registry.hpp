@@ -2,8 +2,8 @@
 
 #include <Util/NotNull.hpp>
 
-#include <unordered_map>
-#include <unordered_set>
+#include <entt/container/dense_map.hpp>
+#include <entt/container/dense_set.hpp>
 
 using RegItemID = uint32_t;
 
@@ -11,16 +11,16 @@ template <typename ItemType>
 class Registry {
 public:
   ///  Iterator-related typedefs.
-  using pointer              = typename std::unordered_map<RegItemID, ItemType>::pointer;
-  using const_pointer        = typename std::unordered_map<RegItemID, ItemType>::const_pointer;
-  using reference            = typename std::unordered_map<RegItemID, ItemType>::reference;
-  using const_reference      = typename std::unordered_map<RegItemID, ItemType>::const_reference;
-  using iterator             = typename std::unordered_map<RegItemID, ItemType>::iterator;
-  using const_iterator       = typename std::unordered_map<RegItemID, ItemType>::const_iterator;
-  using local_iterator       = typename std::unordered_map<RegItemID, ItemType>::local_iterator;
-  using const_local_iterator = typename std::unordered_map<RegItemID, ItemType>::const_local_iterator;
-  using size_type            = typename std::unordered_map<RegItemID, ItemType>::size_type;
-  using difference_type      = typename std::unordered_map<RegItemID, ItemType>::difference_type;
+  using pointer              = ItemType*;
+  using const_pointer        = const ItemType*;
+  using reference            = ItemType&;
+  using const_reference      = const ItemType&;
+  using iterator             = typename entt::dense_map<RegItemID, ItemType>::iterator;
+  using const_iterator       = typename entt::dense_map<RegItemID, ItemType>::const_iterator;
+  using local_iterator       = typename entt::dense_map<RegItemID, ItemType>::local_iterator;
+  using const_local_iterator = typename entt::dense_map<RegItemID, ItemType>::const_local_iterator;
+  using size_type            = typename entt::dense_map<RegItemID, ItemType>::size_type;
+  using difference_type      = typename entt::dense_map<RegItemID, ItemType>::difference_type;
 
   class Handle {
     friend class Registry;
@@ -139,12 +139,12 @@ public:
     return !mDirtyItems.empty();
   }
 
-  [[nodiscard]] std::unordered_set<RegItemID> dirtyItems() const {
+  [[nodiscard]] entt::dense_set<RegItemID> dirtyItems() const {
     return mDirtyItems;
   }
 
 private:
-  std::unordered_map<RegItemID, ItemType> mItems;
-  mutable std::unordered_set<RegItemID> mDirtyItems;
+  entt::dense_map<RegItemID, ItemType> mItems;
+  mutable entt::dense_set<RegItemID> mDirtyItems;
   RegItemID mNextItemID = 0;
 };

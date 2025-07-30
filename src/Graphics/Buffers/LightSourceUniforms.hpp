@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Graphics/Light.hpp>
+#include <Graphics/Components/Light.hpp>
 #include <Util/IntoBytes.hpp>
 
 #include <vector>
@@ -44,7 +44,7 @@ struct DirectionalLightUniforms {
   glm::vec3 direction;
   float _padding0 = 0.0f;
 
-  static DirectionalLightUniforms from(const DirectionalLight& light) {
+  static DirectionalLightUniforms from(const CompDirectionalLight& light) {
     ZoneScoped;
 
     return DirectionalLightUniforms {
@@ -62,7 +62,7 @@ struct PointLightUniforms {
   float quadratic;
   float _padding1 = 0.0f;
 
-  static PointLightUniforms from(const PointLight& light) {
+  static PointLightUniforms from(const CompPointLight& light) {
     ZoneScoped;
 
     return PointLightUniforms {
@@ -85,7 +85,7 @@ struct SpotlightUniforms {
   float _padding2 = 0.0f;
   float _padding3 = 0.0f;
 
-  static SpotlightUniforms from(const Spotlight& light) {
+  static SpotlightUniforms from(const CompSpotlight& light) {
     ZoneScoped;
 
     return SpotlightUniforms {
