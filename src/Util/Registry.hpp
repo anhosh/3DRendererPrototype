@@ -3,6 +3,7 @@
 #include <Util/NotNull.hpp>
 
 #include <unordered_map>
+#include <unordered_set>
 
 using RegItemID = uint32_t;
 
@@ -56,6 +57,20 @@ public:
       return mOwner->contains(mItemID);
     }
 
+    void setDirty(bool bDirty) {
+      if (this->dirty() != bDirty) {
+        if (bDirty) {
+          mOwner->mDirtyItems.emplace(mItemID);
+        } else {
+          mOwner->mDirtyItems.erase(mOwner->mDirtyItems.find(mItemID));
+        }
+      }
+    }
+
+    [[nodiscard]] bool dirty() const {
+      return mOwner->mDirtyItems.contains(mItemID);
+    }
+
     auto operator<=>(const Handle&) const = default;
 
   private:
@@ -75,6 +90,7 @@ public:
 
   Handle add(ItemType&& item) {
     mItems.emplace(mNextItemID, std::forward<ItemType>(item));
+    mDirtyItems.emplace(mNextItemID);
     return Handle(this, mNextItemID++);
   }
 
@@ -84,21 +100,22 @@ public:
 
   void clear() {
     mItems.clear();
+    mDirtyItems.clear();
   }
 
-  ItemType& at(const RegItemID id) {
+  [[nodiscard]] ItemType& at(const RegItemID id) {
     return mItems.at(id);
   }
 
-  const ItemType& at(const RegItemID id) const {
+  [[nodiscard]] const ItemType& at(const RegItemID id) const {
     return mItems.at(id);
   }
 
-  bool contains(const RegItemID id) const {
+  [[nodiscard]] bool contains(const RegItemID id) const {
     return mItems.contains(id);
   }
 
-  bool empty() const {
+  [[nodiscard]] bool empty() const {
     return mItems.empty();
   }
 
@@ -106,7 +123,28 @@ public:
     return mItems.size();
   }
 
+  void setItemDirty(const RegItemID id, bool bDirty) const {
+    if (bDirty) {
+      mDirtyItems.emplace(id);
+    } else {
+      mDirtyItems.erase(id);
+    }
+  }
+
+  void clearDirtyItems() const {
+    mDirtyItems.clear();
+  }
+
+  [[nodiscard]] size_t hasDirtyItems() const {
+    return !mDirtyItems.empty();
+  }
+
+  [[nodiscard]] std::unordered_set<RegItemID> dirtyItems() const {
+    return mDirtyItems;
+  }
+
 private:
   std::unordered_map<RegItemID, ItemType> mItems;
+  mutable std::unordered_set<RegItemID> mDirtyItems;
   RegItemID mNextItemID = 0;
 };

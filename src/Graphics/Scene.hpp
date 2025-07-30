@@ -11,6 +11,7 @@
 #include <Util/Registry.hpp>
 
 #include <optional>
+#include <span>
 #include <vector>
 
 class Scene {
@@ -19,7 +20,7 @@ public:
 
   void destroy();
 
-  [[nodiscard]] std::vector<Draw> draw(const Camera& camera, Registry<Buffer>& buffers) const;
+  [[nodiscard]] std::span<const Draw> draw(const Camera& camera, Registry<Buffer>& buffers) const;
   [[nodiscard]] DirectionalLightSourceBuffer createDirectionalLightUniforms() const;
   [[nodiscard]] PointLightSourceBuffer createPointLightUniforms() const;
   [[nodiscard]] SpotlightSourceBuffer createSpotlightUniforms() const;
@@ -36,7 +37,17 @@ private:
   BufferHandle obtainInstanceBuffer(size_t bufferIndex, Registry<Buffer>& buffers) const;
 
 private:
+  struct MeshDataReference {
+    NotNull<const Actor> actor;
+    size_t renderDataIndex = SIZE_MAX;
+
+    [[nodiscard]] const RenderData& renderData() const {
+      return actor->renderData[renderDataIndex];
+    }
+  };
+
   mutable std::vector<BufferHandle> mCachedInstanceBuffers;
+  mutable std::vector<Draw> mCachedDraws;
 };
 
 template <typename T> requires

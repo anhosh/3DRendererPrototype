@@ -5,13 +5,13 @@
 
 template <typename T>
 class NotNull {
-  friend T* notNull(NotNull);
-
 public:
   NotNull(std::nullptr_t) = delete;
   NotNull(T* ptr) : mPtr(ptr) {
     assert(mPtr != nullptr);
   }
+  NotNull(const NotNull&) = default;
+  NotNull(NotNull&&) = default;
 
   const T* get() const { return mPtr; }
   T* get() { return mPtr; }
@@ -33,6 +33,8 @@ public:
     mPtr = ptr;
     return *this;
   }
+  NotNull& operator=(const NotNull&) = default;
+  NotNull& operator=(NotNull&&) = default;
 
 private:
   T* mPtr;

@@ -3,45 +3,35 @@
 #include <Graphics/Actor.hpp>
 #include <Graphics/Buffers/InstanceBufferData.hpp>
 
+#include <algorithm>
 #include <ranges>
-#include <Graphics/Buffers/BindPoints.hpp>
 
-using namespace std::ranges;
+namespace views = std::ranges::views;
 
 void Scene::destroy() {
   actors.clear();
 }
 
-std::vector<Draw> Scene::draw(const Camera& camera, Registry<Buffer>& buffers) const {
-  if (actors.empty()) {
-    return {};
+std::span<const Draw> Scene::draw(const Camera& camera, Registry<Buffer>& buffers) const {
+  if (!actors.hasDirtyItems()) {
+    return mCachedDraws;
   }
-
-  struct MeshDataReference {
-    NotNull<const Actor> actor;
-    size_t renderDataIndex = SIZE_MAX;
-
-    [[nodiscard]] const RenderData& renderData() const {
-      return actor->renderData[renderDataIndex];
-    }
-  };
+  actors.clearDirtyItems();
 
   // Sort meshes so they are easier to group into instanced calls.
   std::vector<MeshDataReference> sortedMeshes;
   std::vector<MeshDataReference> outlinedMeshes;
-  sortedMeshes.reserve(actors.size()); // There most likely will be more meshes than actors.
   for (const Actor& actor : actors | views::values) {
     for (size_t renderDataIndex = 0; renderDataIndex < actor.renderData.size(); ++renderDataIndex) {
-      if (const MeshDataReference& mesh = sortedMeshes.emplace_back(&actor, renderDataIndex);
-          mesh.renderData().outlineShaderInstance.has_value())
-      {
+      const MeshDataReference& mesh = sortedMeshes.emplace_back(&actor, renderDataIndex);
+      if (mesh.renderData().outlineShaderInstance.has_value()) {
         assert(mesh.renderData().outlineShaderInstance.value()->type == ShaderProgramType::Outline);
         outlinedMeshes.push_back(sortedMeshes.back());
       }
     }
   }
 
-  std::sort(sortedMeshes.begin(), sortedMeshes.end(), [&](const MeshDataReference& a, const MeshDataReference& b) {
+  std::ranges::sort(sortedMeshes, [&](const MeshDataReference& a, const MeshDataReference& b) {
     const RenderData& rdA = a.renderData();
     const RenderData& rdB = b.renderData();
 
@@ -59,7 +49,7 @@ std::vector<Draw> Scene::draw(const Camera& camera, Registry<Buffer>& buffers) c
            rdA.vertexArray.itemID() < rdB.vertexArray.itemID();
   });
 
-  std::sort(outlinedMeshes.begin(), outlinedMeshes.end(), [&](const MeshDataReference& a, const MeshDataReference& b) {
+  std::ranges::sort(outlinedMeshes, [&](const MeshDataReference& a, const MeshDataReference& b) {
     const RenderData& rdA = a.renderData();
     const RenderData& rdB = b.renderData();
 
@@ -92,23 +82,7 @@ std::vector<Draw> Scene::draw(const Camera& camera, Registry<Buffer>& buffers) c
 
     BufferHandle instanceBuffer = this->obtainInstanceBuffer(instanceBufferIndex, buffers);
     instanceBuffer->write(instanceBufferData);
-    glBindVertexArray(firstInstanceRD.vertexArray->vao);
-    glBindBuffer(GL_ARRAY_BUFFER, instanceBuffer->id());
-
-    constexpr GLsizei stride = sizeof(glm::mat4) + sizeof(glm::mat3);
-    for (size_t i = 0; i < 4; ++i) {
-      const size_t offset = sizeof(glm::vec4) * i;
-      glEnableVertexAttribArray(4 + i);
-      glVertexAttribPointer(4 + i, 4, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(offset));
-      glVertexAttribDivisor(4 + i, 1);
-    }
-    for (size_t i = 0; i < 3; ++i) {
-      const size_t offset = sizeof(glm::mat4) + sizeof(glm::vec3) * i;
-      glEnableVertexAttribArray(8 + i);
-      glVertexAttribPointer(8 + i, 3, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(offset));
-      glVertexAttribDivisor(8 + i, 1);
-    }
-    glBindVertexArray(GL_NONE);
+    instanceBufferData.setupInstanceVertexAttributes(firstInstanceRD.vertexArray, instanceBuffer);
 
     draws.push_back(Draw {
       .shaderProgramInstance = firstInstanceRD.shaderProgramInstance,
@@ -157,23 +131,7 @@ std::vector<Draw> Scene::draw(const Camera& camera, Registry<Buffer>& buffers) c
 
     BufferHandle instanceBuffer = this->obtainInstanceBuffer(instanceBufferIndex, buffers);
     instanceBuffer->write(instanceBufferData);
-
-    glBindVertexArray(firstInstanceRD.vertexArray->vao);
-    glBindBuffer(GL_ARRAY_BUFFER, instanceBuffer->id());
-    constexpr GLsizei stride = sizeof(glm::mat4) + sizeof(glm::mat3);
-    for (size_t i = 0; i < 4; ++i) {
-      const size_t offset = sizeof(glm::vec4) * i;
-      glEnableVertexAttribArray(4 + i);
-      glVertexAttribPointer(4 + i, 4, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(offset));
-      glVertexAttribDivisor(4 + i, 1);
-    }
-    for (size_t i = 0; i < 3; ++i) {
-      const size_t offset = sizeof(glm::mat4) + sizeof(glm::vec3) * i;
-      glEnableVertexAttribArray(8 + i);
-      glVertexAttribPointer(8 + i, 3, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(offset));
-      glVertexAttribDivisor(8 + i, 1);
-    }
-    glBindVertexArray(GL_NONE);
+    instanceBufferData.setupInstanceVertexAttributes(firstInstanceRD.vertexArray, instanceBuffer);
 
     draws.push_back(Draw {
       .shaderProgramInstance = firstInstanceRD.outlineShaderInstance.value(),
@@ -189,7 +147,8 @@ std::vector<Draw> Scene::draw(const Camera& camera, Registry<Buffer>& buffers) c
     instanceCount = 0;
   }
 
-  return draws;
+  mCachedDraws = draws;
+  return mCachedDraws;
 }
 
 DirectionalLightSourceBuffer Scene::createDirectionalLightUniforms() const {

@@ -308,7 +308,7 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
   glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-  const std::vector<Draw> draws = scene.draw(camera, mBuffers);
+  const std::span<const Draw> draws = scene.draw(camera, mBuffers);
   if (draws.empty()) {
     return;
   }
@@ -332,19 +332,29 @@ void RenderingEngine::renderScene(const Scene& scene, const Camera& camera, cons
   }
 
   const CameraUniforms cameraUniformData = CameraUniforms::from(camera, dstFramebuffer->size());
-  const DirectionalLightSourceBuffer directionalLightUniformData = scene.createDirectionalLightUniforms();
-  const PointLightSourceBuffer pointLightUniformData = scene.createPointLightUniforms();
-  const SpotlightSourceBuffer spotlightUniformData = scene.createSpotlightUniforms();
-
   mCameraUniformBuffer.value()->write(cameraUniformData);
-  mDirectionalLightsStorageBuffer.value()->write(directionalLightUniformData);
-  mPointLightsStorageBuffer.value()->write(pointLightUniformData);
-  mSpotlightsStorageBuffer.value()->write(spotlightUniformData);
-
   mCameraUniformBuffer.value()->bindWhole(UBO_BIND_POINT_CAMERA);
-  mDirectionalLightsStorageBuffer.value()->bindWhole(SSBO_BIND_POINT_DIRECTIONAL_LIGHTS);
-  mPointLightsStorageBuffer.value()->bindWhole(SSBO_BIND_POINT_POINT_LIGHTS);
-  mSpotlightsStorageBuffer.value()->bindWhole(SSBO_BIND_POINT_SPOTLIGHTS);
+
+  if (scene.directionalLights.hasDirtyItems()) {
+    const DirectionalLightSourceBuffer directionalLightUniformData = scene.createDirectionalLightUniforms();
+    mDirectionalLightsStorageBuffer.value()->write(directionalLightUniformData);
+    mDirectionalLightsStorageBuffer.value()->bindWhole(SSBO_BIND_POINT_DIRECTIONAL_LIGHTS);
+    scene.directionalLights.clearDirtyItems();
+  }
+
+  if (scene.pointLights.hasDirtyItems()) {
+    const PointLightSourceBuffer pointLightUniformData = scene.createPointLightUniforms();
+    mPointLightsStorageBuffer.value()->write(pointLightUniformData);
+    mPointLightsStorageBuffer.value()->bindWhole(SSBO_BIND_POINT_POINT_LIGHTS);
+    scene.pointLights.clearDirtyItems();
+  }
+
+  if (scene.spotlights.hasDirtyItems()) {
+    const SpotlightSourceBuffer spotlightUniformData = scene.createSpotlightUniforms();
+    mSpotlightsStorageBuffer.value()->write(spotlightUniformData);
+    mSpotlightsStorageBuffer.value()->bindWhole(SSBO_BIND_POINT_SPOTLIGHTS);
+    scene.spotlights.clearDirtyItems();
+  }
 
   const Draw* lastDraw = &draws.front();
   for (size_t drawIdx = 0; drawIdx < draws.size(); drawIdx++) {
@@ -459,7 +469,7 @@ void RenderingEngine::renderVertexNormals(const Scene& scene, const Camera& came
 
   glEnable(GL_DEPTH_TEST);
 
-  const std::vector<Draw> draws = scene.draw(camera, mBuffers);
+  const std::span<const Draw> draws = scene.draw(camera, mBuffers);
   if (draws.empty()) {
     return;
   }

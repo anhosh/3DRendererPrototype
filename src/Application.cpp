@@ -197,9 +197,9 @@ Expected<void> Application::createScene() {
     .renderData = std::move(planetMeshes),
   });
 
-  constexpr uint32_t numAsteroids = 2000;
+  constexpr uint32_t numAsteroids = 5000;
   constexpr float radius = 50.0f;
-  constexpr float offset = 2.5f;
+  constexpr float offset = 25.0f;
   std::random_device rd;
   std::mt19937 gen(rd());
   std::uniform_real_distribution displacementDistribution(-offset, offset);
