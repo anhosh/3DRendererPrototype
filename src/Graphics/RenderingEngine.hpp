@@ -67,6 +67,9 @@ public:
   bool bVisualiseVertexNormals = false;
 
 private:
+
+
+private:
   bool mInitialised = false;
 
   Registry<ShaderProgram> mShaderPrograms;

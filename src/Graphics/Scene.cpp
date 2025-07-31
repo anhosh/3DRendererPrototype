@@ -2,13 +2,12 @@
 
 #include <Graphics/Actor.hpp>
 #include <Graphics/Buffers/InstanceBufferData.hpp>
+#include <Graphics/Components/Dirty.hpp>
+#include <Graphics/Components/Graphics.hpp>
 
 #include <algorithm>
 #include <execution>
 #include <ranges>
-#include <Graphics/Components/Dirty.hpp>
-#include <Graphics/Components/Graphics.hpp>
-#include <Graphics/Components/Name.hpp>
 
 namespace views = std::ranges::views;
 
@@ -90,8 +89,6 @@ std::span<const Draw> Scene::draw(const Camera& camera, Registry<Buffer>& buffer
   }
 
   // Schedule instanced draws for meshes.
-  std::vector<Draw> draws;
-  draws.reserve(sortedMeshes.size() + outlinedMeshes.size());
   {
     ZoneScopedN("Schedule draws");
     size_t instanceBufferIndex = 0;
@@ -99,13 +96,15 @@ std::span<const Draw> Scene::draw(const Camera& camera, Registry<Buffer>& buffer
     size_t instanceCount = 0;
     {
       ZoneScopedN("Meshes");
-      for (const MeshDataReference& mesh : sortedMeshes) {
+      for (size_t meshIndex = 1; meshIndex <= sortedMeshes.size(); ++meshIndex) {
         ZoneScoped;
-        ZoneNameF("Mesh: %s", ecs.get<const CompName>(mesh.entity).name.c_str());
+        ZoneNamedN(Mesh, "Mesh", true);
         const RenderData& firstInstanceRD = sortedMeshes[firstInstance].renderData();
 
-        if (&mesh != &sortedMeshes.back() && (instanceCount == 0 || firstInstanceRD.eqIgnoreOutline(mesh.renderData()))) {
-          ++instanceCount;
+        ++instanceCount;
+        if (meshIndex < sortedMeshes.size() &&
+            (meshIndex == firstInstance || firstInstanceRD.eqIgnoreOutline(sortedMeshes[meshIndex].renderData())))
+        {
           continue;
         }
 
@@ -117,9 +116,10 @@ std::span<const Draw> Scene::draw(const Camera& camera, Registry<Buffer>& buffer
           const auto rangeEnd = rangeStart + static_cast<long>(instanceCount);
           std::transform(std::execution::par_unseq, rangeStart, rangeEnd, instanceBufferData.instances.begin(),
             [&](const MeshDataReference& meshRef) {
-              const glm::mat4 modelTransform  = ecs.get<const CompTransform>(meshRef.entity).matrix();
-              const glm::mat3 normalTransform = glm::transpose(glm::inverse(modelTransform));
-              return InstanceData(modelTransform, normalTransform);
+              const CompTransform& transform = ecs.get<const CompTransform>(meshRef.entity);
+              const glm::mat4 model  = transform.matrix();
+              const glm::mat3 normal = glm::transpose(glm::inverse(model));
+              return InstanceData(model, normal);
             });
 
           BufferHandle instanceBuffer = this->obtainInstanceBuffer(instanceBufferIndex, buffers);
@@ -127,7 +127,7 @@ std::span<const Draw> Scene::draw(const Camera& camera, Registry<Buffer>& buffer
           instanceBufferData.setupInstanceVertexAttributes(firstInstanceRD.vertexArray, instanceBuffer);
         }
 
-        draws.push_back(Draw {
+        mCachedDraws.push_back(Draw {
           .shaderProgramInstance = firstInstanceRD.shaderProgramInstance,
           .vertexArray = firstInstanceRD.vertexArray,
           .instanceCount = instanceCount,
@@ -140,14 +140,14 @@ std::span<const Draw> Scene::draw(const Camera& camera, Registry<Buffer>& buffer
         });
 
         ++instanceBufferIndex;
-        firstInstance += instanceCount;
+        firstInstance = meshIndex;
         instanceCount = 0;
       }
     }
 
     if (skybox.has_value()) {
       ZoneScopedN("Skybox");
-      draws.push_back(Draw {
+      mCachedDraws.push_back(Draw {
         .shaderProgramInstance = skybox->shader,
         .vertexArray = skybox->cubeMesh,
         .environmentMap = skybox->texture,
@@ -159,12 +159,14 @@ std::span<const Draw> Scene::draw(const Camera& camera, Registry<Buffer>& buffer
     {
       ZoneScopedN("Outlines");
       firstInstance = 0;
-      for (const MeshDataReference& mesh: outlinedMeshes) {
+      for (size_t meshIndex = 1; meshIndex <= outlinedMeshes.size(); ++meshIndex) {
         ZoneScopedN("Outline");
         const RenderData& firstInstanceRD = outlinedMeshes[firstInstance].renderData();
 
-        if (&mesh != &outlinedMeshes.back() && (instanceCount == 0 || firstInstanceRD.eqIgnoreOutline(mesh.renderData()))) {
-          ++instanceCount;
+        ++instanceCount;
+        if (meshIndex < sortedMeshes.size() &&
+            (meshIndex == firstInstance || firstInstanceRD.eqIgnoreOutline(sortedMeshes[meshIndex].renderData())))
+        {
           continue;
         }
 
@@ -178,9 +180,9 @@ std::span<const Draw> Scene::draw(const Camera& camera, Registry<Buffer>& buffer
             [&](const MeshDataReference& meshRef) {
               CompTransform outlineTransform = ecs.get<const CompTransform>(meshRef.entity);
               outlineTransform.scale *= 1.05f;
-              const glm::mat4 modelTransform  = outlineTransform.matrix();
-              const glm::mat3 normalTransform = glm::transpose(glm::inverse(modelTransform));
-              return InstanceData(modelTransform, normalTransform);
+              const glm::mat4 model  = outlineTransform.matrix();
+              const glm::mat3 normal = glm::transpose(glm::inverse(model));
+              return InstanceData(model, normal);
             });
 
           BufferHandle instanceBuffer = this->obtainInstanceBuffer(instanceBufferIndex, buffers);
@@ -188,7 +190,7 @@ std::span<const Draw> Scene::draw(const Camera& camera, Registry<Buffer>& buffer
           instanceBufferData.setupInstanceVertexAttributes(firstInstanceRD.vertexArray, instanceBuffer);
         }
 
-        draws.push_back(Draw {
+        mCachedDraws.push_back(Draw {
           .shaderProgramInstance = firstInstanceRD.outlineShaderInstance.value(),
           .vertexArray = firstInstanceRD.vertexArray,
           .instanceCount = instanceCount,
@@ -198,13 +200,12 @@ std::span<const Draw> Scene::draw(const Camera& camera, Registry<Buffer>& buffer
         });
 
         ++instanceBufferIndex;
-        firstInstance = instanceCount;
+        firstInstance = meshIndex;
         instanceCount = 0;
       }
     }
   }
 
-  mCachedDraws = draws;
   return mCachedDraws;
 }
 
@@ -224,12 +225,12 @@ DirectionalLightSourceBuffer Scene::createDirectionalLightUniforms() const {
 PointLightSourceBuffer Scene::createPointLightUniforms() const {
   ZoneScoped;
 
-  const entt::basic_view pointLights = ecs.view<const CompPointLight>();
+  const entt::basic_view pointLights = ecs.view<const CompPointLight, const CompTransform>();
 
   PointLightSourceBuffer buffer;
-  buffer.sources.reserve(pointLights.size());
-  for (const auto& [entity, directionalLight]: pointLights.each()) {
-    buffer.sources.push_back(PointLightUniforms::from(directionalLight));
+  buffer.sources.reserve(static_cast<size_t>(std::distance(pointLights.begin(), pointLights.end())));
+  for (const auto& [entity, directionalLight, transform]: pointLights.each()) {
+    buffer.sources.push_back(PointLightUniforms::from(directionalLight, transform));
   }
   return buffer;
 }
@@ -237,12 +238,12 @@ PointLightSourceBuffer Scene::createPointLightUniforms() const {
 SpotlightSourceBuffer Scene::createSpotlightUniforms() const {
   ZoneScoped;
 
-  const entt::basic_view spotlights = ecs.view<const CompSpotlight>();
+  const entt::basic_view spotlights = ecs.view<const CompSpotlight, const CompTransform>();
 
   SpotlightSourceBuffer buffer;
-  buffer.sources.reserve(spotlights.size());
-  for (const auto& [entity, directionalLight]: spotlights.each()) {
-    buffer.sources.push_back(SpotlightUniforms::from(directionalLight));
+  buffer.sources.reserve(static_cast<size_t>(std::distance(spotlights.begin(), spotlights.end())));
+  for (const auto& [entity, directionalLight, transform]: spotlights.each()) {
+    buffer.sources.push_back(SpotlightUniforms::from(directionalLight, transform));
   }
   return buffer;
 }

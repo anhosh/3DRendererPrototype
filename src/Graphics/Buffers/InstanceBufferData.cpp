@@ -2,11 +2,11 @@
 
 #include <tracy/TracyOpenGL.hpp>
 
-void InstanceBufferData::writeToBuffer(GLenum target, size_t offset) const {
+void InstanceBufferData::writeToBuffer(const GLenum target, const size_t offset) const {
   ZoneScoped;
   TracyGpuZone("InstanceBufferData::writeToBuffer");
 
-  glBufferSubData(target, offset, size(), instances.data());
+  glBufferSubData(target, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(size()), instances.data());
 }
 
 void InstanceBufferData::setupInstanceVertexAttributes(VertexArrayHandle vertexArray, BufferHandle instanceBuffer) const {

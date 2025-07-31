@@ -160,6 +160,7 @@ Expected<void> Application::createScene() {
   const Expected bitmapSkyboxFront  = mState.assetManager->loadBitmap("skybox/space/front.png", false);
 
   const AssetHandle<Mesh> skyboxCubeMesh = mState.assetManager->addMesh(Mesh::createCube(glm::vec3(2.0f)));
+  const AssetHandle<Mesh> lightCubeMesh = mState.assetManager->addMesh(Mesh::createCube(glm::vec3(1.0f)));
 
   RETURN_ERROR_IF_UNEXPECTED(modelPlanet);
   RETURN_ERROR_IF_UNEXPECTED(bitmapSkyboxRight);
@@ -192,6 +193,7 @@ Expected<void> Application::createScene() {
   // Create scene
   mState.mainCamera.position = glm::vec3(0.0f, 0.0f, 10.0f);
   mState.mainCamera.rotation = glm::vec3(-90.0f, 0.0f, 0.0f);
+  mState.mainCamera.speed = 10.0f;
 
   mState.scene->skybox = Skybox {
     .cubeMesh = mState.renderingEngine->addMesh(skyboxCubeMesh),
@@ -211,11 +213,46 @@ Expected<void> Application::createScene() {
   });
   mState.scene->ecs.emplace<CompDirty>(entitySun);
 
+  constexpr auto lightPositions = std::array {
+    glm::vec3(-3.0f, -3.0f, -3.0f),
+    glm::vec3( 3.0f, -3.0f, -3.0f),
+    glm::vec3(-3.0f, -3.0f,  3.0f),
+    glm::vec3( 3.0f, -3.0f,  3.0f),
+  };
+  constexpr auto lightColors = std::array {
+    glm::vec3(1.0f, 0.0f, 0.0f),
+    glm::vec3(0.0f, 1.0f, 0.0f),
+    glm::vec3(0.0f, 0.0f, 1.0f),
+    glm::vec3(1.0f, 1.0f, 0.0f),
+  };
+  for (size_t lightIndex = 0; const glm::vec3& position : lightPositions) {
+    const entt::entity entityLight = mState.scene->ecs.create();
+    mState.scene->ecs.emplace<CompName>(entityLight, ("Light " + std::to_string(lightIndex)).c_str());
+    mState.scene->ecs.emplace<CompTransform>(entityLight, CompTransform {
+      .translation = position,
+    });
+    mState.scene->ecs.emplace<CompPointLight>(entityLight, CompPointLight {
+      .colors = LightColors {
+        .ambient = 0.05f * lightColors[lightIndex],
+        .diffuse = 1.2f * lightColors[lightIndex],
+        .specular = 3.0f * lightColors[lightIndex],
+      },
+    });
+    mState.scene->ecs.emplace<CompGraphics>(entityLight, CompGraphics {
+      .renderData = {
+        RenderData {
+          .vertexArray = mState.renderingEngine->addMesh(lightCubeMesh),
+          .shaderProgramInstance = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::Light),
+        },
+      },
+    });
+    mState.scene->ecs.emplace<CompDirty>(entityLight);
+    ++lightIndex;
+  }
+
   const entt::entity entityPlanet = mState.scene->ecs.create();
   mState.scene->ecs.emplace<CompName>(entityPlanet, "Planet Mars");
-  mState.scene->ecs.emplace<CompTransform>(entityPlanet, CompTransform {
-    .translation = glm::vec3(0.0f),
-  });
+  mState.scene->ecs.emplace<CompTransform>(entityPlanet);
   mState.scene->ecs.emplace<CompGraphics>(entityPlanet, planetMeshes);
   mState.scene->ecs.emplace<CompDirty>(entityPlanet);
 

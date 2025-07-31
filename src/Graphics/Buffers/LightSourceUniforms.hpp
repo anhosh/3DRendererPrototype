@@ -34,8 +34,8 @@ struct LightSourceBuffer {
     ZoneScoped;
 
     const std::array lengthBytes = asBytes(glm::uvec4(this->sources.size(), 0, 0, 0));
-    glBufferSubData(target, offset, lengthBytes.size(), lengthBytes.data());
-    glBufferSubData(target, offset + lengthBytes.size(), size() - lengthBytes.size(), this->sources.data());
+    glBufferSubData(target, static_cast<GLintptr>(offset), lengthBytes.size(), lengthBytes.data());
+    glBufferSubData(target, static_cast<GLintptr>(offset + lengthBytes.size()), size() - lengthBytes.size(), this->sources.data());
   }
 };
 
@@ -62,12 +62,12 @@ struct PointLightUniforms {
   float quadratic;
   float _padding1 = 0.0f;
 
-  static PointLightUniforms from(const CompPointLight& light) {
+  static PointLightUniforms from(const CompPointLight& light, const CompTransform& transform) {
     ZoneScoped;
 
     return PointLightUniforms {
       .colors = LightColorUniforms::from(light.colors),
-      .position = light.position,
+      .position = transform.translation,
       .constant = light.constant,
       .linear = light.linear,
       .quadratic = light.quadratic,
@@ -85,12 +85,12 @@ struct SpotlightUniforms {
   float _padding2 = 0.0f;
   float _padding3 = 0.0f;
 
-  static SpotlightUniforms from(const CompSpotlight& light) {
+  static SpotlightUniforms from(const CompSpotlight& light, const CompTransform& transform) {
     ZoneScoped;
 
     return SpotlightUniforms {
       .colors = LightColorUniforms::from(light.colors),
-      .position = light.position,
+      .position = transform.translation,
       .direction = light.direction,
       .cutOff = glm::cos(glm::radians(light.cutOff)),
       .outerCutOff = glm::cos(glm::radians(light.outerCutOff)),

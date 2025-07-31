@@ -37,7 +37,7 @@ private:
 
 private:
   mutable std::vector<BufferHandle> mCachedInstanceBuffers;
-  mutable std::vector<Draw> mCachedDraws;
+  std::vector<Draw> mCachedDraws;
 };
 
 template <typename T> requires

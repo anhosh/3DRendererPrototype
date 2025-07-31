@@ -20,6 +20,7 @@
 
 #include <ranges>
 #include <Graphics/Components/Dirty.hpp>
+#include <Graphics/Components/Graphics.hpp>
 
 Expected<void> RenderingEngine::init() {
   ZoneScoped;
@@ -375,29 +376,28 @@ void RenderingEngine::renderScene(Scene& scene, const Camera& camera, const View
   mCameraUniformBuffer.value()->write(cameraUniformData);
   mCameraUniformBuffer.value()->bindWhole(UBO_BIND_POINT_CAMERA);
 
-  const entt::basic_view dirtyDirectionalLights = scene.ecs.view<const CompDirectionalLight, const CompDirty>();
-  if (dirtyDirectionalLights.begin() != dirtyDirectionalLights.end()) {
-    const DirectionalLightSourceBuffer directionalLightUniformData = scene.createDirectionalLightUniforms();
-    mDirectionalLightsStorageBuffer.value()->write(directionalLightUniformData);
-    mDirectionalLightsStorageBuffer.value()->bindWhole(SSBO_BIND_POINT_DIRECTIONAL_LIGHTS);
-    scene.ecs.erase<CompDirty>(dirtyDirectionalLights.begin(), dirtyDirectionalLights.end());
-  }
+  const auto updateLights = [&scene]<typename CompLight>(BufferHandle instanceBuffer, const uint32_t bindPoint, const auto getLightUniformData) {
+    const entt::basic_view dirtyLights = scene.ecs.view<const CompLight, const CompDirty>();
+    if (dirtyLights.begin() != dirtyLights.end()) {
+      const auto lightUniformData = getLightUniformData();
+      instanceBuffer->write(lightUniformData);
+      instanceBuffer->bindWhole(bindPoint);
+      for (auto [entity, light] : dirtyLights.each()) {
+        if (CompGraphics* graphics = scene.ecs.try_get<CompGraphics>(entity)) {
+          for (RenderData& rd : graphics->renderData) {
+            if (rd.shaderProgramInstance->type() == ShaderProgramType::Light) {
+              rd.shaderProgramInstance->uniforms["uLightColor"] = light.colors.diffuse;
+            }
+          }
+        }
+      }
+      scene.ecs.erase<CompDirty>(dirtyLights.begin(), dirtyLights.end());
+    }
+  };
 
-  const entt::basic_view dirtyPointLights = scene.ecs.view<const CompPointLight, const CompDirty>();
-  if (dirtyPointLights.begin() != dirtyPointLights.end()) {
-    const PointLightSourceBuffer pointLightUniformData = scene.createPointLightUniforms();
-    mPointLightsStorageBuffer.value()->write(pointLightUniformData);
-    mPointLightsStorageBuffer.value()->bindWhole(SSBO_BIND_POINT_POINT_LIGHTS);
-    scene.ecs.erase<CompDirty>(dirtyPointLights.begin(), dirtyPointLights.end());
-  }
-
-  const entt::basic_view dirtySpotlights = scene.ecs.view<const CompSpotlight, const CompDirty>();
-  if (dirtySpotlights.begin() != dirtySpotlights.end()) {
-    const SpotlightSourceBuffer spotlightUniformData = scene.createSpotlightUniforms();
-    mSpotlightsStorageBuffer.value()->write(spotlightUniformData);
-    mSpotlightsStorageBuffer.value()->bindWhole(SSBO_BIND_POINT_SPOTLIGHTS);
-    scene.ecs.erase<CompDirty>(dirtySpotlights.begin(), dirtySpotlights.end());
-  }
+  updateLights.operator()<CompDirectionalLight>(mDirectionalLightsStorageBuffer.value(), SSBO_BIND_POINT_DIRECTIONAL_LIGHTS, [&] { return scene.createDirectionalLightUniforms(); });
+  updateLights.operator()<CompPointLight>(mPointLightsStorageBuffer.value(), SSBO_BIND_POINT_POINT_LIGHTS, [&] { return scene.createPointLightUniforms(); });
+  updateLights.operator()<CompSpotlight>(mSpotlightsStorageBuffer.value(), SSBO_BIND_POINT_SPOTLIGHTS, [&] { return scene.createSpotlightUniforms(); });
 
   const Draw* lastDraw = &draws.front();
   for (size_t drawIdx = 0; drawIdx < draws.size(); drawIdx++) {
