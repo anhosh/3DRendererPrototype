@@ -10,7 +10,9 @@
 #include <Graphics/ShaderProgram.hpp>
 #include <Graphics/Buffers/BindPoints.hpp>
 #include <Graphics/Buffers/CameraUniforms.hpp>
-#include <Graphics/Buffers/LightSourceUniforms.hpp>
+#include <Graphics/Components/Camera.hpp>
+#include <Graphics/Components/Dirty.hpp>
+#include <Graphics/Components/Graphics.hpp>
 #include <Graphics/Viewport.hpp>
 #include <Util/Macros/Errors.hpp>
 
@@ -19,8 +21,8 @@
 #include <tracy/TracyOpenGL.hpp>
 
 #include <ranges>
-#include <Graphics/Components/Dirty.hpp>
-#include <Graphics/Components/Graphics.hpp>
+
+namespace views = std::ranges::views;
 
 Expected<void> RenderingEngine::init() {
   ZoneScoped;
@@ -315,9 +317,9 @@ void RenderingEngine::submitRenderPasses(const std::span<RenderPass> renderPasse
 
   for (auto& [viewport, dstFramebuffer, pass] : renderPasses) {
     if (auto* renderScenePass = std::get_if<RenderScenePass>(&pass)) {
-      this->renderScene(*renderScenePass->scene, *renderScenePass->camera, viewport, dstFramebuffer);
+      this->renderScene(*renderScenePass->scene, renderScenePass->entityCamera, viewport, dstFramebuffer);
       if (bVisualiseVertexNormals) {
-        this->renderVertexNormals(*renderScenePass->scene, *renderScenePass->camera, viewport, dstFramebuffer);
+        this->renderVertexNormals(*renderScenePass->scene, renderScenePass->entityCamera, viewport, dstFramebuffer);
       }
     } else if (const auto* postProcessingPass = std::get_if<PostProcessingPass>(&pass)) {
       this->postProcess(viewport, postProcessingPass->postProcessingShader, postProcessingPass->srcFramebuffer, dstFramebuffer);
@@ -325,7 +327,7 @@ void RenderingEngine::submitRenderPasses(const std::span<RenderPass> renderPasse
   }
 }
 
-void RenderingEngine::renderScene(Scene& scene, const Camera& camera, const Viewport& viewport, FramebufferHandle dstFramebuffer) {
+void RenderingEngine::renderScene(Scene& scene, const entt::entity entityCamera, const Viewport& viewport, FramebufferHandle dstFramebuffer) {
   ZoneScoped;
   TracyGpuZone("renderScene");
 
@@ -349,7 +351,7 @@ void RenderingEngine::renderScene(Scene& scene, const Camera& camera, const View
   glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-  const std::span<const Draw> draws = scene.draw(camera, mBuffers);
+  const std::span<const Draw> draws = scene.draw(entityCamera, mBuffers);
   if (draws.empty()) {
     return;
   }
@@ -372,32 +374,41 @@ void RenderingEngine::renderScene(Scene& scene, const Camera& camera, const View
       break;
   }
 
-  const CameraUniforms cameraUniformData = CameraUniforms::from(camera, dstFramebuffer->size());
+  const auto [camera, cameraTransform] = scene.ecs.get<const CompCamera, const CompTransform>(entityCamera);
+  const CameraUniforms cameraUniformData = CameraUniforms::from(camera, cameraTransform, dstFramebuffer->size());
   mCameraUniformBuffer.value()->write(cameraUniformData);
   mCameraUniformBuffer.value()->bindWhole(UBO_BIND_POINT_CAMERA);
 
   const auto updateLights = [&scene]<typename CompLight>(BufferHandle instanceBuffer, const uint32_t bindPoint, const auto getLightUniformData) {
     const entt::basic_view dirtyLights = scene.ecs.view<const CompLight, const CompDirty>();
-    if (dirtyLights.begin() != dirtyLights.end()) {
-      const auto lightUniformData = getLightUniformData();
-      instanceBuffer->write(lightUniformData);
-      instanceBuffer->bindWhole(bindPoint);
-      for (auto [entity, light] : dirtyLights.each()) {
-        if (CompGraphics* graphics = scene.ecs.try_get<CompGraphics>(entity)) {
-          for (RenderData& rd : graphics->renderData) {
-            if (rd.shaderProgramInstance->type() == ShaderProgramType::Light) {
-              rd.shaderProgramInstance->uniforms["uLightColor"] = light.colors.diffuse;
-            }
+    if (dirtyLights.begin() == dirtyLights.end()) {
+      return;
+    }
+
+    const auto lightUniformData = getLightUniformData();
+    instanceBuffer->write(lightUniformData);
+    instanceBuffer->bindWhole(bindPoint);
+    for (auto [entity, light] : dirtyLights.each()) {
+      if (CompGraphics* graphics = scene.ecs.try_get<CompGraphics>(entity)) {
+        for (RenderData& renderData : graphics->renderData) {
+          if (renderData.shaderProgramInstance->type() == ShaderProgramType::Light) {
+            renderData.shaderProgramInstance->uniforms["uLightColor"] = light.colors.diffuse;
           }
         }
       }
-      scene.ecs.erase<CompDirty>(dirtyLights.begin(), dirtyLights.end());
     }
+    scene.ecs.erase<CompDirty>(dirtyLights.begin(), dirtyLights.end());
   };
 
-  updateLights.operator()<CompDirectionalLight>(mDirectionalLightsStorageBuffer.value(), SSBO_BIND_POINT_DIRECTIONAL_LIGHTS, [&] { return scene.createDirectionalLightUniforms(); });
-  updateLights.operator()<CompPointLight>(mPointLightsStorageBuffer.value(), SSBO_BIND_POINT_POINT_LIGHTS, [&] { return scene.createPointLightUniforms(); });
-  updateLights.operator()<CompSpotlight>(mSpotlightsStorageBuffer.value(), SSBO_BIND_POINT_SPOTLIGHTS, [&] { return scene.createSpotlightUniforms(); });
+  updateLights.operator()<CompDirectionalLight>(mDirectionalLightsStorageBuffer.value(),
+                                                SSBO_BIND_POINT_DIRECTIONAL_LIGHTS,
+                                                [&] { return scene.createDirectionalLightUniforms(); });
+  updateLights.operator()<CompPointLight>(mPointLightsStorageBuffer.value(),
+                                          SSBO_BIND_POINT_POINT_LIGHTS,
+                                          [&] { return scene.createPointLightUniforms(); });
+  updateLights.operator()<CompSpotlight>(mSpotlightsStorageBuffer.value(),
+                                         SSBO_BIND_POINT_SPOTLIGHTS,
+                                         [&] { return scene.createSpotlightUniforms(); });
 
   const Draw* lastDraw = &draws.front();
   for (size_t drawIdx = 0; drawIdx < draws.size(); drawIdx++) {
@@ -481,9 +492,12 @@ void RenderingEngine::renderScene(Scene& scene, const Camera& camera, const View
     bindTexture(currDraw->emissionMap, lastDraw->emissionMap, GL_TEXTURE_2D);
     bindTexture(currDraw->environmentMap, lastDraw->environmentMap, GL_TEXTURE_CUBE_MAP);
 
-    glBindVertexArray(currDraw->vertexArray->vao);
-    glDrawElementsInstanced(GL_TRIANGLES, currDraw->vertexArray->indexCount, GL_UNSIGNED_INT, nullptr,
-                            static_cast<GLsizei>(currDraw->instanceCount));
+    {
+      TracyGpuZone("Draw elements instanced");
+      glBindVertexArray(currDraw->vertexArray->vao);
+      glDrawElementsInstanced(GL_TRIANGLES, currDraw->vertexArray->indexCount, GL_UNSIGNED_INT, nullptr,
+                              static_cast<GLsizei>(currDraw->instanceCount));
+    }
 
     lastDraw = currDraw;
   }
@@ -501,7 +515,7 @@ void RenderingEngine::renderScene(Scene& scene, const Camera& camera, const View
   }
 }
 
-void RenderingEngine::renderVertexNormals(Scene& scene, const Camera& camera, const Viewport& viewport, FramebufferHandle dstFramebuffer) {
+void RenderingEngine::renderVertexNormals(Scene& scene, entt::entity entityCamera, const Viewport& viewport, FramebufferHandle dstFramebuffer) {
   ZoneScoped;
   TracyGpuZone("renderVertexNormals");
 
@@ -515,7 +529,7 @@ void RenderingEngine::renderVertexNormals(Scene& scene, const Camera& camera, co
 
   glEnable(GL_DEPTH_TEST);
 
-  const std::span<const Draw> draws = scene.draw(camera, mBuffers);
+  const std::span<const Draw> draws = scene.draw(entityCamera, mBuffers);
   if (draws.empty()) {
     return;
   }

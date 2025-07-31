@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Graphics/Components/Light.hpp>
+#include <Graphics/Components/Transform.hpp>
 #include <Util/IntoBytes.hpp>
 
 #include <vector>

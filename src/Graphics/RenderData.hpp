@@ -20,7 +20,6 @@ struct RenderData {
   VertexArrayHandle vertexArray;
 
   ShaderProgramInstanceHandle shaderProgramInstance;
-  std::optional<ShaderProgramInstanceHandle> outlineShaderInstance = std::nullopt;
 
   std::optional<Texture2DHandle> diffuseMap = std::nullopt;
   std::optional<Texture2DHandle> specularMap = std::nullopt;
@@ -30,20 +29,8 @@ struct RenderData {
   RenderOptions renderOptions = {};
 
   [[nodiscard]]
-  bool eqIgnoreOutline(const RenderData& other) const {
-    return vertexArray == other.vertexArray &&
-           shaderProgramInstance == other.shaderProgramInstance &&
-           diffuseMap == other.diffuseMap &&
-           specularMap == other.specularMap &&
-           emissionMap == other.emissionMap &&
-           environmentMap == other.environmentMap &&
-           renderOptions == other.renderOptions;
-  }
-
-  [[nodiscard]]
   bool eqIgnoreMainShader(const RenderData& other) const {
     return vertexArray == other.vertexArray &&
-           outlineShaderInstance == other.outlineShaderInstance &&
            diffuseMap == other.diffuseMap &&
            specularMap == other.specularMap &&
            emissionMap == other.emissionMap &&

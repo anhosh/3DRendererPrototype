@@ -5,12 +5,14 @@
 #include <Graphics/Viewport.hpp>
 #include <Util/NotNull.hpp>
 
-class Camera;
+#include <entt/entity/entity.hpp>
+
+struct CompCamera;
 class Scene;
 
 struct RenderScenePass {
   NotNull<Scene> scene;
-  NotNull<Camera> camera;
+  entt::entity entityCamera;
 };
 
 struct PostProcessingPass {

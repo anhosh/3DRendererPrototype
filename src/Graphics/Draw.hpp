@@ -1,6 +1,5 @@
 #pragma once
 
-#include <Graphics/Buffer.hpp>
 #include <Graphics/ShaderProgramInstance.hpp>
 #include <Graphics/Texture2D.hpp>
 #include <Graphics/TextureCubeMap.hpp>

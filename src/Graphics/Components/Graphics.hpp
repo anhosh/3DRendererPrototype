@@ -9,6 +9,10 @@
 
 struct CompGraphics {
   std::vector<RenderData> renderData;
+
+  static void on_update(entt::registry& registry, const entt::entity entity) {
+    registry.emplace<CompDirty>(entity);
+  }
 };
 
 inline void setShaderProgramInstance(entt::registry& registry, entt::entity entity, const ShaderProgramInstanceHandle shaderInstance) {
@@ -16,17 +20,9 @@ inline void setShaderProgramInstance(entt::registry& registry, entt::entity enti
 
   assert(registry.valid(entity));
 
-  for (RenderData& videoResource : registry.get<CompGraphics>(entity).renderData) {
-    videoResource.shaderProgramInstance = shaderInstance;
-  }
-}
-
-inline void setOutlineShaderInstance(entt::registry& registry, entt::entity entity, const std::optional<ShaderProgramInstanceHandle>& outlineShaderInstance) {
-  ZoneScoped;
-
-  assert(registry.valid(entity));
-
-  for (RenderData& videoResource : registry.get<CompGraphics>(entity).renderData) {
-    videoResource.outlineShaderInstance = outlineShaderInstance;
-  }
+  registry.patch<CompGraphics>(entity, [=](CompGraphics& graphics) {
+    for (RenderData& renderData : graphics.renderData) {
+      renderData.shaderProgramInstance = shaderInstance;
+    }
+  });
 }

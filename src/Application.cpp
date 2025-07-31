@@ -1,6 +1,6 @@
 #include <Application.hpp>
 
-#include <Graphics/Camera.hpp>
+#include <Graphics/Components/Camera.hpp>
 #include <Graphics/RenderingEngine.hpp>
 #include <Graphics/Scene.hpp>
 #include <GUI.hpp>
@@ -191,9 +191,20 @@ Expected<void> Application::createScene() {
   );
 
   // Create scene
-  mState.mainCamera.position = glm::vec3(0.0f, 0.0f, 10.0f);
-  mState.mainCamera.rotation = glm::vec3(-90.0f, 0.0f, 0.0f);
-  mState.mainCamera.speed = 10.0f;
+  mState.mainCamera = mState.scene->ecs.create();
+  mState.scene->ecs.emplace<CompName>(mState.mainCamera, "Main camera");
+  mState.scene->ecs.emplace<CompTransform>(mState.mainCamera, CompTransform {
+    .translation = glm::vec3(0.0f, 0.0f, 10.0f),
+    .rotation = glm::vec3(-90.0f, 0.0f, 0.0f),
+  });
+  CompCamera& mainCamera = mState.scene->ecs.emplace<CompCamera>(mState.mainCamera);
+  mainCamera.speed = 10.0f;
+  mState.scene->ecs.emplace<CompDirty>(mState.mainCamera);
+
+  mState.backCamera = mState.scene->ecs.create();
+  mState.scene->ecs.emplace<CompName>(mState.backCamera, "Main camera");
+  mState.scene->ecs.emplace<CompTransform>(mState.backCamera);
+  mState.scene->ecs.emplace<CompCamera>(mState.backCamera);
 
   mState.scene->skybox = Skybox {
     .cubeMesh = mState.renderingEngine->addMesh(skyboxCubeMesh),
@@ -256,15 +267,15 @@ Expected<void> Application::createScene() {
   mState.scene->ecs.emplace<CompGraphics>(entityPlanet, planetMeshes);
   mState.scene->ecs.emplace<CompDirty>(entityPlanet);
 
-  constexpr uint32_t numAsteroids = 2000;
-  constexpr float radius = 50.0f;
-  constexpr float offset = 25.0f;
   std::random_device rd;
   std::mt19937 gen(rd());
+  constexpr float offset = 25.0f;
   std::uniform_real_distribution displacementDistribution(-offset, offset);
   std::uniform_real_distribution rotationAngleDistribution(0.0f, 360.0f);
   std::uniform_real_distribution scaleDistribution(0.05f, 0.25f);
+  constexpr uint32_t numAsteroids = 10000;
   for (uint32_t i = 0; i < numAsteroids; ++i) {
+    constexpr float radius = 50.0f;
     const float angle = static_cast<float>(i) / static_cast<float>(numAsteroids) * 360.0f;
     const entt::entity entityAsteroid = mState.scene->ecs.create();
     mState.scene->ecs.emplace<CompName>(entityAsteroid, std::format("Asteroid {}", i));
@@ -281,6 +292,7 @@ Expected<void> Application::createScene() {
     mState.scene->ecs.emplace<CompDirty>(entityAsteroid);
   }
 
+  mState.scene->prepareForRendering();
   return {};
 }
 
@@ -307,25 +319,25 @@ void Application::processKeyboard() {
   }
 
   const auto deltaTime = static_cast<float>(mState.currentFrameTime - mState.lastFrameTime);
-  Camera& camera = mState.mainCamera;
+  auto [camera, cameraTransform] = mState.scene->ecs.get<CompCamera, CompTransform>(mState.mainCamera);
 
   if (glfwGetKey(mState.window, GLFW_KEY_W) == GLFW_PRESS) {
-    camera.position += deltaTime * camera.speed * camera.forward();
+    cameraTransform.translation += deltaTime * camera.speed * cameraTransform.forward();
   }
   if (glfwGetKey(mState.window, GLFW_KEY_S) == GLFW_PRESS) {
-    camera.position -= deltaTime * camera.speed * camera.forward();
+    cameraTransform.translation -= deltaTime * camera.speed * cameraTransform.forward();
   }
   if (glfwGetKey(mState.window, GLFW_KEY_A) == GLFW_PRESS) {
-    camera.position -= deltaTime * camera.speed * glm::normalize(glm::cross(camera.forward(), camera.up()));
+    cameraTransform.translation -= deltaTime * camera.speed * glm::normalize(glm::cross(cameraTransform.forward(), cameraTransform.up()));
   }
   if (glfwGetKey(mState.window, GLFW_KEY_D) == GLFW_PRESS) {
-    camera.position += deltaTime * camera.speed * glm::normalize(glm::cross(camera.forward(), camera.up()));
+    cameraTransform.translation += deltaTime * camera.speed * glm::normalize(glm::cross(cameraTransform.forward(), cameraTransform.up()));
   }
   if (glfwGetKey(mState.window, GLFW_KEY_SPACE) == GLFW_PRESS) {
-    camera.position += deltaTime * camera.speed * camera.up();
+    cameraTransform.translation += deltaTime * camera.speed * cameraTransform.up();
   }
   if (glfwGetKey(mState.window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
-    camera.position -= deltaTime * camera.speed * camera.up();
+    cameraTransform.translation -= deltaTime * camera.speed * cameraTransform.up();
   }
 }
 
@@ -341,14 +353,15 @@ void Application::processMousePosition(glm::vec2 mousePosition) {
     mState.bFirstMouse = false;
   }
 
-  constexpr float sensitivity = 0.1f;
-  const glm::vec2 offset = {
-    (mousePosition.x - mState.lastMousePosition.x) * sensitivity,
-    (mState.lastMousePosition.y - mousePosition.y) * sensitivity,
-  };
-  Camera& camera = mState.mainCamera;
-  camera.rotation.x += offset.x;
-  camera.rotation.y = glm::clamp(camera.rotation.y + offset.y, -89.0f, 89.0f);
+  mState.scene->ecs.patch<CompTransform>(mState.mainCamera, [&](CompTransform& cameraTransform) {
+    constexpr float sensitivity = 0.1f;
+    const glm::vec2 offset = {
+      (mousePosition.x - mState.lastMousePosition.x) * sensitivity,
+      (mState.lastMousePosition.y - mousePosition.y) * sensitivity,
+    };
+    cameraTransform.rotation.x += offset.x;
+    cameraTransform.rotation.y = glm::clamp(cameraTransform.rotation.y + offset.y, -89.0f, 89.0f);
+  });
 
   mState.lastMousePosition = mousePosition;
 }
@@ -357,9 +370,14 @@ void Application::updateScene() {
   ZoneScoped;
 
   // Back mirror camera
-  mState.backCamera = mState.mainCamera;
-  mState.backCamera.rotation.x += 180.0f;
-  mState.backCamera.rotation.y *= -1.0f;
+  if (mState.bBackMirror) {
+    const CompTransform mainCameraTransform = mState.scene->ecs.get<CompTransform>(mState.mainCamera);
+    mState.scene->ecs.patch<CompTransform>(mState.backCamera, [&](CompTransform& backCameraTransform) {
+      backCameraTransform = mainCameraTransform;
+      backCameraTransform.rotation.x += 180.0f;
+      backCameraTransform.rotation.y *= -1.0f;
+    });
+  }
 }
 
 void Application::drawFrame() {
@@ -368,10 +386,10 @@ void Application::drawFrame() {
   mState.renderPasses.clear();
   if (mState.bBackMirror) {
     mState.renderPasses.emplace_back(Viewport {}, mState.backCameraSceneFramebuffer.value(),
-                                     RenderScenePass { mState.scene.get(), &mState.backCamera });
+                                     RenderScenePass { mState.scene.get(), mState.backCamera });
   }
   mState.renderPasses.emplace_back(Viewport {}, mState.mainSceneFramebuffer.value(),
-                                   RenderScenePass { mState.scene.get(), &mState.mainCamera });
+                                   RenderScenePass { mState.scene.get(), mState.mainCamera });
 
   FramebufferHandle lastFramebuffer = mState.mainSceneFramebuffer.value();
   size_t shaderIndex = 0;

@@ -2,6 +2,7 @@
 
 #include <AppState.hpp>
 #include <Graphics/Components/Name.hpp>
+#include <Graphics/Components/Camera.hpp>
 
 #include <entt/entity/registry.hpp>
 
@@ -11,6 +12,7 @@
 
 #include <ranges>
 #include <Graphics/Components/Dirty.hpp>
+#include <Graphics/Components/Outline.hpp>
 
 constexpr ImGuiColorEditFlags lightColorEditFlags = ImGuiColorEditFlags_Float | ImGuiColorEditFlags_HDR;
 
@@ -46,7 +48,7 @@ void guiCamera(AppState& state) {
 
   if (ImGui::CollapsingHeader("Camera")) {
     ImGui::Indent();
-    Camera& camera = state.mainCamera;
+    CompCamera& camera = state.scene->ecs.get<CompCamera>(state.mainCamera);
 
     ImGui::DragFloat("Movement speed", &camera.speed, 0.001f, 0.0f, 5.0f);
     ImGui::DragFloat("FOV", &camera.fov, 0.1f, 10.0f, 120.0f);
@@ -55,7 +57,6 @@ void guiCamera(AppState& state) {
 
     ImGui::Spacing();
 
-    ImGui::Checkbox("Flashlight following camera", &state.bFlashlightFollowCamera);
     ImGui::Checkbox("Back mirror", &state.bBackMirror);
 
     ImGui::Unindent();
@@ -74,6 +75,16 @@ void guiActors(AppState& state) {
         ImGui::Indent();
 
         bool bChanged = false;
+
+        bool bOutlined = state.scene->ecs.all_of<CompOutline>(entity);
+        bChanged |= ImGui::Checkbox(("Draw outline##" + name.name).c_str(), &bOutlined);
+        if (bChanged) {
+          if (bOutlined) {
+            state.scene->ecs.erase<CompOutline>(entity);
+          } else {
+            state.scene->ecs.emplace<CompOutline>(entity);
+          }
+        }
 
         if (CompTransform* transform = state.scene->ecs.try_get<CompTransform>(entity)) {
           ImGui::Text("Transform");

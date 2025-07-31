@@ -1,11 +1,8 @@
 #pragma once
 
-#include <Graphics/Actor.hpp>
 #include <Graphics/Buffer.hpp>
 #include <Graphics/Buffers/LightSourceUniforms.hpp>
-#include <Graphics/Camera.hpp>
 #include <Graphics/Draw.hpp>
-#include <Graphics/Components/Light.hpp>
 #include <Graphics/Scene.hpp>
 #include <Graphics/Skybox.hpp>
 #include <Util/Registry.hpp>
@@ -16,13 +13,16 @@
 #include <span>
 #include <vector>
 
+struct RenderData;
+
 class Scene {
 public:
   ~Scene() { this->destroy(); }
 
+  void prepareForRendering();
   void destroy();
 
-  [[nodiscard]] std::span<const Draw> draw(const Camera& camera, Registry<Buffer>& buffers);
+  [[nodiscard]] std::span<const Draw> draw(entt::entity entityCamera, Registry<Buffer>& buffers);
   [[nodiscard]] DirectionalLightSourceBuffer createDirectionalLightUniforms() const;
   [[nodiscard]] PointLightSourceBuffer createPointLightUniforms() const;
   [[nodiscard]] SpotlightSourceBuffer createSpotlightUniforms() const;
@@ -36,13 +36,17 @@ private:
   BufferHandle obtainInstanceBuffer(size_t bufferIndex, Registry<Buffer>& buffers) const;
 
 private:
+  struct MeshDataReference {
+    const entt::registry* ecs;
+    entt::entity entity;
+    size_t renderDataIndex = SIZE_MAX;
+    bool bHasOutline = false;
+
+    [[nodiscard]] const RenderData& renderData() const;
+  };
+
   mutable std::vector<BufferHandle> mCachedInstanceBuffers;
+  mutable std::vector<MeshDataReference> mCachedSortedMeshes;
+  mutable std::vector<MeshDataReference> mCachedOutlinedMeshes;
   std::vector<Draw> mCachedDraws;
 };
-
-template <typename T> requires
-  std::same_as<T, Actor> ||
-  std::same_as<T, CompDirectionalLight> ||
-  std::same_as<T, CompPointLight> ||
-  std::same_as<T, CompSpotlight>
-using SceneHandle = typename Registry<T>::Handle;

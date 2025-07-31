@@ -31,8 +31,8 @@ struct AppState {
   std::unique_ptr<RenderingEngine> renderingEngine;
   std::unique_ptr<Scene> scene;
 
-  Camera mainCamera;
-  Camera backCamera;
+  entt::entity mainCamera;
+  entt::entity backCamera;
 
   ShaderProgramType backpackShaderProgramType = ShaderProgramType::LitSurface;
   std::vector<ShaderProgramType> postProcessingShaderProgramTypes;

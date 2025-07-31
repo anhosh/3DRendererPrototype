@@ -10,12 +10,14 @@
 #include <Graphics/VertexArray.hpp>
 #include <Util/Registry.hpp>
 
+#include <entt/entity/entity.hpp>
+
 #include <optional>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
-class Camera;
+struct CompCamera;
 class Scene;
 struct RenderData;
 struct RenderPass;
@@ -56,8 +58,8 @@ public:
   BufferHandle createBuffer(GLenum type);
 
   void submitRenderPasses(std::span<RenderPass> renderPasses);
-  void renderScene(Scene& scene, const Camera& camera, const Viewport& viewport, FramebufferHandle dstFramebuffer);
-  void renderVertexNormals(Scene& scene, const Camera& camera, const Viewport& viewport, FramebufferHandle dstFramebuffer);
+  void renderScene(Scene& scene, entt::entity entityCamera, const Viewport& viewport, FramebufferHandle dstFramebuffer);
+  void renderVertexNormals(Scene& scene, entt::entity entityCamera, const Viewport& viewport, FramebufferHandle dstFramebuffer);
   void postProcess(const Viewport& viewport, ShaderProgramInstanceHandle postProcessingShader,
                    FramebufferHandle srcFramebuffer, FramebufferHandle dstFramebuffer) const;
   void present(glm::uvec2 windowSize, FramebufferHandle srcFramebuffer) const;
@@ -65,9 +67,6 @@ public:
 public:
   SceneRenderMode sceneRenderMode = SceneRenderMode::Normal;
   bool bVisualiseVertexNormals = false;
-
-private:
-
 
 private:
   bool mInitialised = false;
