@@ -17,6 +17,7 @@ struct RenderData;
 
 class Scene {
 public:
+  Scene();
   ~Scene() { this->destroy(); }
 
   void prepareForRendering();
@@ -33,7 +34,10 @@ public:
   std::optional<Skybox> skybox = std::nullopt;
 
 private:
-  BufferHandle obtainInstanceBuffer(size_t bufferIndex, Registry<Buffer>& buffers) const;
+  void onEntityMarkedDirty(entt::registry& registry, entt::entity entity);
+  void onGraphicsComponentDestroyed(entt::registry& registry, entt::entity entity);
+
+  BufferHandle obtainInstanceBuffer(size_t bufferIndex, Registry<Buffer>& buffers);
 
 private:
   struct MeshDataReference {
@@ -45,8 +49,8 @@ private:
     [[nodiscard]] const RenderData& renderData() const;
   };
 
-  mutable std::vector<BufferHandle> mCachedInstanceBuffers;
-  mutable std::vector<MeshDataReference> mCachedSortedMeshes;
-  mutable std::vector<MeshDataReference> mCachedOutlinedMeshes;
+  std::vector<BufferHandle> mCachedInstanceBuffers;
+  std::vector<MeshDataReference> mCachedSortedMeshes;
+  std::vector<MeshDataReference> mCachedOutlinedMeshes;
   std::vector<Draw> mCachedDraws;
 };

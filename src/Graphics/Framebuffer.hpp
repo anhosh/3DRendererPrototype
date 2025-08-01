@@ -8,16 +8,18 @@ struct FramebufferCreateInfo {
   glm::uvec2 size;
   GLint colorFormat = GL_RGB;
   bool bDepthStencil = true;
+  uint32_t samples = 1;
 };
 
 class Framebuffer {
 public:
   explicit Framebuffer(const FramebufferCreateInfo& info);
 
-  void init(const FramebufferCreateInfo& info);
+  void init();
   void destroy();
 
   void resize(glm::uvec2 size);
+  void resolveMultisample() const;
 
   void bind() const;
   void unbind() const;
@@ -31,6 +33,8 @@ public:
 private:
   GLuint mFBO = GL_NONE;
   GLuint mDepthStencilRBO = GL_NONE;
+  GLuint mMultisampledFBO = GL_NONE;
+  GLuint mMultisampledTexture = GL_NONE;
   FramebufferCreateInfo mInfo;
 };
 

@@ -44,9 +44,11 @@ Expected<Application> Application::create(std::string_view title, glm::uvec2 ini
 
   app.mState.mainSceneFramebuffer = app.mState.renderingEngine->addFramebuffer({
     .size = initialWindowSize,
+    .samples = 4,
   });
   app.mState.backCameraSceneFramebuffer = app.mState.renderingEngine->addFramebuffer({
     .size = glm::vec2(initialWindowSize) * glm::vec2(0.4f, 0.2f),
+    .samples = 4,
   });
 
   RETURN_ERROR_IF_UNEXPECTED(app.createScene());
@@ -107,6 +109,7 @@ Expected<void> Application::createContext(std::string_view title, glm::uvec2 ini
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+  // glfwWindowHint(GLFW_SAMPLES, 4);
 
   mState.windowSize = initialWindowSize;
   mState.window = glfwCreateWindow(static_cast<int32_t>(mState.windowSize.x),
@@ -124,7 +127,7 @@ Expected<void> Application::createContext(std::string_view title, glm::uvec2 ini
     return std::unexpected("Failed to initialize GLAD");
   }
 
-  glEnable(GL_STENCIL_TEST);
+  glEnable(GL_MULTISAMPLE);
 
   glViewport(0, 0, static_cast<int32_t>(mState.windowSize.x), static_cast<int32_t>(mState.windowSize.y));
   glfwSetFramebufferSizeCallback(mState.window, [](GLFWwindow*, int32_t width, int32_t height) {

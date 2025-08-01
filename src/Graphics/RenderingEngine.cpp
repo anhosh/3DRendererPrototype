@@ -502,6 +502,8 @@ void RenderingEngine::renderScene(Scene& scene, const entt::entity entityCamera,
     lastDraw = currDraw;
   }
 
+  dstFramebuffer->resolveMultisample();
+
   glBindVertexArray(GL_NONE);
   glUseProgram(GL_NONE);
   for (const GLuint slot : mBoundTextureSlots) {

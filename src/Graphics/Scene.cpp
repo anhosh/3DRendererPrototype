@@ -11,6 +11,11 @@
 
 namespace views = std::ranges::views;
 
+Scene::Scene() {
+  ecs.on_construct<CompDirty>().connect<&Scene::onEntityMarkedDirty>(this);
+  ecs.on_destroy<CompGraphics>().connect<&Scene::onGraphicsComponentDestroyed>(this);
+}
+
 void Scene::destroy() {
   for (BufferHandle instanceBuffer : mCachedInstanceBuffers) {
     instanceBuffer->destroy();
@@ -216,7 +221,7 @@ SpotlightSourceBuffer Scene::createSpotlightUniforms() const {
   return buffer;
 }
 
-BufferHandle Scene::obtainInstanceBuffer(const size_t bufferIndex, Registry<Buffer>& buffers) const {
+BufferHandle Scene::obtainInstanceBuffer(const size_t bufferIndex, Registry<Buffer>& buffers) {
   ZoneScoped;
 
   assert(bufferIndex < mCachedInstanceBuffers.size() + 1);
@@ -228,6 +233,15 @@ BufferHandle Scene::obtainInstanceBuffer(const size_t bufferIndex, Registry<Buff
   const BufferHandle newBuffer = buffers.add(Buffer(GL_ARRAY_BUFFER));
   mCachedInstanceBuffers.push_back(newBuffer);
   return newBuffer;
+}
+
+void Scene::onEntityMarkedDirty(entt::registry&, const entt::entity) {
+
+}
+
+void Scene::onGraphicsComponentDestroyed(entt::registry&, const entt::entity entity) {
+  std::ranges::remove_if(mCachedSortedMeshes, [=](const MeshDataReference& mesh) { return mesh.entity == entity; });
+  std::ranges::remove_if(mCachedOutlinedMeshes, [=](const MeshDataReference& mesh) { return mesh.entity == entity; });
 }
 
 void Scene::prepareForRendering() {
