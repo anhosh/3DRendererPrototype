@@ -15,8 +15,14 @@
 #include <Graphics/Components/Graphics.hpp>
 #include <Graphics/Components/Name.hpp>
 #include <tracy/TracyOpenGL.hpp>
+#include <Util/Log.hpp>
 
 static Application* gApp = nullptr;
+
+Application::Application() {
+  assert(gApp == nullptr);
+  gApp = this;
+}
 
 Application::Application(Application&& other) noexcept {
   gApp = this;
@@ -56,52 +62,6 @@ Expected<Application> Application::create(std::string_view title, glm::uvec2 ini
   return app;
 }
 
-void Application::run() {
-  FrameMark;
-  while (!glfwWindowShouldClose(mState.window)) {
-    ZoneScopedN("Frame");
-
-    mState.lastFrameTime = mState.currentFrameTime;
-    mState.currentFrameTime = glfwGetTime();
-
-    this->processKeyboard();
-    glfwPollEvents();
-
-    if (glfwGetWindowAttrib(mState.window, GLFW_ICONIFIED) != 0) {
-      ImGui_ImplGlfw_Sleep(10);
-      continue;
-    }
-
-    runImGui(mState);
-    this->updateScene();
-    this->drawFrame();
-
-    glfwSwapBuffers(mState.window);
-
-    FrameMark;
-    TracyGpuCollect;
-  }
-}
-
-void Application::shutDown() {
-  shutdownImGui();
-
-  mState.scene->destroy();
-  mState.renderingEngine->destroy();
-
-  glfwDestroyWindow(mState.window);
-  mState.window = nullptr;
-  glfwTerminate();
-
-  assert(gApp != nullptr);
-  gApp = nullptr;
-}
-
-Application::Application() {
-  assert(gApp == nullptr);
-  gApp = this;
-}
-
 Expected<void> Application::createContext(std::string_view title, glm::uvec2 initialWindowSize) {
   ZoneScoped;
 
@@ -109,7 +69,9 @@ Expected<void> Application::createContext(std::string_view title, glm::uvec2 ini
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-  // glfwWindowHint(GLFW_SAMPLES, 4);
+#ifdef DEBUG_ENABLED
+  glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
+#endif
 
   mState.windowSize = initialWindowSize;
   mState.window = glfwCreateWindow(static_cast<int32_t>(mState.windowSize.x),
@@ -127,16 +89,30 @@ Expected<void> Application::createContext(std::string_view title, glm::uvec2 ini
     return std::unexpected("Failed to initialize GLAD");
   }
 
+#ifdef DEBUG_ENABLED
+  if (GLint debugContextFlags; glGetIntegerv(GL_CONTEXT_FLAGS, &debugContextFlags),
+      (debugContextFlags & GL_CONTEXT_FLAG_DEBUG_BIT) != 0)
+  {
+    glEnable(GL_DEBUG_OUTPUT);
+    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+    glDebugMessageCallback(&Application::openGlDebugCallback, nullptr);
+    glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
+  } else {
+    return std::unexpected("Failed to created debug context");
+  }
+#endif
+
   glEnable(GL_MULTISAMPLE);
 
   glViewport(0, 0, static_cast<int32_t>(mState.windowSize.x), static_cast<int32_t>(mState.windowSize.y));
   glfwSetFramebufferSizeCallback(mState.window, [](GLFWwindow*, int32_t width, int32_t height) {
     const glm::uvec2 newSize = {width, height};
-    NotNull(gApp)->mState.windowSize = newSize;
-    NotNull(gApp)->mState.mainSceneFramebuffer.value()->resize(newSize);
-    NotNull(gApp)->mState.backCameraSceneFramebuffer.value()->resize(glm::vec2(newSize) * glm::vec2(0.4f, 0.2f));
-    NotNull(gApp)->mState.lastMousePosition = glm::vec2(newSize) * 0.5f;
-    NotNull(gApp)->mState.bFirstMouse = true;
+    NotNull app = gApp;
+    app->mState.windowSize = newSize;
+    app->mState.mainSceneFramebuffer.value()->resize(newSize);
+    app->mState.backCameraSceneFramebuffer.value()->resize(glm::vec2(newSize) * glm::vec2(0.4f, 0.2f));
+    app->mState.lastMousePosition = glm::vec2(newSize) * 0.5f;
+    app->mState.bFirstMouse = true;
   });
 
   glfwSetCursorPosCallback(mState.window, [](GLFWwindow*, double xpos, double ypos) {
@@ -147,6 +123,61 @@ Expected<void> Application::createContext(std::string_view title, glm::uvec2 ini
 
   return {};
 }
+
+#ifdef DEBUG_ENABLED
+void APIENTRY Application::openGlDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity,
+                                               GLsizei length [[maybe_unused]], const GLchar* logMessage,
+                                               const void* userParam [[maybe_unused]])
+{
+  // ignore non-significant error/warning codes
+  if (id == 131169 || id == 131185 || id == 131218 || id == 131204) {
+    return;
+  }
+
+  std::string message = "---------------\n";
+  message += std::format("Debug message ({}): {}\n", id, logMessage);
+
+  switch (source)
+  {
+    case GL_DEBUG_SOURCE_API:             message += "Source: API\n";             break;
+    case GL_DEBUG_SOURCE_WINDOW_SYSTEM:   message += "Source: Window System\n";   break;
+    case GL_DEBUG_SOURCE_SHADER_COMPILER: message += "Source: Shader Compiler\n"; break;
+    case GL_DEBUG_SOURCE_THIRD_PARTY:     message += "Source: Third Party\n";     break;
+    case GL_DEBUG_SOURCE_APPLICATION:     message += "Source: Application\n";     break;
+    case GL_DEBUG_SOURCE_OTHER:           message += "Source: Other\n";           break;
+    default:                              UNREACHABLE();
+  }
+
+  switch (type)
+  {
+    case GL_DEBUG_TYPE_ERROR:               message += "Type: Error\n";                break;
+    case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: message += "Type: Deprecated Behaviour\n"; break;
+    case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:  message += "Type: Undefined Behaviour\n";  break;
+    case GL_DEBUG_TYPE_PORTABILITY:         message += "Type: Portability\n";          break;
+    case GL_DEBUG_TYPE_PERFORMANCE:         message += "Type: Performance\n";          break;
+    case GL_DEBUG_TYPE_MARKER:              message += "Type: Marker\n";               break;
+    case GL_DEBUG_TYPE_PUSH_GROUP:          message += "Type: Push Group\n";           break;
+    case GL_DEBUG_TYPE_POP_GROUP:           message += "Type: Pop Group\n";            break;
+    case GL_DEBUG_TYPE_OTHER:               message += "Type: Other\n";                break;
+    default:                                UNREACHABLE();
+  }
+
+  switch (severity)
+  {
+    case GL_DEBUG_SEVERITY_HIGH:         message += "Severity: high\n";         break;
+    case GL_DEBUG_SEVERITY_MEDIUM:       message += "Severity: medium\n";       break;
+    case GL_DEBUG_SEVERITY_LOW:          message += "Severity: low\n";          break;
+    case GL_DEBUG_SEVERITY_NOTIFICATION: message += "Severity: notification\n"; break;
+    default:                             UNREACHABLE();
+  }
+
+  if (severity == GL_DEBUG_SEVERITY_NOTIFICATION) {
+    LOG_INFO("{}", message);
+  } else {
+    LOG_ERROR("{}", message);
+  }
+}
+#endif
 
 Expected<void> Application::createScene() {
   ZoneScoped;
@@ -297,6 +328,47 @@ Expected<void> Application::createScene() {
 
   mState.scene->prepareForRendering();
   return {};
+}
+
+void Application::run() {
+  FrameMark;
+  while (!glfwWindowShouldClose(mState.window)) {
+    ZoneScopedN("Frame");
+
+    mState.lastFrameTime = mState.currentFrameTime;
+    mState.currentFrameTime = glfwGetTime();
+
+    this->processKeyboard();
+    glfwPollEvents();
+
+    if (glfwGetWindowAttrib(mState.window, GLFW_ICONIFIED) != 0) {
+      ImGui_ImplGlfw_Sleep(10);
+      continue;
+    }
+
+    runImGui(mState);
+    this->updateScene();
+    this->drawFrame();
+
+    glfwSwapBuffers(mState.window);
+
+    FrameMark;
+    TracyGpuCollect;
+  }
+}
+
+void Application::shutDown() {
+  shutdownImGui();
+
+  mState.scene->destroy();
+  mState.renderingEngine->destroy();
+
+  glfwDestroyWindow(mState.window);
+  mState.window = nullptr;
+  glfwTerminate();
+
+  assert(gApp != nullptr);
+  gApp = nullptr;
 }
 
 void Application::processKeyboard() {

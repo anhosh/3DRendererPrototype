@@ -585,6 +585,8 @@ void RenderingEngine::postProcess(const Viewport& viewport, ShaderProgramInstanc
   glBindVertexArray(mScreenQuadVAO);
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
+  dstFramebuffer->resolveMultisample();
+
   glUseProgram(GL_NONE);
   glBindVertexArray(GL_NONE);
   glBindTexture(GL_TEXTURE_2D, GL_NONE);

@@ -85,7 +85,10 @@ void Framebuffer::resize(const glm::uvec2 size) {
 
 void Framebuffer::resolveMultisample() const {
   if (mInfo.samples > 1) {
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, mMultisampledTexture);
+    ZoneScoped;
+    TracyGpuZone("Blit framebuffer");
+
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, mMultisampledFBO);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, mFBO);
     glBlitFramebuffer(0, 0, mInfo.size.x, mInfo.size.y, 0, 0, mInfo.size.x, mInfo.size.y, GL_COLOR_BUFFER_BIT, GL_NEAREST);
   }

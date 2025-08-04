@@ -9,6 +9,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # set other CMake options
 set(CMAKE_DEBUG_POSTFIX "-d")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG_ENABLED")
 set(BUILD_SHARED_LIBS OFF)
 
 # add LearnOpenGL::ext target
