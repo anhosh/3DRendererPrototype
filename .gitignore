@@ -1,5 +1,7 @@
 .idea/
 build/
+CMakeFiles/
+ext/CMakeFiles/
 imgui.ini
 *.trace
 *.rdc

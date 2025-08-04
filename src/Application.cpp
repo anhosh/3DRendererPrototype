@@ -1,21 +1,22 @@
 #include <Application.hpp>
 
 #include <Graphics/Components/Camera.hpp>
+#include <Graphics/Components/Dirty.hpp>
+#include <Graphics/Components/Graphics.hpp>
+#include <Graphics/Components/Name.hpp>
 #include <Graphics/RenderingEngine.hpp>
 #include <Graphics/Scene.hpp>
 #include <GUI.hpp>
+#include <Util/Log.hpp>
 #include <Util/Macros/Errors.hpp>
 #include <Util/NotNull.hpp>
 #include <Util/Timers/TimedBlock.hpp>
 
 #include <backends/imgui_impl_glfw.h>
 
-#include <random>
-#include <Graphics/Components/Dirty.hpp>
-#include <Graphics/Components/Graphics.hpp>
-#include <Graphics/Components/Name.hpp>
 #include <tracy/TracyOpenGL.hpp>
-#include <Util/Log.hpp>
+
+#include <random>
 
 static Application* gApp = nullptr;
 
@@ -34,7 +35,7 @@ Application::Application(Application&& other) noexcept {
 
 Expected<Application> Application::create(std::string_view title, glm::uvec2 initialWindowSize) {
   ZoneScoped;
-  static constexpr std::string_view markerName = "Application init";
+  static constexpr std::string_view markerName [[maybe_unused]] = "Application init";
   FrameMarkStart(markerName.data());
 
   Application app;

@@ -1,3 +1,5 @@
+cmake_minimum_required(VERSION 3.24)
+
 project(LearnOpenGL-ext)
 
 # add Assimp to build tree
@@ -75,8 +77,14 @@ target_sources(stb PRIVATE
 
 # add tracy to build tree
 message(STATUS "[tracy]")
-option(TRACY_ENABLE "" ON)
-option(TRACY_ON_DEMAND "" ON)
+if (CMAKE_BUILD_TYPE STREQUAL Release)
+  message(STATUS "Hello")
+  set(TRACY_ENABLE OFF)
+  set(TRACY_ON_DEMAND OFF)
+else ()
+  set(TRACY_ENABLE ON)
+  set(TRACY_ON_DEMAND ON)
+endif ()
 add_subdirectory(tracy)
 
 # declare ext library target
@@ -97,4 +105,11 @@ target_link_libraries(${PROJECT_NAME} INTERFACE
 if(CMAKE_SYSTEM_NAME STREQUAL Linux)
   # link to dynamic loader
   target_link_libraries(${PROJECT_NAME} INTERFACE dl)
+endif()
+
+# disable compiler warnings
+if(CMAKE_CXX_COMPILER_ID STREQUAL Clang OR CMAKE_CXX_COMPILER_ID STREQUAL GNU)
+  target_compile_options(${PROJECT_NAME} INTERFACE -Wno-everything)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL MSVC)
+  target_compile_options(${PROJECT_NAME} INTERFACE /w)
 endif()
