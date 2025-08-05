@@ -19,5 +19,5 @@ struct CameraUniforms {
     return sizeof(CameraUniforms);
   }
 
-  void writeToBuffer(GLenum target, size_t offset) const;
+  void writeToBuffer(GLuint buffer, size_t offset) const;
 };

@@ -3,7 +3,7 @@
 #include <Util/Log.hpp>
 
 int32_t main() {
-  Expected engine = Application::create("LearnOpenGL", glm::uvec2(1920, 1080));
+  Expected engine = Application::create("3D Renderer Prototype", glm::uvec2(1920, 1080));
   if (engine.has_value()) {
     engine->run();
     engine->shutDown();

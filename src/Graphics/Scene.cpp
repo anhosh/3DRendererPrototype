@@ -1,6 +1,6 @@
 #include <Graphics/Scene.hpp>
 
-#include <Graphics/Buffers/InstanceBufferData.hpp>
+#include <Graphics/InstanceData.hpp>
 #include <Graphics/Components/Dirty.hpp>
 #include <Graphics/Components/Graphics.hpp>
 #include <Graphics/Components/Outline.hpp>
@@ -17,17 +17,12 @@ Scene::Scene() {
 }
 
 void Scene::destroy() {
-  for (BufferHandle instanceBuffer : mCachedInstanceBuffers) {
-    instanceBuffer->destroy();
-    instanceBuffer.erase();
-  }
-
-  ecs.clear();
+  mCachedSortedMeshes.clear();
+  mCachedOutlinedMeshes.clear();
   mCachedDraws.clear();
-  mCachedInstanceBuffers.clear();
 }
 
-std::span<const Draw> Scene::draw(entt::entity entityCamera, Registry<Buffer>& buffers) {
+std::span<const Draw> Scene::draw(entt::entity entityCamera) {
   ZoneScoped;
 
   mCachedDraws.clear();
@@ -66,9 +61,8 @@ std::span<const Draw> Scene::draw(entt::entity entityCamera, Registry<Buffer>& b
     {
       ZoneScopedN("Meshes");
       for (size_t meshIndex = 1; meshIndex <= mCachedSortedMeshes.size(); ++meshIndex) {
-        ZoneScoped;
-        ZoneNamedN(Mesh, "Mesh", true);
-        const RenderData& firstInstanceRD = mCachedSortedMeshes[firstInstanceIndex].renderData();
+        ZoneScopedN("Mesh");
+        RenderData& firstInstanceRD = mCachedSortedMeshes[firstInstanceIndex].renderData();
 
         ++instanceCount;
         if (meshIndex < mCachedSortedMeshes.size() &&
@@ -79,13 +73,12 @@ std::span<const Draw> Scene::draw(entt::entity entityCamera, Registry<Buffer>& b
 
         {
           ZoneScopedN("Transforms");
-          InstanceBufferData instanceBufferData;
-          instanceBufferData.instances.resize(instanceCount);
+          std::vector<InstanceData> instances(instanceCount);
           const auto rangeStart = mCachedSortedMeshes.begin() + static_cast<long>(firstInstanceIndex);
           const auto rangeEnd = rangeStart + static_cast<long>(instanceCount);
           {
             ZoneScopedN("Create instance data");
-            std::transform(std::execution::par_unseq, rangeStart, rangeEnd, instanceBufferData.instances.begin(),
+            std::transform(std::execution::par_unseq, rangeStart, rangeEnd, instances.begin(),
               [&](const MeshDataReference& meshRef) {
                 const CompTransform& transform = ecs.get<const CompTransform>(meshRef.entity);
                 const glm::mat4 model  = transform.modelMatrix();
@@ -93,10 +86,7 @@ std::span<const Draw> Scene::draw(entt::entity entityCamera, Registry<Buffer>& b
                 return InstanceData(model, normal);
               });
           }
-
-          BufferHandle instanceBuffer = this->obtainInstanceBuffer(instanceBufferIndex, buffers);
-          instanceBuffer->write(instanceBufferData);
-          instanceBufferData.setupInstanceVertexAttributes(firstInstanceRD.vertexArray, instanceBuffer);
+          firstInstanceRD.vertexArray->instanceData.write(instances);
         }
 
         mCachedDraws.push_back(Draw {
@@ -133,7 +123,7 @@ std::span<const Draw> Scene::draw(entt::entity entityCamera, Registry<Buffer>& b
       firstInstanceIndex = 0;
       for (size_t meshIndex = 1; meshIndex <= mCachedOutlinedMeshes.size(); ++meshIndex) {
         ZoneScopedN("Outline");
-        const RenderData& firstInstanceRD = mCachedOutlinedMeshes[firstInstanceIndex].renderData();
+        RenderData& firstInstanceRD = mCachedOutlinedMeshes[firstInstanceIndex].renderData();
 
         ++instanceCount;
         if (meshIndex < mCachedSortedMeshes.size() &&
@@ -144,11 +134,10 @@ std::span<const Draw> Scene::draw(entt::entity entityCamera, Registry<Buffer>& b
 
         {
           ZoneScopedN("Transforms");
-          InstanceBufferData instanceBufferData;
-          instanceBufferData.instances.resize(instanceCount);
+          std::vector<InstanceData> instances(instanceCount);
           const auto rangeStart = mCachedOutlinedMeshes.begin() + static_cast<long>(firstInstanceIndex);
           const auto rangeEnd = rangeStart + static_cast<long>(instanceCount);
-          std::transform(std::execution::par_unseq, rangeStart, rangeEnd, instanceBufferData.instances.begin(),
+          std::transform(std::execution::par_unseq, rangeStart, rangeEnd, instances.begin(),
             [&](const MeshDataReference& meshRef) {
               CompTransform outlineTransform = ecs.get<const CompTransform>(meshRef.entity);
               outlineTransform.scale *= 1.05f;
@@ -156,10 +145,7 @@ std::span<const Draw> Scene::draw(entt::entity entityCamera, Registry<Buffer>& b
               const glm::mat3 normal = glm::transpose(glm::inverse(model));
               return InstanceData(model, normal);
             });
-
-          BufferHandle instanceBuffer = this->obtainInstanceBuffer(instanceBufferIndex, buffers);
-          instanceBuffer->write(instanceBufferData);
-          instanceBufferData.setupInstanceVertexAttributes(firstInstanceRD.vertexArray, instanceBuffer);
+          firstInstanceRD.vertexArray->instanceData.write(instances);
         }
 
         // TODO: fix outlines
@@ -221,20 +207,6 @@ SpotlightSourceBuffer Scene::createSpotlightUniforms() const {
   return buffer;
 }
 
-BufferHandle Scene::obtainInstanceBuffer(const size_t bufferIndex, Registry<Buffer>& buffers) {
-  ZoneScoped;
-
-  assert(bufferIndex < mCachedInstanceBuffers.size() + 1);
-
-  if (mCachedInstanceBuffers.size() > bufferIndex) {
-    return mCachedInstanceBuffers[bufferIndex];
-  }
-
-  const BufferHandle newBuffer = buffers.add(Buffer(GL_ARRAY_BUFFER));
-  mCachedInstanceBuffers.push_back(newBuffer);
-  return newBuffer;
-}
-
 void Scene::onEntityMarkedDirty(entt::registry&, const entt::entity) {
 
 }
@@ -283,6 +255,10 @@ void Scene::prepareForRendering() {
       return rdA.vertexArray.itemID() < rdB.vertexArray.itemID();
     });
   }
+}
+
+RenderData& Scene::MeshDataReference::renderData() {
+  return ecs->get<CompGraphics>(entity).renderData[renderDataIndex];
 }
 
 const RenderData& Scene::MeshDataReference::renderData() const {

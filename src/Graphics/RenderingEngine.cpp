@@ -22,8 +22,6 @@
 
 #include <ranges>
 
-namespace views = std::ranges::views;
-
 Expected<void> RenderingEngine::init() {
   ZoneScoped;
 
@@ -61,7 +59,12 @@ Expected<void> RenderingEngine::init() {
   ASSIGN_EXPECTED_OR_RETURN(mPostProcessFlipVerticallyShaderProgram, flipVertically);
   ASSIGN_EXPECTED_OR_RETURN(mSkyboxShaderProgram, skybox);
 
-  glGenVertexArrays(1, &mScreenQuadVAO);
+  glCreateVertexArrays(1, &mScreenQuadVAO);
+  glCreateVertexArrays(1, &mMeshesVAO);
+  Vertex::setupVertexAttributes(mMeshesVAO);
+
+  mColorAttachmentSampler = this->addSampler(SamplerOptions { .minFilter = GL_LINEAR });
+  mMeshTextureSampler = this->addSampler(SamplerOptions {});
 
   mCameraUniformBuffer = this->createBuffer(GL_UNIFORM_BUFFER);
   mCameraUniformBuffer.value()->allocate(sizeof(CameraUniforms));
@@ -77,34 +80,40 @@ Expected<void> RenderingEngine::init() {
 void RenderingEngine::destroy() {
   ZoneScoped;
 
-  for (ShaderProgram& shaderProgram : std::ranges::views::values(mShaderPrograms)) {
+  for (ShaderProgram& shaderProgram : std::views::values(mShaderPrograms)) {
     shaderProgram.destroy();
   }
-  for (VertexArray& vertexArray : std::ranges::views::values(mVertexArrays)) {
+  for (VertexArray& vertexArray : std::views::values(mVertexArrays)) {
     vertexArray.destroy();
   }
-  for (Texture2D& texture2D : std::ranges::views::values(mTexture2Ds)) {
+  for (Sampler& sampler : std::views::values(mSamplers)) {
+    sampler.destroy();
+  }
+  for (Texture2D& texture2D : std::views::values(mTexture2Ds)) {
     texture2D.destroy();
   }
-  for (TextureCubeMap& textureCubeMap : std::ranges::views::values(mTextureCubeMaps)) {
+  for (TextureCubeMap& textureCubeMap : std::views::values(mTextureCubeMaps)) {
     textureCubeMap.destroy();
   }
-  for (Framebuffer& framebuffer : std::ranges::views::values(mFramebuffers)) {
+  for (Framebuffer& framebuffer : std::views::values(mFramebuffers)) {
     framebuffer.destroy();
   }
-  for (Buffer& buffer : std::ranges::views::values(mBuffers)) {
+  for (Buffer& buffer : std::views::values(mBuffers)) {
     buffer.destroy();
   }
 
   mShaderPrograms.clear();
   mShaderProgramInstances.clear();
   mVertexArrays.clear();
+  mSamplers.clear();
   mTexture2Ds.clear();
   mTextureCubeMaps.clear();
   mFramebuffers.clear();
   mBuffers.clear();
 
+  glDeleteVertexArrays(1, &mMeshesVAO);
   glDeleteVertexArrays(1, &mScreenQuadVAO);
+  mMeshesVAO = GL_NONE;
   mScreenQuadVAO = GL_NONE;
 
   mLitSurfaceShaderProgram.reset();
@@ -214,14 +223,10 @@ const std::vector<RenderData>& RenderingEngine::addModel(AssetHandle<Model> mode
     return mUploadedModels.at(model.itemID());
   }
 
-  std::vector<SamplerOptions> diffuseSamplers;
-  std::vector<SamplerOptions> specularSamplers;
-  std::vector<SamplerOptions> emissionSamplers;
-  diffuseSamplers.resize(model->diffuseMaps.size());
-  specularSamplers.resize(model->specularMaps.size());
-  emissionSamplers.resize(model->emissionMaps.size());
-
   const std::vector<VertexArrayHandle> vertexArrays = this->addMeshes(model->meshes);
+  const std::vector<std::optional<SamplerHandle>> diffuseSamplers(model->diffuseMaps.size(), mMeshTextureSampler);
+  const std::vector<std::optional<SamplerHandle>> specularSamplers(model->specularMaps.size(), mMeshTextureSampler);
+  const std::vector<std::optional<SamplerHandle>> emissionSamplers(model->emissionMaps.size(), mMeshTextureSampler);
   const std::vector<std::optional<Texture2DHandle>> diffuseMaps = this->addTexture2Ds(model->diffuseMaps, diffuseSamplers);
   const std::vector<std::optional<Texture2DHandle>> specularMaps = this->addTexture2Ds(model->specularMaps, specularSamplers);
   const std::vector<std::optional<Texture2DHandle>> emissionMaps = this->addTexture2Ds(model->emissionMaps, emissionSamplers);
@@ -259,49 +264,57 @@ VertexArrayHandle RenderingEngine::addMesh(AssetHandle<Mesh> mesh) {
   return mVertexArrays.add(VertexArray(mesh.get()));
 }
 
-auto RenderingEngine::addTexture2Ds(std::span<const std::optional<AssetHandle<Bitmap>>> bitmaps, std::span<const SamplerOptions> options)
+SamplerHandle RenderingEngine::addSampler(const SamplerOptions& options) {
+  ZoneScoped;
+
+  return mSamplers.add(Sampler(options));
+}
+
+auto RenderingEngine::addTexture2Ds(const std::span<const std::optional<AssetHandle<Bitmap>>> bitmaps,
+                                    const std::span<const std::optional<SamplerHandle>> samplers)
   -> std::vector<std::optional<Texture2DHandle>>
 {
   ZoneScoped;
 
-  assert(bitmaps.size() == options.size());
+  assert(bitmaps.size() == samplers.size());
 
   std::vector<std::optional<Texture2DHandle>> handles;
   handles.reserve(bitmaps.size());
-  for (size_t i = 0; i < bitmaps.size(); ++i) {
-    if (const std::optional<AssetHandle<Bitmap>> bitmap = bitmaps[i]; bitmap.has_value()) {
-      const SamplerOptions& option = options[i];
-      const Texture2DHandle ref = this->addTexture2D(bitmap.value(), option);
+  for (size_t i = 0; const std::optional bitmap : bitmaps) {
+    if (bitmap.has_value()) {
+      const SamplerHandle sampler = samplers[i].value();
+      const Texture2DHandle ref = this->addTexture2D(bitmap.value(), sampler);
       handles.emplace_back(ref);
     } else {
       handles.emplace_back();
     }
+    ++i;
   }
   return handles;
 }
 
-Texture2DHandle RenderingEngine::addTexture2D(AssetHandle<Bitmap> bitmap, const SamplerOptions& options) {
+Texture2DHandle RenderingEngine::addTexture2D(const AssetHandle<Bitmap> bitmap, const SamplerHandle sampler) {
   ZoneScoped;
 
   if (mUploadedTextures.contains(bitmap.itemID())) {
     return mUploadedTextures.at(bitmap.itemID());
   }
 
-  const Texture2DHandle handle = mTexture2Ds.add(Texture2D(bitmap, options));
+  const Texture2DHandle handle = mTexture2Ds.add(Texture2D(bitmap, sampler));
   mUploadedTextures.emplace(bitmap.itemID(), handle);
   return handle;
 }
 
-TextureCubeMapHandle RenderingEngine::addTextureCubeMap(const TextureCubeMapBitmaps& bitmaps, const SamplerOptions& options) {
+TextureCubeMapHandle RenderingEngine::addTextureCubeMap(const TextureCubeMapBitmaps& bitmaps, const SamplerHandle sampler) {
   ZoneScoped;
 
-  return mTextureCubeMaps.add(TextureCubeMap(bitmaps, options));
+  return mTextureCubeMaps.add(TextureCubeMap(bitmaps, sampler));
 }
 
 FramebufferHandle RenderingEngine::addFramebuffer(const FramebufferCreateInfo& info) {
   ZoneScoped;
 
-  return mFramebuffers.add(Framebuffer(info));
+  return mFramebuffers.add(Framebuffer(info, mColorAttachmentSampler.value()));
 }
 
 BufferHandle RenderingEngine::createBuffer(const GLenum type) {
@@ -329,7 +342,7 @@ void RenderingEngine::submitRenderPasses(const std::span<RenderPass> renderPasse
 
 void RenderingEngine::renderScene(Scene& scene, const entt::entity entityCamera, const Viewport& viewport, FramebufferHandle dstFramebuffer) {
   ZoneScoped;
-  TracyGpuZone("renderScene");
+  TracyGpuZone("Render scene");
 
   assert(mInitialised);
 
@@ -351,7 +364,7 @@ void RenderingEngine::renderScene(Scene& scene, const entt::entity entityCamera,
   glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-  const std::span<const Draw> draws = scene.draw(entityCamera, mBuffers);
+  const std::span<const Draw> draws = scene.draw(entityCamera);
   if (draws.empty()) {
     return;
   }
@@ -379,15 +392,15 @@ void RenderingEngine::renderScene(Scene& scene, const entt::entity entityCamera,
   mCameraUniformBuffer.value()->write(cameraUniformData);
   mCameraUniformBuffer.value()->bindWhole(UBO_BIND_POINT_CAMERA);
 
-  const auto updateLights = [&scene]<typename CompLight>(BufferHandle instanceBuffer, const uint32_t bindPoint, const auto getLightUniformData) {
+  const auto updateLights = [&scene]<typename CompLight>(BufferHandle storageBuffer, const uint32_t bindPoint, const auto getLightUniformData) {
     const entt::basic_view dirtyLights = scene.ecs.view<const CompLight, const CompDirty>();
     if (dirtyLights.begin() == dirtyLights.end()) {
       return;
     }
 
     const auto lightUniformData = getLightUniformData();
-    instanceBuffer->write(lightUniformData);
-    instanceBuffer->bindWhole(bindPoint);
+    storageBuffer->write(lightUniformData);
+    storageBuffer->bindWhole(bindPoint);
     for (auto [entity, light] : dirtyLights.each()) {
       if (CompGraphics* graphics = scene.ecs.try_get<CompGraphics>(entity)) {
         for (RenderData& renderData : graphics->renderData) {
@@ -409,6 +422,8 @@ void RenderingEngine::renderScene(Scene& scene, const entt::entity entityCamera,
   updateLights.operator()<CompSpotlight>(mSpotlightsStorageBuffer.value(),
                                          SSBO_BIND_POINT_SPOTLIGHTS,
                                          [&] { return scene.createSpotlightUniforms(); });
+
+  glBindVertexArray(mMeshesVAO);
 
   const Draw* lastDraw = &draws.front();
   for (size_t drawIdx = 0; drawIdx < draws.size(); drawIdx++) {
@@ -473,14 +488,14 @@ void RenderingEngine::renderScene(Scene& scene, const entt::entity entityCamera,
       currShader.bindUniforms();
     }
 
-    GLuint slot = GL_TEXTURE0;
+    GLuint slot = 0;
     const auto bindTexture = [&, this](const auto& currTexture, const auto& lastTexture, const GLenum target) {
       if (drawIdx == 0 || currTexture != lastTexture) {
         if (currTexture.has_value()) {
           currTexture->get().bind(slot);
           mBoundTextureSlots.insert(slot);
         } else {
-          glActiveTexture(slot);
+          glActiveTexture(GL_TEXTURE0 + slot);
           glBindTexture(target, 0);
           mBoundTextureSlots.erase(slot);
         }
@@ -494,7 +509,7 @@ void RenderingEngine::renderScene(Scene& scene, const entt::entity entityCamera,
 
     {
       TracyGpuZone("Draw elements instanced");
-      glBindVertexArray(currDraw->vertexArray->vao);
+      currDraw->vertexArray->bind();
       glDrawElementsInstanced(GL_TRIANGLES, currDraw->vertexArray->indexCount, GL_UNSIGNED_INT, nullptr,
                               static_cast<GLsizei>(currDraw->instanceCount));
     }
@@ -507,7 +522,7 @@ void RenderingEngine::renderScene(Scene& scene, const entt::entity entityCamera,
   glBindVertexArray(GL_NONE);
   glUseProgram(GL_NONE);
   for (const GLuint slot : mBoundTextureSlots) {
-    glActiveTexture(slot);
+    glActiveTexture(GL_TEXTURE0 + slot);
     glBindTexture(GL_TEXTURE_2D, GL_NONE);
   }
   mBoundTextureSlots.clear();
@@ -519,7 +534,7 @@ void RenderingEngine::renderScene(Scene& scene, const entt::entity entityCamera,
 
 void RenderingEngine::renderVertexNormals(Scene& scene, entt::entity entityCamera, const Viewport& viewport, FramebufferHandle dstFramebuffer) {
   ZoneScoped;
-  TracyGpuZone("renderVertexNormals");
+  TracyGpuZone("Render vertex normals");
 
   assert(mInitialised);
 
@@ -531,28 +546,22 @@ void RenderingEngine::renderVertexNormals(Scene& scene, entt::entity entityCamer
 
   glEnable(GL_DEPTH_TEST);
 
-  const std::span<const Draw> draws = scene.draw(entityCamera, mBuffers);
+  const std::span<const Draw> draws = scene.draw(entityCamera);
   if (draws.empty()) {
     return;
   }
 
+  // TODO: fix drawing vertex normals
+  glBindVertexArray(mMeshesVAO);
   glUseProgram(mVertexNormalShaderProgram.value()->id());
 
-  const Draw* lastDraw = &draws.front();
-  for (size_t drawIdx = 0; drawIdx < draws.size(); drawIdx++) {
-    const Draw* currDraw = &draws[drawIdx];
-
-    if (currDraw->bSkybox) {
-      continue;
+  for (const Draw& currDraw : draws) {
+    if (!currDraw.bSkybox) {
+      TracyGpuZone("Draw elements instanced");
+      currDraw.vertexArray->bind();
+      glDrawElementsInstanced(GL_TRIANGLES, currDraw.vertexArray->indexCount, GL_UNSIGNED_INT, nullptr,
+                              static_cast<GLsizei>(currDraw.instanceCount));
     }
-
-    const VertexArray& currVA = currDraw->vertexArray.get();
-    if (drawIdx == 0 || currDraw->vertexArray != lastDraw->vertexArray) {
-      glBindVertexArray(currVA.vao);
-    }
-    glDrawElements(GL_TRIANGLES, currVA.indexCount, GL_UNSIGNED_INT, nullptr);
-
-    lastDraw = currDraw;
   }
 
   glBindVertexArray(GL_NONE);
@@ -580,7 +589,7 @@ void RenderingEngine::postProcess(const Viewport& viewport, ShaderProgramInstanc
 
   postProcessingShader->use();
   postProcessingShader->bindUniforms();
-  srcFramebuffer->colorAttachment.bind(GL_TEXTURE0);
+  srcFramebuffer->colorAttachment.bind(0);
 
   glBindVertexArray(mScreenQuadVAO);
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -610,10 +619,8 @@ void RenderingEngine::present(const glm::uvec2 windowSize, FramebufferHandle src
   glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT);
 
-  glUseProgram((*mPostProcessCopyShaderProgram)->id());
-  glUniform1i(0, 0); // bind uScreenTexture sampler
-  glActiveTexture(GL_TEXTURE0);
-  srcFramebuffer->colorAttachment.bind();
+  glUseProgram(mPostProcessCopyShaderProgram.value()->id());
+  srcFramebuffer->colorAttachment.bind(0);
   glBindVertexArray(mScreenQuadVAO);
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 

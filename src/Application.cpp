@@ -138,8 +138,7 @@ void APIENTRY Application::openGlDebugCallback(GLenum source, GLenum type, GLuin
   std::string message = "---------------\n";
   message += std::format("Debug message ({}): {}\n", id, logMessage);
 
-  switch (source)
-  {
+  switch (source) {
     case GL_DEBUG_SOURCE_API:             message += "Source: API\n";             break;
     case GL_DEBUG_SOURCE_WINDOW_SYSTEM:   message += "Source: Window System\n";   break;
     case GL_DEBUG_SOURCE_SHADER_COMPILER: message += "Source: Shader Compiler\n"; break;
@@ -149,8 +148,7 @@ void APIENTRY Application::openGlDebugCallback(GLenum source, GLenum type, GLuin
     default:                              UNREACHABLE();
   }
 
-  switch (type)
-  {
+  switch (type) {
     case GL_DEBUG_TYPE_ERROR:               message += "Type: Error\n";                break;
     case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: message += "Type: Deprecated Behaviour\n"; break;
     case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:  message += "Type: Undefined Behaviour\n";  break;
@@ -163,8 +161,7 @@ void APIENTRY Application::openGlDebugCallback(GLenum source, GLenum type, GLuin
     default:                                UNREACHABLE();
   }
 
-  switch (severity)
-  {
+  switch (severity) {
     case GL_DEBUG_SEVERITY_HIGH:         message += "Severity: high\n";         break;
     case GL_DEBUG_SEVERITY_MEDIUM:       message += "Severity: medium\n";       break;
     case GL_DEBUG_SEVERITY_LOW:          message += "Severity: low\n";          break;
@@ -213,6 +210,7 @@ Expected<void> Application::createScene() {
   std::vector<RenderData> planetMeshes = mState.renderingEngine->addModel(modelPlanet.value(), mState.litSurfaceShader.value());
   std::vector<RenderData> rockMeshes   = mState.renderingEngine->addModel(modelRock.value(), mState.litSurfaceShader.value());
 
+  SamplerHandle skyboxSampler = mState.renderingEngine->addSampler(SamplerOptions { .minFilter = GL_LINEAR });
   TextureCubeMapHandle skyboxTexture = mState.renderingEngine->addTextureCubeMap(
     TextureCubeMapBitmaps {
       bitmapSkyboxRight.value(),
@@ -222,7 +220,7 @@ Expected<void> Application::createScene() {
       bitmapSkyboxBack.value(),
       bitmapSkyboxFront.value(),
     },
-    SamplerOptions { .minFilter = GL_LINEAR }
+    skyboxSampler
   );
 
   // Create scene

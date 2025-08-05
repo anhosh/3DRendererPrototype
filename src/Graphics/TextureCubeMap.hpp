@@ -1,7 +1,7 @@
 #pragma once
 
 #include <Assets/AssetHandle.hpp>
-#include <Graphics/SamplerOptions.hpp>
+#include <Graphics/Sampler.hpp>
 #include <Util/Registry.hpp>
 
 class Bitmap;
@@ -17,22 +17,21 @@ struct TextureCubeMapBitmaps {
 
 class TextureCubeMap {
 public:
-  TextureCubeMap();
-  explicit TextureCubeMap(const TextureCubeMapBitmaps& bitmaps, const SamplerOptions& options = {});
+  explicit TextureCubeMap(SamplerHandle sampler);
+  explicit TextureCubeMap(const TextureCubeMapBitmaps& bitmaps, SamplerHandle sampler);
 
   void init();
-  void generate(const TextureCubeMapBitmaps& bitmaps, const SamplerOptions& options = {}) const;
+  void generate(const TextureCubeMapBitmaps& bitmaps) const;
   void destroy();
 
-  void bind() const;
   void bind(GLuint slot) const;
-  void unbind() const;
   void unbind(GLuint slot) const;
 
   [[nodiscard]] GLuint id() const { return mID; }
 
 private:
   GLuint mID = 0;
+  SamplerHandle mSampler;
 };
 
 using TextureCubeMapHandle = Registry<TextureCubeMap>::Handle;

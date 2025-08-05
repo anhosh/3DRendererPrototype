@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.24)
 
-project(LearnOpenGL)
+project(3DRendererPrototype)
 
 # set C++ options
 set(CMAKE_CXX_STANDARD 23)
@@ -12,7 +12,7 @@ set(CMAKE_DEBUG_POSTFIX "-d")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG_ENABLED")
 set(BUILD_SHARED_LIBS OFF)
 
-# add LearnOpenGL::ext target
+# add 3DRendererPrototype::ext target
 add_subdirectory(ext)
 
 # declare executable target
@@ -20,7 +20,7 @@ add_executable(${PROJECT_NAME})
 
 # link to ext target
 target_link_libraries(${PROJECT_NAME} PRIVATE
-  LearnOpenGL::ext
+  3DRendererPrototype::ext
   tbb
 )
 

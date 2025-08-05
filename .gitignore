@@ -1,7 +1,11 @@
 .idea/
 build/
 CMakeFiles/
-ext/CMakeFiles/
+
+CMakeCache.txt
+cmake_install.cmake
+TracyTargets.cmake
+Makefile
 imgui.ini
 *.trace
 *.rdc

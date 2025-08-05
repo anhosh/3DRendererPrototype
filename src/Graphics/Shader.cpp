@@ -67,7 +67,7 @@ Expected<Shader> createShader(GLenum type, const fs::path& sourcePath, std::stri
   return Shader { type, shader };
 }
 
-Expected<GLuint> createShaderProgram(const ShaderProgramPaths& shaderStages) {
+Expected<GLuint> createShaderProgram(const ShaderProgramPaths& shaderPaths) {
   ZoneScoped;
 
   std::vector<Shader> shaders;
@@ -81,7 +81,7 @@ Expected<GLuint> createShaderProgram(const ShaderProgramPaths& shaderStages) {
   };
 
 #define NEW_DEFINE(name) std::format("#define " #name " {}\n", name)
-  const auto HAS_GEOMETRY_SHADER = static_cast<uint32_t>(shaderStages.geometry.has_value());
+  const auto HAS_GEOMETRY_SHADER = static_cast<uint32_t>(shaderPaths.geometry.has_value());
   const std::string defines = NEW_DEFINE(UBO_BIND_POINT_CAMERA) +
                               NEW_DEFINE(SSBO_BIND_POINT_DIRECTIONAL_LIGHTS) +
                               NEW_DEFINE(SSBO_BIND_POINT_POINT_LIGHTS) +
@@ -89,17 +89,17 @@ Expected<GLuint> createShaderProgram(const ShaderProgramPaths& shaderStages) {
                               NEW_DEFINE(HAS_GEOMETRY_SHADER);
 #undef NEW_DEFINE
 
-  RETURN_ERROR_IF_UNEXPECTED(addShader(GL_VERTEX_SHADER, shaderStages.vertex, defines));
-  if (shaderStages.tesselationControl.has_value()) {
-    RETURN_ERROR_IF_UNEXPECTED(addShader(GL_TESS_CONTROL_SHADER, shaderStages.tesselationControl.value(), defines));
+  RETURN_ERROR_IF_UNEXPECTED(addShader(GL_VERTEX_SHADER, shaderPaths.vertex, defines));
+  if (shaderPaths.tesselationControl.has_value()) {
+    RETURN_ERROR_IF_UNEXPECTED(addShader(GL_TESS_CONTROL_SHADER, shaderPaths.tesselationControl.value(), defines));
   }
-  if (shaderStages.tesselationEvaluation.has_value()) {
-    RETURN_ERROR_IF_UNEXPECTED(addShader(GL_TESS_EVALUATION_SHADER, shaderStages.tesselationEvaluation.value(), defines));
+  if (shaderPaths.tesselationEvaluation.has_value()) {
+    RETURN_ERROR_IF_UNEXPECTED(addShader(GL_TESS_EVALUATION_SHADER, shaderPaths.tesselationEvaluation.value(), defines));
   }
-  if (shaderStages.geometry.has_value()) {
-    RETURN_ERROR_IF_UNEXPECTED(addShader(GL_GEOMETRY_SHADER, shaderStages.geometry.value(), defines));
+  if (shaderPaths.geometry.has_value()) {
+    RETURN_ERROR_IF_UNEXPECTED(addShader(GL_GEOMETRY_SHADER, shaderPaths.geometry.value(), defines));
   }
-  RETURN_ERROR_IF_UNEXPECTED(addShader(GL_FRAGMENT_SHADER, shaderStages.fragment, defines));
+  RETURN_ERROR_IF_UNEXPECTED(addShader(GL_FRAGMENT_SHADER, shaderPaths.fragment, defines));
 
   const GLuint program = glCreateProgram();
   for (const Shader shader : shaders) {

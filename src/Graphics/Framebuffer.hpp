@@ -1,19 +1,19 @@
 #pragma once
 
+#include <Graphics/Sampler.hpp>
 #include <Graphics/Texture2D.hpp>
-#include <Util/NoInit.hpp>
 #include <Util/Registry.hpp>
 
 struct FramebufferCreateInfo {
   glm::uvec2 size;
-  GLint colorFormat = GL_RGB;
+  GLint colorFormat = GL_RGB8;
   bool bDepthStencil = true;
   uint32_t samples = 1;
 };
 
 class Framebuffer {
 public:
-  explicit Framebuffer(const FramebufferCreateInfo& info);
+  explicit Framebuffer(const FramebufferCreateInfo& info, SamplerHandle colorAttachmentSampler);
 
   void init();
   void destroy();
@@ -24,17 +24,16 @@ public:
   void bind() const;
   void unbind() const;
 
-  [[nodiscard]] GLuint fbo() const { return mFBO; }
-  [[nodiscard]] GLuint depthStencilRBO() const { return mDepthStencilRBO; }
   [[nodiscard]] glm::uvec2 size() const { return mInfo.size; }
 
-  Texture2D colorAttachment = NoInit{};
+public:
+  Texture2D colorAttachment;
 
 private:
   GLuint mFBO = GL_NONE;
-  GLuint mDepthStencilRBO = GL_NONE;
   GLuint mMultisampledFBO = GL_NONE;
-  GLuint mMultisampledTexture = GL_NONE;
+  GLuint mMultisampledColorAttachment = GL_NONE;
+  GLuint mDepthStencilRBO = GL_NONE;
   FramebufferCreateInfo mInfo;
 };
 

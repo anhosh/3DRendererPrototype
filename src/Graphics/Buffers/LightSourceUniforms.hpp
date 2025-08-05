@@ -4,6 +4,8 @@
 #include <Graphics/Components/Transform.hpp>
 #include <Util/IntoBytes.hpp>
 
+#include <tracy/TracyOpenGL.hpp>
+
 #include <vector>
 
 struct LightColorUniforms {
@@ -31,12 +33,13 @@ struct LightSourceBuffer {
     return sizeof(glm::uvec4) + this->sources.size() * sizeof(LightSourceUniforms);
   }
 
-  void writeToBuffer(GLenum target, size_t offset) const {
+  void writeToBuffer(const GLuint buffer, const size_t offset) const {
     ZoneScoped;
+    TracyGpuZone("LightSourceBuffer::writeToBuffer");
 
     const std::array lengthBytes = asBytes(glm::uvec4(this->sources.size(), 0, 0, 0));
-    glBufferSubData(target, static_cast<GLintptr>(offset), lengthBytes.size(), lengthBytes.data());
-    glBufferSubData(target, static_cast<GLintptr>(offset + lengthBytes.size()), size() - lengthBytes.size(), this->sources.data());
+    glNamedBufferSubData(buffer, static_cast<GLintptr>(offset), lengthBytes.size(), lengthBytes.data());
+    glNamedBufferSubData(buffer, static_cast<GLintptr>(offset + lengthBytes.size()), size() - lengthBytes.size(), this->sources.data());
   }
 };
 

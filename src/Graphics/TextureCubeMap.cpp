@@ -4,44 +4,42 @@
 
 #include <array>
 
-TextureCubeMap::TextureCubeMap() {
+TextureCubeMap::TextureCubeMap(SamplerHandle sampler)
+  : mSampler(sampler)
+{
   ZoneScoped;
 
   this->init();
 }
 
-TextureCubeMap::TextureCubeMap(const TextureCubeMapBitmaps& bitmaps, const SamplerOptions& options) : TextureCubeMap() {
+TextureCubeMap::TextureCubeMap(const TextureCubeMapBitmaps& bitmaps, SamplerHandle sampler)
+  : TextureCubeMap(sampler)
+{
   ZoneScoped;
 
-  this->generate(bitmaps, options);
+  this->generate(bitmaps);
 }
 
 void TextureCubeMap::init() {
   ZoneScoped;
 
-  glGenTextures(1, &mID);
+  glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &mID);
 }
 
-void TextureCubeMap::generate(const TextureCubeMapBitmaps& bitmaps, const SamplerOptions& options) const {
+void TextureCubeMap::generate(const TextureCubeMapBitmaps& bitmaps) const {
   ZoneScoped;
-
-  this->bind();
 
   const auto faces = std::array { bitmaps.right, bitmaps.left, bitmaps.top, bitmaps.bottom, bitmaps.front, bitmaps.back };
   static constexpr GLenum formats[] = { GL_RED, GL_RG, GL_RGB, GL_RGBA };
+  glTextureStorage2D(mID, 1, GL_RGBA8,  faces[0]->size().x, faces[0]->size().y);
   for (size_t i = 0; i < faces.size(); ++i) {
     const GLenum format = formats[faces[i]->channels() - 1];
-    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, format, faces[i]->size().x, faces[i]->size().y,
-                 0, format, GL_UNSIGNED_BYTE, faces[i]->bytes());
+    glTextureSubImage3D(mID, 0,
+                        0, 0, i,
+                        faces[i]->size().x, faces[i]->size().y, 1,
+                        format, GL_UNSIGNED_BYTE, faces[i]->bytes());
   }
-
-  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, options.minFilter);
-  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, options.magFilter);
-  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, options.wrapS);
-  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, options.wrapT);
-  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, options.wrapR);
-
-  this->unbind();
+  glGenerateTextureMipmap(mID);
 }
 
 void TextureCubeMap::destroy() {
@@ -51,22 +49,18 @@ void TextureCubeMap::destroy() {
     glDeleteTextures(1, &mID);
     mID = GL_NONE;
   }
-}
-
-void TextureCubeMap::bind() const {
-  glBindTexture(GL_TEXTURE_CUBE_MAP, mID);
+  mSampler->destroy();
 }
 
 void TextureCubeMap::bind(const GLuint slot) const {
-  glActiveTexture(slot);
+  glActiveTexture(GL_TEXTURE0 + slot);
   glBindTexture(GL_TEXTURE_CUBE_MAP, mID);
-}
-
-void TextureCubeMap::unbind() const {
-  glBindTexture(GL_TEXTURE_CUBE_MAP, GL_NONE);
+  mSampler->bind(slot);
 }
 
 void TextureCubeMap::unbind(const GLuint slot) const {
-  glActiveTexture(slot);
+  (void)mID;
+  glActiveTexture(GL_TEXTURE0 + slot);
   glBindTexture(GL_TEXTURE_CUBE_MAP, GL_NONE);
+  mSampler->unbind(slot);
 }

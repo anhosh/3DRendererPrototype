@@ -1,12 +1,13 @@
 #pragma once
 
 #include <Assets/AssetManager.hpp>
+#include <Graphics/Buffer.hpp>
 #include <Graphics/Framebuffer.hpp>
 #include <Graphics/RenderData.hpp>
+#include <Graphics/Sampler.hpp>
 #include <Graphics/ShaderProgramInstance.hpp>
 #include <Graphics/Texture2D.hpp>
 #include <Graphics/TextureCubeMap.hpp>
-#include <Graphics/Buffer.hpp>
 #include <Graphics/VertexArray.hpp>
 #include <Util/Registry.hpp>
 
@@ -48,10 +49,12 @@ public:
   std::vector<VertexArrayHandle> addMeshes(std::span<const AssetHandle<Mesh>> meshes);
   VertexArrayHandle addMesh(AssetHandle<Mesh> mesh);
 
+  SamplerHandle addSampler(const SamplerOptions& options);
+
   std::vector<std::optional<Texture2DHandle>> addTexture2Ds(std::span<const std::optional<AssetHandle<Bitmap>>> bitmaps,
-                                                            std::span<const SamplerOptions> options = {});
-  Texture2DHandle addTexture2D(AssetHandle<Bitmap> bitmap, const SamplerOptions& options = {});
-  TextureCubeMapHandle addTextureCubeMap(const TextureCubeMapBitmaps& bitmaps, const SamplerOptions& options = {});
+                                                            std::span<const std::optional<SamplerHandle>> samplers);
+  Texture2DHandle addTexture2D(AssetHandle<Bitmap> bitmap, SamplerHandle sampler);
+  TextureCubeMapHandle addTextureCubeMap(const TextureCubeMapBitmaps& bitmaps, SamplerHandle sampler);
 
   FramebufferHandle addFramebuffer(const FramebufferCreateInfo& info);
 
@@ -74,11 +77,13 @@ private:
   Registry<ShaderProgram> mShaderPrograms;
   Registry<ShaderProgramInstance> mShaderProgramInstances;
   Registry<VertexArray> mVertexArrays;
+  Registry<Sampler> mSamplers;
   Registry<Texture2D> mTexture2Ds;
   Registry<TextureCubeMap> mTextureCubeMaps;
   Registry<Framebuffer> mFramebuffers;
   Registry<Buffer> mBuffers;
 
+  GLuint mMeshesVAO = GL_NONE;
   GLuint mScreenQuadVAO = GL_NONE;
 
   std::optional<ShaderProgramHandle> mLitSurfaceShaderProgram = std::nullopt;
@@ -97,6 +102,9 @@ private:
   std::optional<ShaderProgramHandle> mPostProcessInvertShaderProgram = std::nullopt;
   std::optional<ShaderProgramHandle> mPostProcessKernel3x3ShaderProgram = std::nullopt;
   std::optional<ShaderProgramHandle> mSkyboxShaderProgram = std::nullopt;
+
+  std::optional<SamplerHandle> mColorAttachmentSampler = std::nullopt;
+  std::optional<SamplerHandle> mMeshTextureSampler = std::nullopt;
 
   std::optional<BufferHandle> mCameraUniformBuffer = std::nullopt;
   std::optional<BufferHandle> mDirectionalLightsStorageBuffer = std::nullopt;

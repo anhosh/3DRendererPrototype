@@ -9,7 +9,7 @@ Buffer::Buffer(const GLenum target) : mTarget(target) {
 void Buffer::init() {
   ZoneScoped;
 
-  glGenBuffers(1, &mID);
+  glCreateBuffers(1, &mID);
 }
 
 void Buffer::destroy() {
@@ -25,9 +25,7 @@ void Buffer::destroy() {
 void Buffer::allocate(const size_t size) {
   ZoneScoped;
 
-  glBindBuffer(mTarget, mID);
-  glBufferData(mTarget, static_cast<GLsizeiptr>(size), nullptr, GL_DYNAMIC_READ);
-  glBindBuffer(mTarget, GL_NONE);
+  glNamedBufferData(mID, static_cast<GLsizeiptr>(size), nullptr, GL_DYNAMIC_READ);
   mSize = size;
 }
 
@@ -42,9 +40,7 @@ void Buffer::reallocate(const size_t newSize) {
   this->init();
   this->allocate(newSize);
   if (oldSize > 0) {
-    glBindBuffer(GL_COPY_READ_BUFFER, oldBuffer);
-    glBindBuffer(GL_COPY_WRITE_BUFFER, mID);
-    glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, oldSize);
+    glCopyNamedBufferSubData(oldBuffer, mID, 0, 0, oldSize);
   }
   glDeleteBuffers(1, &oldBuffer);
 }

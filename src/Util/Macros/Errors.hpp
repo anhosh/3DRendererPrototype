@@ -9,20 +9,20 @@
 #define UNIMPLEMENTED() \
   TO_STATEMENT( \
     std::println(stderr, "Unimplemented function {} at {}:{}:", __FUNCTION__, __FILE__, __LINE__); \
-    assert(false); \
+    abort(); \
   )
 
 #define UNREACHABLE() \
   TO_STATEMENT( \
     std::println(stderr, "Reached unreachable code at {}:{}, {}:", __FILE__, __LINE__, __FUNCTION__); \
-    assert(false); \
+    abort(); \
   )
 
 #define PANIC(fmt, ...) \
   TO_STATEMENT( \
     std::println(stderr, "Program panicked at {}:{}, {}:", __FILE__, __LINE__, __FUNCTION__); \
     std::println(stderr, fmt __VA_OPT__(,) __VA_ARGS__); \
-    assert(false); \
+    abort(); \
   )
 
 #define RETURN_ERROR_IF_UNEXPECTED(expr) \

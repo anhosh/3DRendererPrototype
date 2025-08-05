@@ -15,8 +15,8 @@ CameraUniforms CameraUniforms::from(const CompCamera& camera, const CompTransfor
   };
 }
 
-void CameraUniforms::writeToBuffer(const GLenum target, const size_t offset) const {
+void CameraUniforms::writeToBuffer(const GLuint buffer, const size_t offset) const {
   ZoneScoped;
 
-  glBufferSubData(target, offset, size(), this);
+  glNamedBufferSubData(buffer, offset, size(), this);
 }
