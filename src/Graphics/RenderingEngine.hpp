@@ -3,12 +3,12 @@
 #include <Assets/AssetManager.hpp>
 #include <Graphics/Buffer.hpp>
 #include <Graphics/Framebuffer.hpp>
+#include <Graphics/Mesh.hpp>
 #include <Graphics/RenderData.hpp>
 #include <Graphics/Sampler.hpp>
 #include <Graphics/ShaderProgramInstance.hpp>
 #include <Graphics/Texture2D.hpp>
 #include <Graphics/TextureCubeMap.hpp>
-#include <Graphics/VertexArray.hpp>
 #include <Util/Registry.hpp>
 
 #include <entt/entity/entity.hpp>
@@ -46,8 +46,8 @@ public:
 
   const std::vector<RenderData>& addModel(AssetHandle<Model> model, ShaderProgramInstanceHandle initialShader);
 
-  std::vector<VertexArrayHandle> addMeshes(std::span<const AssetHandle<Mesh>> meshes);
-  VertexArrayHandle addMesh(AssetHandle<Mesh> mesh);
+  std::vector<MeshHandle> addMeshes(std::span<const AssetHandle<MeshData>> meshesData);
+  MeshHandle addMesh(AssetHandle<MeshData> meshData);
 
   SamplerHandle addSampler(const SamplerOptions& options);
 
@@ -76,7 +76,7 @@ private:
 
   Registry<ShaderProgram> mShaderPrograms;
   Registry<ShaderProgramInstance> mShaderProgramInstances;
-  Registry<VertexArray> mVertexArrays;
+  Registry<Mesh> mMeshes;
   Registry<Sampler> mSamplers;
   Registry<Texture2D> mTexture2Ds;
   Registry<TextureCubeMap> mTextureCubeMaps;

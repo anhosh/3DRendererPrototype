@@ -86,12 +86,12 @@ std::span<const Draw> Scene::draw(entt::entity entityCamera) {
                 return InstanceData(model, normal);
               });
           }
-          firstInstanceRD.vertexArray->instanceData.write(instances);
+          firstInstanceRD.mesh->instanceData.write(instances);
         }
 
         mCachedDraws.push_back(Draw {
           .shaderProgramInstance = firstInstanceRD.shaderProgramInstance,
-          .vertexArray = firstInstanceRD.vertexArray,
+          .mesh = firstInstanceRD.mesh,
           .instanceCount = instanceCount,
           .diffuseMap = firstInstanceRD.diffuseMap,
           .specularMap = firstInstanceRD.specularMap,
@@ -111,7 +111,7 @@ std::span<const Draw> Scene::draw(entt::entity entityCamera) {
       ZoneScopedN("Skybox");
       mCachedDraws.push_back(Draw {
         .shaderProgramInstance = skybox->shader,
-        .vertexArray = skybox->cubeMesh,
+        .mesh = skybox->cubeMesh,
         .environmentMap = skybox->texture,
         .bBackfaceCulling = false,
         .bSkybox = true,
@@ -145,7 +145,7 @@ std::span<const Draw> Scene::draw(entt::entity entityCamera) {
               const glm::mat3 normal = glm::transpose(glm::inverse(model));
               return InstanceData(model, normal);
             });
-          firstInstanceRD.vertexArray->instanceData.write(instances);
+          firstInstanceRD.mesh->instanceData.write(instances);
         }
 
         // TODO: fix outlines
@@ -242,7 +242,7 @@ void Scene::prepareForRendering() {
       }
 
       return rdA.shaderProgramInstance.itemID() < rdB.shaderProgramInstance.itemID() ||
-             rdA.vertexArray.itemID() < rdB.vertexArray.itemID();
+             rdA.mesh.itemID() < rdB.mesh.itemID();
     });
   }
   {
@@ -252,7 +252,7 @@ void Scene::prepareForRendering() {
       const RenderData& rdA = a.renderData();
       const RenderData& rdB = b.renderData();
 
-      return rdA.vertexArray.itemID() < rdB.vertexArray.itemID();
+      return rdA.mesh.itemID() < rdB.mesh.itemID();
     });
   }
 }

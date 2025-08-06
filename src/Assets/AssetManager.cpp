@@ -1,7 +1,7 @@
 #include <Assets/AssetManager.hpp>
 
 #include <Assets/Bitmap.hpp>
-#include <Assets/Mesh.hpp>
+#include <Assets/MeshData.hpp>
 #include <Assets/Model.hpp>
 #include <Graphics/Vertex.hpp>
 #include <Util/Macros/Errors.hpp>
@@ -22,10 +22,10 @@ AssetManager::AssetManager() {
   PANIC_IF_UNEXPECTED(locateTextures());
 }
 
-AssetHandle<Mesh> AssetManager::addMesh(Mesh&& mesh) {
+AssetHandle<MeshData> AssetManager::addMesh(MeshData&& mesh) {
   ZoneScoped;
 
-  return mMeshes.add(std::forward<Mesh>(mesh));
+  return mMeshes.add(std::forward<MeshData>(mesh));
 }
 
 Expected<AssetHandle<Bitmap>> AssetManager::loadBitmap(const std::filesystem::path& filePath, bool bFlipVertically) {
@@ -132,7 +132,7 @@ Expected<void> AssetManager::processMesh(Model& model, aiMesh* mesh, const aiSce
     }
   }
 
-  model.meshes.push_back(this->addMesh(Mesh(std::move(vertices), std::move(indices))));
+  model.meshes.push_back(this->addMesh(MeshData(std::move(vertices), std::move(indices))));
 
   const size_t meshIndex = model.meshes.size() - 1;
   if (mesh->mMaterialIndex < scene->mNumMaterials) {

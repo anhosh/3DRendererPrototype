@@ -1,9 +1,9 @@
-#include <Assets/Mesh.hpp>
+#include <Assets/MeshData.hpp>
 
 #include <array>
 #include <vector>
 
-Mesh Mesh::createCube(const glm::vec3 size) {
+MeshData MeshData::createCube(const glm::vec3 size) {
   ZoneScoped;
 
   const glm::vec3 halfSize = size * 0.5f;
@@ -69,7 +69,7 @@ Mesh Mesh::createCube(const glm::vec3 size) {
   return {vertices, indices};
 }
 
-Mesh Mesh::createQuad(const glm::vec2 size) {
+MeshData MeshData::createQuad(const glm::vec2 size) {
   ZoneScoped;
 
   const glm::vec2 halfSize = size * 0.5f;

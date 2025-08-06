@@ -14,13 +14,13 @@
 class aiMesh;
 class aiNode;
 class aiScene;
-struct Mesh;
+struct MeshData;
 
 class AssetManager {
 public:
   AssetManager();
 
-  AssetHandle<Mesh> addMesh(Mesh&& mesh);
+  AssetHandle<MeshData> addMesh(MeshData&& mesh);
 
   [[nodiscard]] Expected<AssetHandle<Bitmap>> loadBitmap(const std::filesystem::path& filePath, bool bFlipVertically = true);
   [[nodiscard]] Expected<AssetHandle<Model>> loadModel(const std::filesystem::path& filePath);
@@ -36,7 +36,7 @@ private:
 private:
   Registry<Bitmap> mBitmaps;
   Registry<Model> mModels;
-  Registry<Mesh> mMeshes;
+  Registry<MeshData> mMeshes;
 
   std::unordered_map<std::filesystem::path, AssetHandle<Bitmap>> mLoadedBitmaps;
   std::unordered_map<std::filesystem::path, AssetHandle<Model>> mLoadedModels;

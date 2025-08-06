@@ -1,15 +1,15 @@
 #pragma once
 
+#include <Graphics/Mesh.hpp>
 #include <Graphics/ShaderProgramInstance.hpp>
 #include <Graphics/Texture2D.hpp>
 #include <Graphics/TextureCubeMap.hpp>
-#include <Graphics/VertexArray.hpp>
 
 #include <optional>
 
 struct Draw {
   ShaderProgramInstanceHandle shaderProgramInstance;
-  VertexArrayHandle vertexArray;
+  MeshHandle mesh;
 
   size_t instanceCount = 1;
 

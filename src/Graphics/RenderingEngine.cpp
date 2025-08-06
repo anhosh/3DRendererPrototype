@@ -1,6 +1,6 @@
 #include <Graphics/RenderingEngine.hpp>
 
-#include <Assets/Mesh.hpp>
+#include <Assets/MeshData.hpp>
 #include <Assets/Model.hpp>
 #include <Graphics/Draw.hpp>
 #include <Graphics/Framebuffer.hpp>
@@ -83,8 +83,8 @@ void RenderingEngine::destroy() {
   for (ShaderProgram& shaderProgram : std::views::values(mShaderPrograms)) {
     shaderProgram.destroy();
   }
-  for (VertexArray& vertexArray : std::views::values(mVertexArrays)) {
-    vertexArray.destroy();
+  for (Mesh& mesh : std::views::values(mMeshes)) {
+    mesh.destroy();
   }
   for (Sampler& sampler : std::views::values(mSamplers)) {
     sampler.destroy();
@@ -104,7 +104,7 @@ void RenderingEngine::destroy() {
 
   mShaderPrograms.clear();
   mShaderProgramInstances.clear();
-  mVertexArrays.clear();
+  mMeshes.clear();
   mSamplers.clear();
   mTexture2Ds.clear();
   mTextureCubeMaps.clear();
@@ -223,7 +223,7 @@ const std::vector<RenderData>& RenderingEngine::addModel(AssetHandle<Model> mode
     return mUploadedModels.at(model.itemID());
   }
 
-  const std::vector<VertexArrayHandle> vertexArrays = this->addMeshes(model->meshes);
+  const std::vector<MeshHandle> meshes = this->addMeshes(model->meshes);
   const std::vector<std::optional<SamplerHandle>> diffuseSamplers(model->diffuseMaps.size(), mMeshTextureSampler);
   const std::vector<std::optional<SamplerHandle>> specularSamplers(model->specularMaps.size(), mMeshTextureSampler);
   const std::vector<std::optional<SamplerHandle>> emissionSamplers(model->emissionMaps.size(), mMeshTextureSampler);
@@ -232,9 +232,9 @@ const std::vector<RenderData>& RenderingEngine::addModel(AssetHandle<Model> mode
   const std::vector<std::optional<Texture2DHandle>> emissionMaps = this->addTexture2Ds(model->emissionMaps, emissionSamplers);
 
   std::vector<RenderData> modelResources;
-  modelResources.reserve(vertexArrays.size());
-  for (size_t meshRes = 0; meshRes < vertexArrays.size(); ++meshRes) {
-    RenderData resources { .vertexArray = vertexArrays[meshRes], .shaderProgramInstance = initialShader };
+  modelResources.reserve(meshes.size());
+  for (size_t meshRes = 0; meshRes < meshes.size(); ++meshRes) {
+    RenderData resources { .mesh = meshes[meshRes], .shaderProgramInstance = initialShader };
     resources.diffuseMap = diffuseMaps[meshRes];
     resources.specularMap = specularMaps[meshRes];
     resources.emissionMap = emissionMaps[meshRes];
@@ -246,22 +246,22 @@ const std::vector<RenderData>& RenderingEngine::addModel(AssetHandle<Model> mode
   return resources;
 }
 
-std::vector<VertexArrayHandle> RenderingEngine::addMeshes(std::span<const AssetHandle<Mesh>> meshes) {
+std::vector<MeshHandle> RenderingEngine::addMeshes(std::span<const AssetHandle<MeshData>> meshesData) {
   ZoneScoped;
 
-  std::vector<VertexArrayHandle> refs;
-  refs.reserve(meshes.size());
-  for (const AssetHandle<Mesh>& mesh : meshes) {
-    const VertexArrayHandle ref = this->addMesh(mesh);
-    refs.push_back(ref);
+  std::vector<MeshHandle> handles;
+  handles.reserve(meshesData.size());
+  for (const AssetHandle<MeshData>& meshData : meshesData) {
+    const MeshHandle handle = this->addMesh(meshData);
+    handles.push_back(handle);
   }
-  return refs;
+  return handles;
 }
 
-VertexArrayHandle RenderingEngine::addMesh(AssetHandle<Mesh> mesh) {
+MeshHandle RenderingEngine::addMesh(AssetHandle<MeshData> meshData) {
   ZoneScoped;
 
-  return mVertexArrays.add(VertexArray(mesh.get()));
+  return mMeshes.add(Mesh(meshData.get()));
 }
 
 SamplerHandle RenderingEngine::addSampler(const SamplerOptions& options) {
@@ -509,8 +509,8 @@ void RenderingEngine::renderScene(Scene& scene, const entt::entity entityCamera,
 
     {
       TracyGpuZone("Draw elements instanced");
-      currDraw->vertexArray->bind();
-      glDrawElementsInstanced(GL_TRIANGLES, currDraw->vertexArray->indexCount, GL_UNSIGNED_INT, nullptr,
+      currDraw->mesh->bind();
+      glDrawElementsInstanced(GL_TRIANGLES, currDraw->mesh->indexCount, GL_UNSIGNED_INT, nullptr,
                               static_cast<GLsizei>(currDraw->instanceCount));
     }
 
@@ -557,8 +557,8 @@ void RenderingEngine::renderVertexNormals(Scene& scene, entt::entity entityCamer
   for (const Draw& currDraw : draws) {
     if (!currDraw.bSkybox) {
       TracyGpuZone("Draw elements instanced");
-      currDraw.vertexArray->bind();
-      glDrawElementsInstanced(GL_TRIANGLES, currDraw.vertexArray->indexCount, GL_UNSIGNED_INT, nullptr,
+      currDraw.mesh->bind();
+      glDrawElementsInstanced(GL_TRIANGLES, currDraw.mesh->indexCount, GL_UNSIGNED_INT, nullptr,
                               static_cast<GLsizei>(currDraw.instanceCount));
     }
   }

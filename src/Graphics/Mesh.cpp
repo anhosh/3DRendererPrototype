@@ -1,10 +1,10 @@
-#include <Graphics/VertexArray.hpp>
+#include <Graphics/Mesh.hpp>
 
 #include <Graphics/InstanceData.hpp>
 
 #include <cassert>
 
-VertexArray::VertexArray()
+Mesh::Mesh()
   : vertexData(sizeof(Vertex))
   , instanceData(sizeof(InstanceData))
 {
@@ -13,13 +13,13 @@ VertexArray::VertexArray()
   this->init();
 }
 
-VertexArray::VertexArray(const Mesh& mesh) : VertexArray() {
+Mesh::Mesh(const MeshData& mesh) : Mesh() {
   ZoneScoped;
 
   this->generateMesh(mesh);
 }
 
-void VertexArray::init() {
+void Mesh::init() {
   ZoneScoped;
 
   vertexData.init();
@@ -27,7 +27,7 @@ void VertexArray::init() {
   glCreateBuffers(1, &ebo);
 }
 
-void VertexArray::destroy() {
+void Mesh::destroy() {
   ZoneScoped;
 
   vertexData.destroy();
@@ -38,7 +38,7 @@ void VertexArray::destroy() {
   }
 }
 
-void VertexArray::generateMesh(const Mesh& mesh) {
+void Mesh::generateMesh(const MeshData& mesh) {
   ZoneScoped;
 
   assert(mesh.indices.size() % 3 == 0);
@@ -49,7 +49,7 @@ void VertexArray::generateMesh(const Mesh& mesh) {
   indexCount = static_cast<GLsizei>(mesh.indices.size());
 }
 
-void VertexArray::bind() const {
+void Mesh::bind() const {
   vertexData.bind(0);
   instanceData.bind(1);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);

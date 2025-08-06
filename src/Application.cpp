@@ -191,8 +191,8 @@ Expected<void> Application::createScene() {
   const Expected bitmapSkyboxBack   = mState.assetManager->loadBitmap("skybox/space/back.png", false);
   const Expected bitmapSkyboxFront  = mState.assetManager->loadBitmap("skybox/space/front.png", false);
 
-  const AssetHandle<Mesh> skyboxCubeMesh = mState.assetManager->addMesh(Mesh::createCube(glm::vec3(2.0f)));
-  const AssetHandle<Mesh> lightCubeMesh = mState.assetManager->addMesh(Mesh::createCube(glm::vec3(1.0f)));
+  const AssetHandle<MeshData> skyboxCubeMesh = mState.assetManager->addMesh(MeshData::createCube(glm::vec3(2.0f)));
+  const AssetHandle<MeshData> lightCubeMesh = mState.assetManager->addMesh(MeshData::createCube(glm::vec3(1.0f)));
 
   RETURN_ERROR_IF_UNEXPECTED(modelPlanet);
   RETURN_ERROR_IF_UNEXPECTED(bitmapSkyboxRight);
@@ -285,7 +285,7 @@ Expected<void> Application::createScene() {
     mState.scene->ecs.emplace<CompGraphics>(entityLight, CompGraphics {
       .renderData = {
         RenderData {
-          .vertexArray = mState.renderingEngine->addMesh(lightCubeMesh),
+          .mesh = mState.renderingEngine->addMesh(lightCubeMesh),
           .shaderProgramInstance = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::Light),
         },
       },

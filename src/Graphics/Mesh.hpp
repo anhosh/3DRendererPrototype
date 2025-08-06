@@ -1,17 +1,17 @@
 #pragma once
 
-#include <Assets/Mesh.hpp>
+#include <Assets/MeshData.hpp>
 #include <Graphics/VertexBuffer.hpp>
 #include <Util/Registry.hpp>
 
-class VertexArray {
+class Mesh {
 public:
-  VertexArray();
-  explicit VertexArray(const Mesh& mesh);
+  Mesh();
+  explicit Mesh(const MeshData& mesh);
 
   void init();
   void destroy();
-  void generateMesh(const Mesh& mesh);
+  void generateMesh(const MeshData& mesh);
   void bind() const;
 
 public:
@@ -21,4 +21,4 @@ public:
   GLsizei indexCount = 0;
 };
 
-using VertexArrayHandle = Registry<VertexArray>::Handle;
+using MeshHandle = Registry<Mesh>::Handle;

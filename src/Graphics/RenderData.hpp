@@ -1,9 +1,9 @@
 #pragma once
 
+#include <Graphics/Mesh.hpp>
 #include <Graphics/ShaderProgramInstance.hpp>
 #include <Graphics/Texture2D.hpp>
 #include <Graphics/TextureCubeMap.hpp>
-#include <Graphics/VertexArray.hpp>
 #include <Util/Registry.hpp>
 
 #include <optional>
@@ -17,7 +17,7 @@ struct RenderOptions {
 };
 
 struct RenderData {
-  VertexArrayHandle vertexArray;
+  MeshHandle mesh;
 
   ShaderProgramInstanceHandle shaderProgramInstance;
 
@@ -30,7 +30,7 @@ struct RenderData {
 
   [[nodiscard]]
   bool eqIgnoreMainShader(const RenderData& other) const {
-    return vertexArray == other.vertexArray &&
+    return mesh == other.mesh &&
            diffuseMap == other.diffuseMap &&
            specularMap == other.specularMap &&
            emissionMap == other.emissionMap &&

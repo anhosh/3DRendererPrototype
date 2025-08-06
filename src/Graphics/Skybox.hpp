@@ -1,10 +1,10 @@
 #pragma once
 
+#include <Graphics/Mesh.hpp>
 #include <Graphics/TextureCubeMap.hpp>
-#include <Graphics/VertexArray.hpp>
 
 struct Skybox {
-  VertexArrayHandle cubeMesh;
+  MeshHandle cubeMesh;
   TextureCubeMapHandle texture;
   ShaderProgramInstanceHandle shader;
 };

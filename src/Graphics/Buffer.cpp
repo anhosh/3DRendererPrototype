@@ -40,7 +40,7 @@ void Buffer::reallocate(const size_t newSize) {
   this->init();
   this->allocate(newSize);
   if (oldSize > 0) {
-    glCopyNamedBufferSubData(oldBuffer, mID, 0, 0, oldSize);
+    glCopyNamedBufferSubData(oldBuffer, mID, 0, 0, static_cast<GLsizeiptr>(oldSize));
   }
   glDeleteBuffers(1, &oldBuffer);
 }
