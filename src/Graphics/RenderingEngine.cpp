@@ -551,7 +551,6 @@ void RenderingEngine::renderVertexNormals(Scene& scene, entt::entity entityCamer
     return;
   }
 
-  // TODO: fix drawing vertex normals
   glBindVertexArray(mMeshesVAO);
   glUseProgram(mVertexNormalShaderProgram.value()->id());
 
@@ -563,6 +562,8 @@ void RenderingEngine::renderVertexNormals(Scene& scene, entt::entity entityCamer
                               static_cast<GLsizei>(currDraw.instanceCount));
     }
   }
+
+  dstFramebuffer->resolveMultisample();
 
   glBindVertexArray(GL_NONE);
   glUseProgram(GL_NONE);
