@@ -28,6 +28,7 @@ public:
   public:
     Handle(const Handle&) = default;
     Handle(Handle&&) = default;
+    ~Handle() = default;
 
     Handle& operator=(const Handle&) = default;
     Handle& operator=(Handle&&) = default;

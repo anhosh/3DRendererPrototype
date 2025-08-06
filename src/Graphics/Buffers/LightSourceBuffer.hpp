@@ -1,7 +1,7 @@
 #pragma once
 
-#include <Graphics/Components/Light.hpp>
-#include <Graphics/Components/Transform.hpp>
+#include <Scene/Components/Light.hpp>
+#include <Scene/Components/Transform.hpp>
 #include <Util/IntoBytes.hpp>
 
 #include <tracy/TracyOpenGL.hpp>
@@ -33,7 +33,7 @@ struct LightSourceBuffer {
     return sizeof(glm::uvec4) + this->sources.size() * sizeof(LightSourceUniforms);
   }
 
-  void writeToBuffer(const GLuint buffer, const size_t offset) const {
+  void writeToBuffer(const GLuint buffer, const size_t offset = 0) const {
     ZoneScoped;
     TracyGpuZone("LightSourceBuffer::writeToBuffer");
 

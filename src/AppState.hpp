@@ -4,7 +4,7 @@
 #include <Graphics/Framebuffer.hpp>
 #include <Graphics/RenderingEngine.hpp>
 #include <Graphics/RenderPass.hpp>
-#include <Graphics/Scene.hpp>
+#include <Scene/Scene.hpp>
 
 #include <memory>
 #include <optional>

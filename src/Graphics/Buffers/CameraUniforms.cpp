@@ -1,7 +1,7 @@
 #include <Graphics/Buffers/CameraUniforms.hpp>
 
-#include <Graphics/Components/Camera.hpp>
-#include <Graphics/Components/Transform.hpp>
+#include <Scene/Components/Camera.hpp>
+#include <Scene/Components/Transform.hpp>
 
 CameraUniforms CameraUniforms::from(const CompCamera& camera, const CompTransform& transform, glm::uvec2 screenSize) {
   ZoneScoped;

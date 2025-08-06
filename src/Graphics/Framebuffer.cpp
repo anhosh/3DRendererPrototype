@@ -18,7 +18,6 @@ void Framebuffer::init() {
   TracyGpuZone("Init framebuffer");
 
   glCreateFramebuffers(1, &mFBO);
-
   colorAttachment.init();
   colorAttachment.allocate(mInfo.size, mInfo.colorFormat);
   glNamedFramebufferTexture(mFBO, GL_COLOR_ATTACHMENT0, colorAttachment.id(), 0);
@@ -33,14 +32,15 @@ void Framebuffer::init() {
 
   if (mInfo.bDepthStencil) {
     glCreateRenderbuffers(1, &mDepthStencilRBO);
+    glNamedRenderbufferStorage(mDepthStencilRBO, GL_DEPTH24_STENCIL8,
+                               static_cast<GLsizei>(mInfo.size.x), static_cast<GLsizei>(mInfo.size.y));
+    glNamedFramebufferRenderbuffer(mFBO, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, mDepthStencilRBO);
+
     if (mInfo.samples > 1) {
-      glNamedRenderbufferStorageMultisample(mDepthStencilRBO, static_cast<GLsizei>(mInfo.samples), GL_DEPTH24_STENCIL8,
+      glCreateRenderbuffers(1, &mMultisampledDepthStencilRBO);
+      glNamedRenderbufferStorageMultisample(mMultisampledDepthStencilRBO, static_cast<GLsizei>(mInfo.samples), GL_DEPTH24_STENCIL8,
                                             static_cast<GLsizei>(mInfo.size.x), static_cast<GLsizei>(mInfo.size.y));
-      glNamedFramebufferRenderbuffer(mMultisampledFBO, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, mDepthStencilRBO);
-    } else {
-      glNamedRenderbufferStorage(mDepthStencilRBO, GL_DEPTH24_STENCIL8,
-                                 static_cast<GLsizei>(mInfo.size.x), static_cast<GLsizei>(mInfo.size.y));
-      glNamedFramebufferRenderbuffer(mFBO, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, mDepthStencilRBO);
+      glNamedFramebufferRenderbuffer(mMultisampledFBO, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, mMultisampledDepthStencilRBO);
     }
   }
 

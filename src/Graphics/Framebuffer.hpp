@@ -31,9 +31,10 @@ public:
 
 private:
   GLuint mFBO = GL_NONE;
-  GLuint mMultisampledFBO = GL_NONE;
-  GLuint mMultisampledColorAttachment = GL_NONE;
   GLuint mDepthStencilRBO = GL_NONE;
+  GLuint mMultisampledFBO = GL_NONE;
+  GLuint mMultisampledDepthStencilRBO = GL_NONE;
+  GLuint mMultisampledColorAttachment = GL_NONE;
   FramebufferCreateInfo mInfo;
 };
 

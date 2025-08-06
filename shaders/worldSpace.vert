@@ -2,13 +2,14 @@ layout (location = 0) in vec3 inPosition;
 layout (location = 1) in vec3 inNormal;
 layout (location = 2) in vec2 inTexCoord;
 
-layout (location = 3) in mat4 inModelTransform;  // (column 0)
-//      location = 4                                (column 1)
-//      location = 5                                (column 2)
-//      location = 6                                (column 3)
-layout (location = 7) in mat3 inNormalTransform; // (column 0)
-//      location = 8                                (column 1)
-//      location = 9                                (column 2)
+struct InstanceData {
+  mat4 model;
+  mat3 normal;
+};
+
+layout (std430, location = BINDING_SSBO_INSTANCES) readonly buffer Instances {
+  InstanceData data[];
+} uInstances;
 
 out VS_OUT {
   vec3 position;
@@ -17,9 +18,9 @@ out VS_OUT {
 } vsOut;
 
 void main() {
-  vec4 vertexPosWorld = inModelTransform * vec4(inPosition, 1);
+  vec4 vertexPosWorld = uInstances.data[gl_InstanceID].model * vec4(inPosition, 1);
   gl_Position = vertexPosWorld;
   vsOut.position = vertexPosWorld.xyz;
-  vsOut.normal = normalize(inNormalTransform * inNormal);
+  vsOut.normal = normalize(uInstances.data[gl_InstanceID].normal * inNormal);
   vsOut.texCoord = inTexCoord;
 }

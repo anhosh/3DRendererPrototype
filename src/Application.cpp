@@ -1,12 +1,12 @@
 #include <Application.hpp>
 
-#include <Graphics/Components/Camera.hpp>
-#include <Graphics/Components/Dirty.hpp>
-#include <Graphics/Components/Graphics.hpp>
-#include <Graphics/Components/Name.hpp>
-#include <Graphics/RenderingEngine.hpp>
-#include <Graphics/Scene.hpp>
 #include <GUI.hpp>
+#include <Graphics/RenderingEngine.hpp>
+#include <Scene/Components/Camera.hpp>
+#include <Scene/Components/Dirty.hpp>
+#include <Scene/Components/Graphics.hpp>
+#include <Scene/Components/Name.hpp>
+#include <Scene/Scene.hpp>
 #include <Util/Log.hpp>
 #include <Util/Macros/Errors.hpp>
 #include <Util/NotNull.hpp>
@@ -99,7 +99,7 @@ Expected<void> Application::createContext(std::string_view title, glm::uvec2 ini
     glDebugMessageCallback(&Application::openGlDebugCallback, nullptr);
     glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
   } else {
-    return std::unexpected("Failed to created debug context");
+    LOG_ERROR("Failed to created debug context");
   }
 #endif
 
@@ -235,9 +235,10 @@ Expected<void> Application::createScene() {
   mState.scene->ecs.emplace<CompDirty>(mState.mainCamera);
 
   mState.backCamera = mState.scene->ecs.create();
-  mState.scene->ecs.emplace<CompName>(mState.backCamera, "Main camera");
+  mState.scene->ecs.emplace<CompName>(mState.backCamera, "Back camera");
   mState.scene->ecs.emplace<CompTransform>(mState.backCamera);
   mState.scene->ecs.emplace<CompCamera>(mState.backCamera);
+  mState.scene->ecs.emplace<CompDirty>(mState.backCamera);
 
   mState.scene->skybox = Skybox {
     .cubeMesh = mState.renderingEngine->addMesh(skyboxCubeMesh),

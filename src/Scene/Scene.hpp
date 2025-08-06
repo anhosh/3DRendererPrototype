@@ -1,9 +1,9 @@
 #pragma once
 
-#include <Graphics/Buffers/LightSourceUniforms.hpp>
+#include <Graphics/Buffers/LightSourceBuffer.hpp>
 #include <Graphics/Draw.hpp>
-#include <Graphics/Scene.hpp>
 #include <Graphics/Skybox.hpp>
+#include <Scene/Scene.hpp>
 
 #include <entt/entity/registry.hpp>
 
@@ -12,6 +12,7 @@
 #include <vector>
 
 struct RenderData;
+class RenderingEngine;
 
 class Scene {
 public:
@@ -21,7 +22,7 @@ public:
   void prepareForRendering();
   void destroy();
 
-  [[nodiscard]] std::span<const Draw> draw(entt::entity entityCamera);
+  [[nodiscard]] std::span<const Draw> draw(entt::entity entityCamera, RenderingEngine& renderingEngine);
   [[nodiscard]] DirectionalLightSourceBuffer createDirectionalLightUniforms() const;
   [[nodiscard]] PointLightSourceBuffer createPointLightUniforms() const;
   [[nodiscard]] SpotlightSourceBuffer createSpotlightUniforms() const;
@@ -32,13 +33,17 @@ public:
   std::optional<Skybox> skybox = std::nullopt;
 
 private:
-  void onEntityMarkedDirty(entt::registry& registry, entt::entity entity);
+  void onOutlineComponentAdded(entt::registry& registry, entt::entity entity);
+  void onOutlineComponentDestroyed(entt::registry& registry, entt::entity entity);
   void onGraphicsComponentDestroyed(entt::registry& registry, entt::entity entity);
+
+  void sortMeshes();
+  void sortOutlines();
 
 private:
   struct MeshDataReference {
-    entt::registry* ecs;
-    entt::entity entity;
+    entt::registry* ecs = nullptr;
+    entt::entity entity = entt::null;
     size_t renderDataIndex = SIZE_MAX;
     bool bHasOutline = false;
 
@@ -47,6 +52,6 @@ private:
   };
 
   std::vector<MeshDataReference> mCachedSortedMeshes;
-  std::vector<MeshDataReference> mCachedOutlinedMeshes;
+  std::vector<MeshDataReference> mCachedSortedOutlines;
   std::vector<Draw> mCachedDraws;
 };

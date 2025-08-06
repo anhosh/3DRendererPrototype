@@ -1,12 +1,9 @@
 #include <Graphics/Mesh.hpp>
 
-#include <Graphics/InstanceData.hpp>
-
 #include <cassert>
 
 Mesh::Mesh()
   : vertexData(sizeof(Vertex))
-  , instanceData(sizeof(InstanceData))
 {
   ZoneScoped;
 
@@ -23,7 +20,6 @@ void Mesh::init() {
   ZoneScoped;
 
   vertexData.init();
-  instanceData.init();
   glCreateBuffers(1, &ebo);
 }
 
@@ -31,7 +27,6 @@ void Mesh::destroy() {
   ZoneScoped;
 
   vertexData.destroy();
-  instanceData.destroy();
   if (ebo != GL_NONE) {
     glDeleteBuffers(1, &ebo);
     ebo = GL_NONE;
@@ -51,6 +46,5 @@ void Mesh::generateMesh(const MeshData& mesh) {
 
 void Mesh::bind() const {
   vertexData.bind(0);
-  instanceData.bind(1);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
 }

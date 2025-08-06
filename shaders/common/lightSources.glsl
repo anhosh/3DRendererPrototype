@@ -28,20 +28,20 @@ struct Spotlight {
   float outerCutOff;
 };
 
-layout (std430, binding = SSBO_BIND_POINT_DIRECTIONAL_LIGHTS)
+layout (std430, binding = BINDING_SSBO_DIRECTIONAL_LIGHTS)
 readonly buffer DirectionalLightSources {
   uint count;
   DirectionalLight[] sources;
 } uDirectionalLights;
 
-layout (std430, binding = SSBO_BIND_POINT_POINT_LIGHTS)
+layout (std430, binding = BINDING_SSBO_POINT_LIGHTS)
 readonly buffer PointLightSources {
   uint count;
   PointLight[] sources;
 } uPointLights;
 
-layout (std430, binding = SSBO_BIND_POINT_SPOTLIGHTS)
-readonly buffer SpotightSources {
+layout (std430, binding = BINDING_SSBO_SPOTLIGHTS)
+readonly buffer SpotlightSources {
   uint count;
   Spotlight[] sources;
 } uSpotlights;

@@ -25,7 +25,7 @@ void Buffer::destroy() {
 void Buffer::allocate(const size_t size) {
   ZoneScoped;
 
-  glNamedBufferData(mID, static_cast<GLsizeiptr>(size), nullptr, GL_DYNAMIC_READ);
+  glNamedBufferStorage(mID, static_cast<GLsizeiptr>(size), nullptr, GL_DYNAMIC_STORAGE_BIT);
   mSize = size;
 }
 
@@ -39,7 +39,7 @@ void Buffer::reallocate(const size_t newSize) {
 
   this->init();
   this->allocate(newSize);
-  if (oldSize > 0) {
+  if (oldSize > 0) [[likely]] {
     glCopyNamedBufferSubData(oldBuffer, mID, 0, 0, static_cast<GLsizeiptr>(oldSize));
   }
   glDeleteBuffers(1, &oldBuffer);
@@ -48,15 +48,11 @@ void Buffer::reallocate(const size_t newSize) {
 void Buffer::bindWhole(const uint32_t bindPoint) const {
   ZoneScoped;
 
-  glBindBuffer(mTarget, mID);
   glBindBufferBase(mTarget, bindPoint, mID);
-  glBindBuffer(mTarget, GL_NONE);
 }
 
 void Buffer::bindRange(const uint32_t bindPoint, const size_t offset, const size_t size) const {
   ZoneScoped;
 
-  glBindBuffer(mTarget, mID);
   glBindBufferRange(mTarget, bindPoint, mID, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(size));
-  glBindBuffer(mTarget, GL_NONE);
 }

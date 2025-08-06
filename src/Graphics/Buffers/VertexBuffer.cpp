@@ -1,4 +1,4 @@
-#include <Graphics/VertexBuffer.hpp>
+#include <Graphics/Buffers/VertexBuffer.hpp>
 
 VertexBuffer::VertexBuffer(const size_t stride) : stride(static_cast<GLsizei>(stride)) {
   this->init();

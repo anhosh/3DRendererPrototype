@@ -1,7 +1,7 @@
 #ifndef CAMERA_UNIFORMS_GLSL
 #define CAMERA_UNIFORMS_GLSL
 
-layout (std140, binding = UBO_BIND_POINT_CAMERA)
+layout (std140, binding = BINDING_UBO_CAMERA)
 uniform Camera {
   mat4 view;
   mat4 projection;

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <Assets/MeshData.hpp>
-#include <Graphics/VertexBuffer.hpp>
+#include <Graphics/Buffers/VertexBuffer.hpp>
 #include <Util/Registry.hpp>
 
 class Mesh {
@@ -16,7 +16,6 @@ public:
 
 public:
   VertexBuffer vertexData;
-  VertexBuffer instanceData;
   GLuint ebo = GL_NONE;
   GLsizei indexCount = 0;
 };

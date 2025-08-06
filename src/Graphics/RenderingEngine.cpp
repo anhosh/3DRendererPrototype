@@ -6,14 +6,14 @@
 #include <Graphics/Framebuffer.hpp>
 #include <Graphics/RenderData.hpp>
 #include <Graphics/RenderPass.hpp>
-#include <Graphics/Scene.hpp>
 #include <Graphics/ShaderProgram.hpp>
 #include <Graphics/Buffers/BindPoints.hpp>
 #include <Graphics/Buffers/CameraUniforms.hpp>
-#include <Graphics/Components/Camera.hpp>
-#include <Graphics/Components/Dirty.hpp>
-#include <Graphics/Components/Graphics.hpp>
+#include <Scene/Components/Camera.hpp>
+#include <Scene/Components/Dirty.hpp>
+#include <Scene/Components/Graphics.hpp>
 #include <Graphics/Viewport.hpp>
+#include <Scene/Scene.hpp>
 #include <Util/Macros/Errors.hpp>
 
 #include <glm/gtc/type_ptr.hpp>
@@ -21,6 +21,7 @@
 #include <tracy/TracyOpenGL.hpp>
 
 #include <ranges>
+#include <Graphics/Buffers/InstanceBuffer.hpp>
 
 Expected<void> RenderingEngine::init() {
   ZoneScoped;
@@ -72,6 +73,7 @@ Expected<void> RenderingEngine::init() {
   mDirectionalLightsStorageBuffer = this->createBuffer(GL_SHADER_STORAGE_BUFFER);
   mPointLightsStorageBuffer = this->createBuffer(GL_SHADER_STORAGE_BUFFER);
   mSpotlightsStorageBuffer = this->createBuffer(GL_SHADER_STORAGE_BUFFER);
+  mInstanceBuffer = this->createBuffer(GL_SHADER_STORAGE_BUFFER);
 
   mInitialised = true;
   return {};
@@ -323,6 +325,14 @@ BufferHandle RenderingEngine::createBuffer(const GLenum type) {
   return mBuffers.add(Buffer(type));
 }
 
+void RenderingEngine::updateInstances(const size_t first, const InstanceBuffer& instances) {
+  ZoneScoped;
+
+  assert(mInitialised);
+
+  mInstanceBuffer.value()->write(instances, first * sizeof(InstanceData));
+}
+
 void RenderingEngine::submitRenderPasses(const std::span<RenderPass> renderPasses) {
   ZoneScoped;
 
@@ -364,7 +374,7 @@ void RenderingEngine::renderScene(Scene& scene, const entt::entity entityCamera,
   glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-  const std::span<const Draw> draws = scene.draw(entityCamera);
+  const std::span<const Draw> draws = scene.draw(entityCamera, *this);
   if (draws.empty()) {
     return;
   }
@@ -390,7 +400,7 @@ void RenderingEngine::renderScene(Scene& scene, const entt::entity entityCamera,
   const auto [camera, cameraTransform] = scene.ecs.get<const CompCamera, const CompTransform>(entityCamera);
   const CameraUniforms cameraUniformData = CameraUniforms::from(camera, cameraTransform, dstFramebuffer->size());
   mCameraUniformBuffer.value()->write(cameraUniformData);
-  mCameraUniformBuffer.value()->bindWhole(UBO_BIND_POINT_CAMERA);
+  mCameraUniformBuffer.value()->bindWhole(BINDING_UBO_CAMERA);
 
   const auto updateLights = [&scene]<typename CompLight>(BufferHandle storageBuffer, const uint32_t bindPoint, const auto getLightUniformData) {
     const entt::basic_view dirtyLights = scene.ecs.view<const CompLight, const CompDirty>();
@@ -414,13 +424,13 @@ void RenderingEngine::renderScene(Scene& scene, const entt::entity entityCamera,
   };
 
   updateLights.operator()<CompDirectionalLight>(mDirectionalLightsStorageBuffer.value(),
-                                                SSBO_BIND_POINT_DIRECTIONAL_LIGHTS,
+                                                BINDING_SSBO_DIRECTIONAL_LIGHTS,
                                                 [&] { return scene.createDirectionalLightUniforms(); });
   updateLights.operator()<CompPointLight>(mPointLightsStorageBuffer.value(),
-                                          SSBO_BIND_POINT_POINT_LIGHTS,
+                                          BINDING_SSBO_POINT_LIGHTS,
                                           [&] { return scene.createPointLightUniforms(); });
   updateLights.operator()<CompSpotlight>(mSpotlightsStorageBuffer.value(),
-                                         SSBO_BIND_POINT_SPOTLIGHTS,
+                                         BINDING_SSBO_SPOTLIGHTS,
                                          [&] { return scene.createSpotlightUniforms(); });
 
   glBindVertexArray(mMeshesVAO);
@@ -441,34 +451,38 @@ void RenderingEngine::renderScene(Scene& scene, const entt::entity entityCamera,
       }
     }
 
-    if (drawIdx == 0 || currDraw->bBackfaceCulling != lastDraw->bBackfaceCulling) {
+    mInstanceBuffer.value()->bindRange(BINDING_SSBO_INSTANCES,
+                                       currDraw->instanceOffset * sizeof(InstanceData),
+                                       currDraw->instanceCount * sizeof(InstanceData));
+
+    if (drawIdx == 0 || currDraw->bBackfaceCulling != lastDraw->bBackfaceCulling) [[unlikely]] {
       if (currDraw->bBackfaceCulling) {
         glEnable(GL_CULL_FACE);
       } else {
         glDisable(GL_CULL_FACE);
       }
     }
-    if (drawIdx == 0 || currDraw->bDepthTest != lastDraw->bDepthTest) {
+    if (drawIdx == 0 || currDraw->bDepthTest != lastDraw->bDepthTest) [[unlikely]] {
       if (currDraw->bDepthTest) {
         glEnable(GL_DEPTH_TEST);
       } else {
         glDisable(GL_DEPTH_TEST);
       }
     }
-    if (drawIdx == 0 || currDraw->bWriteToDepth != lastDraw->bWriteToDepth) {
+    if (drawIdx == 0 || currDraw->bWriteToDepth != lastDraw->bWriteToDepth) [[unlikely]] {
       if (currDraw->bWriteToDepth) {
         glDepthMask(GL_TRUE);
       } else {
         glDepthMask(GL_FALSE);
       }
     }
-    if (drawIdx == 0 || currDraw->bStencilTest != lastDraw->bStencilTest) {
+    if (drawIdx == 0 || currDraw->bStencilTest != lastDraw->bStencilTest) [[unlikely]] {
       glStencilFunc(currDraw->bStencilTest ? GL_NOTEQUAL : GL_ALWAYS, 1, 0xff);
     }
-    if (drawIdx == 0 || currDraw->bWriteToStencil != lastDraw->bWriteToStencil) {
+    if (drawIdx == 0 || currDraw->bWriteToStencil != lastDraw->bWriteToStencil) [[unlikely]] {
       glStencilMask(currDraw->bWriteToStencil ? 0xff : 0x00);
     }
-    if (drawIdx == 0 || currDraw->bTransparent != lastDraw->bTransparent) {
+    if (drawIdx == 0 || currDraw->bTransparent != lastDraw->bTransparent) [[unlikely]] {
       if (currDraw->bTransparent) {
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -546,7 +560,7 @@ void RenderingEngine::renderVertexNormals(Scene& scene, entt::entity entityCamer
 
   glEnable(GL_DEPTH_TEST);
 
-  const std::span<const Draw> draws = scene.draw(entityCamera);
+  const std::span<const Draw> draws = scene.draw(entityCamera, *this);
   if (draws.empty()) {
     return;
   }
@@ -557,6 +571,9 @@ void RenderingEngine::renderVertexNormals(Scene& scene, entt::entity entityCamer
   for (const Draw& currDraw : draws) {
     if (!currDraw.bSkybox) {
       TracyGpuZone("Draw elements instanced");
+      mInstanceBuffer.value()->bindRange(BINDING_SSBO_INSTANCES,
+                                         currDraw.instanceOffset * sizeof(InstanceData),
+                                         currDraw.instanceCount * sizeof(InstanceData));
       currDraw.mesh->bind();
       glDrawElementsInstanced(GL_TRIANGLES, currDraw.mesh->indexCount, GL_UNSIGNED_INT, nullptr,
                               static_cast<GLsizei>(currDraw.instanceCount));

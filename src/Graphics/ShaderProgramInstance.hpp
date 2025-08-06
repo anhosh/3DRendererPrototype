@@ -4,7 +4,7 @@
 #include <Graphics/ShaderUniform.hpp>
 #include <Util/Registry.hpp>
 
-#include <entt/container/dense_map.hpp>
+#include <unordered_map>
 
 enum class ShaderProgramType : int32_t {
   Light,
@@ -58,7 +58,7 @@ public:
   ShaderProgramType type() const { return mType; }
 
 public:
-  entt::dense_map<std::string, ShaderUniform> uniforms;
+  std::unordered_map<std::string, ShaderUniform> uniforms;
 
 private:
   explicit ShaderProgramInstance(const ShaderProgramHandle program, const ShaderProgramType type)

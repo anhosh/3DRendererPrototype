@@ -1,4 +1,4 @@
-#include <Graphics/Components/Transform.hpp>
+#include <Scene/Components/Transform.hpp>
 
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/gtx/quaternion.hpp>

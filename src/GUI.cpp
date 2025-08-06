@@ -1,8 +1,10 @@
 #include <GUI.hpp>
 
 #include <AppState.hpp>
-#include <Graphics/Components/Name.hpp>
-#include <Graphics/Components/Camera.hpp>
+#include <Scene/Components/Camera.hpp>
+#include <Scene/Components/Dirty.hpp>
+#include <Scene/Components/Name.hpp>
+#include <Scene/Components/Outline.hpp>
 
 #include <entt/entity/registry.hpp>
 
@@ -11,8 +13,6 @@
 #include <backends/imgui_impl_opengl3.h>
 
 #include <ranges>
-#include <Graphics/Components/Dirty.hpp>
-#include <Graphics/Components/Outline.hpp>
 
 constexpr ImGuiColorEditFlags lightColorEditFlags = ImGuiColorEditFlags_Float | ImGuiColorEditFlags_HDR;
 
@@ -80,10 +80,20 @@ void guiActors(AppState& state) {
         bChanged |= ImGui::Checkbox(("Draw outline##" + name.name).c_str(), &bOutlined);
         if (bChanged) {
           if (bOutlined) {
-            state.scene->ecs.erase<CompOutline>(entity);
+            const ShaderProgramInstanceHandle outlineShader = state.renderingEngine->createShaderProgramInstance(ShaderProgramType::Outline);
+            state.scene->ecs.emplace<CompOutline>(entity, outlineShader);
           } else {
-            state.scene->ecs.emplace<CompOutline>(entity);
+            state.scene->ecs.erase<CompOutline>(entity);
           }
+        }
+
+        if (CompOutline* outline = state.scene->ecs.try_get<CompOutline>(entity)) {
+          ImGui::Text("Outline");
+
+          auto outlineColor = outline->outlineShader->uniforms["uOutlineColor"].getRef<glm::vec3>();
+          bChanged |= ImGui::ColorPicker3(("Outline color##" + name.name).c_str(), glm::value_ptr(outlineColor));
+
+          ImGui::Spacing();
         }
 
         if (CompTransform* transform = state.scene->ecs.try_get<CompTransform>(entity)) {
@@ -134,7 +144,7 @@ void guiActors(AppState& state) {
         }
 
         if (bChanged) {
-          state.scene->ecs.emplace<CompDirty>(entity);
+          state.scene->ecs.emplace_or_replace<CompDirty>(entity);
         }
 
         ImGui::Unindent();

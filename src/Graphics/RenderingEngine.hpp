@@ -19,9 +19,10 @@
 #include <vector>
 
 struct CompCamera;
-class Scene;
+struct InstanceBuffer;
 struct RenderData;
 struct RenderPass;
+class Scene;
 struct Viewport;
 
 class RenderingEngine {
@@ -59,6 +60,8 @@ public:
   FramebufferHandle addFramebuffer(const FramebufferCreateInfo& info);
 
   BufferHandle createBuffer(GLenum type);
+
+  void updateInstances(size_t first, const InstanceBuffer& instances);
 
   void submitRenderPasses(std::span<RenderPass> renderPasses);
   void renderScene(Scene& scene, entt::entity entityCamera, const Viewport& viewport, FramebufferHandle dstFramebuffer);
@@ -110,6 +113,7 @@ private:
   std::optional<BufferHandle> mDirectionalLightsStorageBuffer = std::nullopt;
   std::optional<BufferHandle> mPointLightsStorageBuffer = std::nullopt;
   std::optional<BufferHandle> mSpotlightsStorageBuffer = std::nullopt;
+  std::optional<BufferHandle> mInstanceBuffer = std::nullopt;
 
   std::unordered_map<RegItemID, Texture2DHandle> mUploadedTextures;
   std::unordered_map<RegItemID, std::vector<RenderData>> mUploadedModels;

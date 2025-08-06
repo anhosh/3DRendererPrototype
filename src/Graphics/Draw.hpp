@@ -11,6 +11,7 @@ struct Draw {
   ShaderProgramInstanceHandle shaderProgramInstance;
   MeshHandle mesh;
 
+  size_t instanceOffset = 0;
   size_t instanceCount = 1;
 
   std::optional<Texture2DHandle> diffuseMap = std::nullopt;
