@@ -90,7 +90,7 @@ void guiActors(AppState& state) {
         if (CompOutline* outline = state.scene->ecs.try_get<CompOutline>(entity)) {
           ImGui::Text("Outline");
 
-          auto outlineColor = outline->outlineShader->uniforms["uOutlineColor"].getRef<glm::vec3>();
+          auto& outlineColor = outline->outlineShader->uniforms["uOutlineColor"].getRef<glm::vec3>();
           bChanged |= ImGui::ColorPicker3(("Outline color##" + name.name).c_str(), glm::value_ptr(outlineColor));
 
           ImGui::Spacing();
