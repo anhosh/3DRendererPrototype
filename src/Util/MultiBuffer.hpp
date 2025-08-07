@@ -20,7 +20,7 @@ public:
   [[nodiscard]] const T& current() const { return mBuffers[mCurrent]; }
 
   void switchToNext() {
-    mCurrent = (mCurrent + N + 1) % N;
+    mCurrent = (mCurrent + 1) % N;
   }
 
 private:

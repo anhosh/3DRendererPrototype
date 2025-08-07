@@ -8,4 +8,5 @@ TracyTargets.cmake
 Makefile
 imgui.ini
 *.trace
+*.tracy
 *.rdc

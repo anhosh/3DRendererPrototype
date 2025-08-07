@@ -1,6 +1,6 @@
 #include <Graphics/Buffer.hpp>
 
-Buffer::Buffer(const GLenum target) : mTarget(target) {
+Buffer::Buffer(const GLenum target) : mBindTarget(target) {
   ZoneScoped;
 
   this->init();
@@ -48,11 +48,11 @@ void Buffer::reallocate(const size_t newSize) {
 void Buffer::bindWhole(const uint32_t bindPoint) const {
   ZoneScoped;
 
-  glBindBufferBase(mTarget, bindPoint, mID);
+  glBindBufferBase(mBindTarget, bindPoint, mID);
 }
 
 void Buffer::bindRange(const uint32_t bindPoint, const size_t offset, const size_t size) const {
   ZoneScoped;
 
-  glBindBufferRange(mTarget, bindPoint, mID, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(size));
+  glBindBufferRange(mBindTarget, bindPoint, mID, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(size));
 }

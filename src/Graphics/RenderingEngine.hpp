@@ -10,6 +10,7 @@
 #include <Graphics/Texture2D.hpp>
 #include <Graphics/TextureCubeMap.hpp>
 #include <Util/Registry.hpp>
+#include <Util/MultiBuffer.hpp>
 
 #include <entt/entity/entity.hpp>
 
@@ -17,7 +18,6 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include <Util/MultiBuffer.hpp>
 
 struct CompCamera;
 struct InstanceBuffer;

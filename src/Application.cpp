@@ -180,6 +180,7 @@ Expected<void> Application::createScene() {
   ZoneScoped;
 
   // Load assets
+  const Expected modelBackpack = mState.assetManager->loadModel("backpack/backpack.obj");
   const Expected modelPlanet = mState.assetManager->loadModel("planet/planet.obj");
   const Expected modelRock = mState.assetManager->loadModel("rock/rock.obj");
 
@@ -202,12 +203,13 @@ Expected<void> Application::createScene() {
   RETURN_ERROR_IF_UNEXPECTED(bitmapSkyboxFront);
 
   // Get shader instances
-  mState.litSurfaceShader         = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::LitSurface);
+  ShaderProgramInstanceHandle litSurfaceShader = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::LitSurface);
   mState.postProcessingCopyShader = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::PostProcessCopy);
 
   // Upload assets to GPU
-  std::vector<RenderData> planetMeshes = mState.renderingEngine->addModel(modelPlanet.value(), mState.litSurfaceShader.value());
-  std::vector<RenderData> rockMeshes   = mState.renderingEngine->addModel(modelRock.value(), mState.litSurfaceShader.value());
+  std::vector<RenderData> backpackMeshes = mState.renderingEngine->addModel(modelBackpack.value(), litSurfaceShader);
+  std::vector<RenderData> planetMeshes = mState.renderingEngine->addModel(modelPlanet.value(), litSurfaceShader);
+  std::vector<RenderData> rockMeshes   = mState.renderingEngine->addModel(modelRock.value(), litSurfaceShader);
 
   SamplerHandle skyboxSampler = mState.renderingEngine->addSampler(SamplerOptions { .minFilter = GL_LINEAR });
   TextureCubeMapHandle skyboxTexture = mState.renderingEngine->addTextureCubeMap(
@@ -294,6 +296,13 @@ Expected<void> Application::createScene() {
   mState.scene->ecs.emplace<CompName>(entityPlanet, "Planet Mars");
   mState.scene->ecs.emplace<CompTransform>(entityPlanet);
   mState.scene->ecs.emplace<CompGraphics>(entityPlanet, planetMeshes);
+
+  const entt::entity entityBackpack = mState.scene->ecs.create();
+  mState.scene->ecs.emplace<CompName>(entityPlanet, "Backpack");
+  mState.scene->ecs.emplace<CompTransform>(entityBackpack, CompTransform {
+    .translation = glm::vec3(0.0f, 6.0f, 0.0f),
+  });
+  mState.scene->ecs.emplace<CompGraphics>(entityBackpack, backpackMeshes);
 
   std::random_device rd;
   std::mt19937 gen(rd());
@@ -409,7 +418,7 @@ void Application::processKeyboard() {
   }
 }
 
-void Application::processMousePosition(glm::vec2 mousePosition) {
+void Application::processMousePosition(const glm::vec2 mousePosition) {
   ZoneScoped;
 
   if (mState.bFreeCursor) {

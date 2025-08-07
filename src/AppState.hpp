@@ -44,6 +44,5 @@ struct AppState {
 
   std::vector<RenderPass> renderPasses;
 
-  std::optional<ShaderProgramInstanceHandle> litSurfaceShader = std::nullopt;
   std::optional<ShaderProgramInstanceHandle> postProcessingCopyShader = std::nullopt;
 };

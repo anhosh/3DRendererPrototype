@@ -38,7 +38,7 @@ public:
 
 private:
   GLuint mID = GL_NONE;
-  GLenum mTarget = GL_NONE;
+  GLenum mBindTarget = GL_NONE;
   size_t mSize = 0;
 };
 

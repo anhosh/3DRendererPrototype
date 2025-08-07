@@ -32,8 +32,8 @@ float diffuse(in vec3 normal, in vec3 lightDirection) {
 
 float specular(in vec3 normal, in vec3 lightDirection) {
   vec3 viewDirection = normalize(uCamera.position - fsIn.position);
-  vec3 reflectDirection = reflect(-lightDirection, normal);
-  float angularDifference = max(dot(viewDirection, reflectDirection), 0);
+  vec3 halfwayDirection = normalize(lightDirection + viewDirection);
+  float angularDifference = max(dot(normal, halfwayDirection), 0);
   return pow(angularDifference, uMaterial.shininess);
 }
 

@@ -54,7 +54,7 @@ ShaderProgramInstance ShaderProgramInstance::newLitSurface(const ShaderProgramHa
   instance.setUniform("uMaterial.diffuse", TEXTURE_SLOT_DIFFUSE);
   instance.setUniform("uMaterial.specular", TEXTURE_SLOT_SPECULAR);
   instance.setUniform("uMaterial.emission", TEXTURE_SLOT_EMISSION);
-  instance.setUniform("uMaterial.shininess", 32.0f);
+  instance.setUniform("uMaterial.shininess", 128.0f);
   
   return instance;
 }
@@ -69,7 +69,7 @@ ShaderProgramInstance ShaderProgramInstance::newLitExploded(const ShaderProgramH
   instance.setUniform("uMaterial.diffuse", TEXTURE_SLOT_DIFFUSE);
   instance.setUniform("uMaterial.specular", TEXTURE_SLOT_SPECULAR);
   instance.setUniform("uMaterial.emission", TEXTURE_SLOT_EMISSION);
-  instance.setUniform("uMaterial.shininess", 32.0f);
+  instance.setUniform("uMaterial.shininess", 128.0f);
   
   return instance;
 }

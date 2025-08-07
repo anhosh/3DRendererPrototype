@@ -66,18 +66,18 @@ Expected<void> RenderingEngine::init() {
   mColorAttachmentSampler = this->addSampler(SamplerOptions { .minFilter = GL_LINEAR });
   mMeshTextureSampler = this->addSampler(SamplerOptions {});
 
-  mCameraUniformBuffer = DoubleBuffer<BufferHandle>(this->createBuffer(GL_UNIFORM_BUFFER),
-                                                    this->createBuffer(GL_UNIFORM_BUFFER));
+  mCameraUniformBuffer.emplace(this->createBuffer(GL_UNIFORM_BUFFER),
+                               this->createBuffer(GL_UNIFORM_BUFFER));
   mCameraUniformBuffer->current()->allocate(sizeof(CameraUniforms));
 
-  mDirectionalLightsStorageBuffer = DoubleBuffer<BufferHandle>(this->createBuffer(GL_SHADER_STORAGE_BUFFER),
-                                                               this->createBuffer(GL_SHADER_STORAGE_BUFFER));
-  mPointLightsStorageBuffer = DoubleBuffer<BufferHandle>(this->createBuffer(GL_SHADER_STORAGE_BUFFER),
-                                                         this->createBuffer(GL_SHADER_STORAGE_BUFFER));
-  mSpotlightsStorageBuffer = DoubleBuffer<BufferHandle>(this->createBuffer(GL_SHADER_STORAGE_BUFFER),
-                                                        this->createBuffer(GL_SHADER_STORAGE_BUFFER));
-  mInstanceBuffer = DoubleBuffer<BufferHandle>(this->createBuffer(GL_SHADER_STORAGE_BUFFER),
-                                               this->createBuffer(GL_SHADER_STORAGE_BUFFER));
+  mDirectionalLightsStorageBuffer.emplace(this->createBuffer(GL_SHADER_STORAGE_BUFFER),
+                                          this->createBuffer(GL_SHADER_STORAGE_BUFFER));
+  mPointLightsStorageBuffer.emplace(this->createBuffer(GL_SHADER_STORAGE_BUFFER),
+                                    this->createBuffer(GL_SHADER_STORAGE_BUFFER));
+  mSpotlightsStorageBuffer.emplace(this->createBuffer(GL_SHADER_STORAGE_BUFFER),
+                                   this->createBuffer(GL_SHADER_STORAGE_BUFFER));
+  mInstanceBuffer.emplace(this->createBuffer(GL_SHADER_STORAGE_BUFFER),
+                          this->createBuffer(GL_SHADER_STORAGE_BUFFER));
 
   mInitialised = true;
   return {};
