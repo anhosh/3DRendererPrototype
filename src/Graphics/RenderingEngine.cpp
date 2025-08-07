@@ -10,7 +10,6 @@
 #include <Graphics/Buffers/BindPoints.hpp>
 #include <Graphics/Buffers/CameraUniforms.hpp>
 #include <Scene/Components/Camera.hpp>
-#include <Scene/Components/Dirty.hpp>
 #include <Scene/Components/Graphics.hpp>
 #include <Graphics/Viewport.hpp>
 #include <Scene/Scene.hpp>
@@ -67,13 +66,18 @@ Expected<void> RenderingEngine::init() {
   mColorAttachmentSampler = this->addSampler(SamplerOptions { .minFilter = GL_LINEAR });
   mMeshTextureSampler = this->addSampler(SamplerOptions {});
 
-  mCameraUniformBuffer = this->createBuffer(GL_UNIFORM_BUFFER);
-  mCameraUniformBuffer.value()->allocate(sizeof(CameraUniforms));
+  mCameraUniformBuffer = DoubleBuffer<BufferHandle>(this->createBuffer(GL_UNIFORM_BUFFER),
+                                                    this->createBuffer(GL_UNIFORM_BUFFER));
+  mCameraUniformBuffer->current()->allocate(sizeof(CameraUniforms));
 
-  mDirectionalLightsStorageBuffer = this->createBuffer(GL_SHADER_STORAGE_BUFFER);
-  mPointLightsStorageBuffer = this->createBuffer(GL_SHADER_STORAGE_BUFFER);
-  mSpotlightsStorageBuffer = this->createBuffer(GL_SHADER_STORAGE_BUFFER);
-  mInstanceBuffer = this->createBuffer(GL_SHADER_STORAGE_BUFFER);
+  mDirectionalLightsStorageBuffer = DoubleBuffer<BufferHandle>(this->createBuffer(GL_SHADER_STORAGE_BUFFER),
+                                                               this->createBuffer(GL_SHADER_STORAGE_BUFFER));
+  mPointLightsStorageBuffer = DoubleBuffer<BufferHandle>(this->createBuffer(GL_SHADER_STORAGE_BUFFER),
+                                                         this->createBuffer(GL_SHADER_STORAGE_BUFFER));
+  mSpotlightsStorageBuffer = DoubleBuffer<BufferHandle>(this->createBuffer(GL_SHADER_STORAGE_BUFFER),
+                                                        this->createBuffer(GL_SHADER_STORAGE_BUFFER));
+  mInstanceBuffer = DoubleBuffer<BufferHandle>(this->createBuffer(GL_SHADER_STORAGE_BUFFER),
+                                               this->createBuffer(GL_SHADER_STORAGE_BUFFER));
 
   mInitialised = true;
   return {};
@@ -330,7 +334,7 @@ void RenderingEngine::updateInstances(const size_t first, const InstanceBuffer& 
 
   assert(mInitialised);
 
-  mInstanceBuffer.value()->write(instances, first * sizeof(InstanceData));
+  mInstanceBuffer->current()->write(instances, first * sizeof(InstanceData));
 }
 
 void RenderingEngine::submitRenderPasses(const std::span<RenderPass> renderPasses) {
@@ -399,19 +403,19 @@ void RenderingEngine::renderScene(Scene& scene, const entt::entity entityCamera,
 
   const auto [camera, cameraTransform] = scene.ecs.get<const CompCamera, const CompTransform>(entityCamera);
   const CameraUniforms cameraUniformData = CameraUniforms::from(camera, cameraTransform, dstFramebuffer->size());
-  mCameraUniformBuffer.value()->write(cameraUniformData);
-  mCameraUniformBuffer.value()->bindWhole(BINDING_UBO_CAMERA);
+  mCameraUniformBuffer->current()->write(cameraUniformData);
+  mCameraUniformBuffer->current()->bindWhole(BINDING_UBO_CAMERA);
 
   const auto updateLights = [&scene]<typename CompLight>(BufferHandle storageBuffer, const uint32_t bindPoint, const auto getLightUniformData) {
-    const entt::basic_view dirtyLights = scene.ecs.view<const CompLight, const CompDirty>();
-    if (dirtyLights.begin() == dirtyLights.end()) {
+    const entt::basic_view lights = scene.ecs.view<const CompLight>();
+    if (lights.begin() == lights.end()) {
       return;
     }
 
     const auto lightUniformData = getLightUniformData();
     storageBuffer->write(lightUniformData);
     storageBuffer->bindWhole(bindPoint);
-    for (auto [entity, light] : dirtyLights.each()) {
+    for (auto [entity, light] : lights.each()) {
       if (CompGraphics* graphics = scene.ecs.try_get<CompGraphics>(entity)) {
         for (RenderData& renderData : graphics->renderData) {
           if (renderData.shaderProgramInstance->type() == ShaderProgramType::Light) {
@@ -420,16 +424,15 @@ void RenderingEngine::renderScene(Scene& scene, const entt::entity entityCamera,
         }
       }
     }
-    scene.ecs.erase<CompDirty>(dirtyLights.begin(), dirtyLights.end());
   };
 
-  updateLights.operator()<CompDirectionalLight>(mDirectionalLightsStorageBuffer.value(),
+  updateLights.operator()<CompDirectionalLight>(mDirectionalLightsStorageBuffer->current(),
                                                 BINDING_SSBO_DIRECTIONAL_LIGHTS,
                                                 [&] { return scene.createDirectionalLightUniforms(); });
-  updateLights.operator()<CompPointLight>(mPointLightsStorageBuffer.value(),
+  updateLights.operator()<CompPointLight>(mPointLightsStorageBuffer->current(),
                                           BINDING_SSBO_POINT_LIGHTS,
                                           [&] { return scene.createPointLightUniforms(); });
-  updateLights.operator()<CompSpotlight>(mSpotlightsStorageBuffer.value(),
+  updateLights.operator()<CompSpotlight>(mSpotlightsStorageBuffer->current(),
                                          BINDING_SSBO_SPOTLIGHTS,
                                          [&] { return scene.createSpotlightUniforms(); });
 
@@ -451,7 +454,7 @@ void RenderingEngine::renderScene(Scene& scene, const entt::entity entityCamera,
       }
     }
 
-    mInstanceBuffer.value()->bindRange(BINDING_SSBO_INSTANCES,
+    mInstanceBuffer->current()->bindRange(BINDING_SSBO_INSTANCES,
                                        currDraw->instanceOffset * sizeof(InstanceData),
                                        currDraw->instanceCount * sizeof(InstanceData));
 
@@ -571,7 +574,7 @@ void RenderingEngine::renderVertexNormals(Scene& scene, entt::entity entityCamer
   for (const Draw& currDraw : draws) {
     if (!currDraw.bSkybox) {
       TracyGpuZone("Draw elements instanced");
-      mInstanceBuffer.value()->bindRange(BINDING_SSBO_INSTANCES,
+      mInstanceBuffer->current()->bindRange(BINDING_SSBO_INSTANCES,
                                          currDraw.instanceOffset * sizeof(InstanceData),
                                          currDraw.instanceCount * sizeof(InstanceData));
       currDraw.mesh->bind();
@@ -645,4 +648,14 @@ void RenderingEngine::present(const glm::uvec2 windowSize, FramebufferHandle src
   glUseProgram(GL_NONE);
   glBindVertexArray(GL_NONE);
   glBindTexture(GL_TEXTURE_2D, GL_NONE);
+}
+
+void RenderingEngine::swapDoubleBuffers() {
+  assert(mInitialised);
+
+  mCameraUniformBuffer->switchToNext();
+  mDirectionalLightsStorageBuffer->switchToNext();
+  mPointLightsStorageBuffer->switchToNext();
+  mSpotlightsStorageBuffer->switchToNext();
+  mInstanceBuffer->switchToNext();
 }

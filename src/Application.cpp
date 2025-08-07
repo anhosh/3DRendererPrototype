@@ -3,7 +3,6 @@
 #include <GUI.hpp>
 #include <Graphics/RenderingEngine.hpp>
 #include <Scene/Components/Camera.hpp>
-#include <Scene/Components/Dirty.hpp>
 #include <Scene/Components/Graphics.hpp>
 #include <Scene/Components/Name.hpp>
 #include <Scene/Scene.hpp>
@@ -169,10 +168,10 @@ void APIENTRY Application::openGlDebugCallback(GLenum source, GLenum type, GLuin
     default:                             UNREACHABLE();
   }
 
-  if (severity == GL_DEBUG_SEVERITY_NOTIFICATION) {
-    LOG_INFO("{}", message);
-  } else {
+  if (type == GL_DEBUG_TYPE_ERROR || type == GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR) {
     LOG_ERROR("{}", message);
+  } else {
+    LOG_INFO("{}", message);
   }
 }
 #endif
@@ -232,13 +231,11 @@ Expected<void> Application::createScene() {
   });
   CompCamera& mainCamera = mState.scene->ecs.emplace<CompCamera>(mState.mainCamera);
   mainCamera.speed = 10.0f;
-  mState.scene->ecs.emplace<CompDirty>(mState.mainCamera);
 
   mState.backCamera = mState.scene->ecs.create();
   mState.scene->ecs.emplace<CompName>(mState.backCamera, "Back camera");
   mState.scene->ecs.emplace<CompTransform>(mState.backCamera);
   mState.scene->ecs.emplace<CompCamera>(mState.backCamera);
-  mState.scene->ecs.emplace<CompDirty>(mState.backCamera);
 
   mState.scene->skybox = Skybox {
     .cubeMesh = mState.renderingEngine->addMesh(skyboxCubeMesh),
@@ -256,7 +253,6 @@ Expected<void> Application::createScene() {
     },
     .direction = glm::vec3(0.3f, -1.0f, -0.3f),
   });
-  mState.scene->ecs.emplace<CompDirty>(entitySun);
 
   constexpr auto lightPositions = std::array {
     glm::vec3(-3.0f, -3.0f, -3.0f),
@@ -291,7 +287,6 @@ Expected<void> Application::createScene() {
         },
       },
     });
-    mState.scene->ecs.emplace<CompDirty>(entityLight);
     ++lightIndex;
   }
 
@@ -299,7 +294,6 @@ Expected<void> Application::createScene() {
   mState.scene->ecs.emplace<CompName>(entityPlanet, "Planet Mars");
   mState.scene->ecs.emplace<CompTransform>(entityPlanet);
   mState.scene->ecs.emplace<CompGraphics>(entityPlanet, planetMeshes);
-  mState.scene->ecs.emplace<CompDirty>(entityPlanet);
 
   std::random_device rd;
   std::mt19937 gen(rd());
@@ -323,7 +317,6 @@ Expected<void> Application::createScene() {
       .scale = glm::vec3(scaleDistribution(gen)),
     });
     mState.scene->ecs.emplace<CompGraphics>(entityAsteroid, rockMeshes);
-    mState.scene->ecs.emplace<CompDirty>(entityAsteroid);
   }
 
   mState.scene->prepareForRendering();

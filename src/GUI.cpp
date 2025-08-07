@@ -2,7 +2,6 @@
 
 #include <AppState.hpp>
 #include <Scene/Components/Camera.hpp>
-#include <Scene/Components/Dirty.hpp>
 #include <Scene/Components/Name.hpp>
 #include <Scene/Components/Outline.hpp>
 
@@ -74,11 +73,8 @@ void guiActors(AppState& state) {
       if (ImGui::CollapsingHeader(name.name.c_str())) {
         ImGui::Indent();
 
-        bool bChanged = false;
-
         bool bOutlined = state.scene->ecs.all_of<CompOutline>(entity);
-        bChanged |= ImGui::Checkbox(("Draw outline##" + name.name).c_str(), &bOutlined);
-        if (bChanged) {
+        if (ImGui::Checkbox(("Draw outline##" + name.name).c_str(), &bOutlined)) {
           if (bOutlined) {
             const ShaderProgramInstanceHandle outlineShader = state.renderingEngine->createShaderProgramInstance(ShaderProgramType::Outline);
             state.scene->ecs.emplace<CompOutline>(entity, outlineShader);
@@ -91,7 +87,7 @@ void guiActors(AppState& state) {
           ImGui::Text("Outline");
 
           auto& outlineColor = outline->outlineShader->uniforms["uOutlineColor"].getRef<glm::vec3>();
-          bChanged |= ImGui::ColorPicker3(("Outline color##" + name.name).c_str(), glm::value_ptr(outlineColor));
+          ImGui::ColorPicker3(("Outline color##" + name.name).c_str(), glm::value_ptr(outlineColor));
 
           ImGui::Spacing();
         }
@@ -99,9 +95,9 @@ void guiActors(AppState& state) {
         if (CompTransform* transform = state.scene->ecs.try_get<CompTransform>(entity)) {
           ImGui::Text("Transform");
 
-          bChanged |= ImGui::DragFloat3(("Translation##" + name.name).c_str(), glm::value_ptr(transform->translation), 0.01f);
-          bChanged |= ImGui::DragFloat3(("Rotation##" + name.name).c_str(), glm::value_ptr(transform->rotation), 0.01f);
-          bChanged |= ImGui::DragFloat3(("Scale##" + name.name).c_str(), glm::value_ptr(transform->scale), 0.01f);
+          ImGui::DragFloat3(("Translation##" + name.name).c_str(), glm::value_ptr(transform->translation), 0.01f);
+          ImGui::DragFloat3(("Rotation##" + name.name).c_str(), glm::value_ptr(transform->rotation), 0.01f);
+          ImGui::DragFloat3(("Scale##" + name.name).c_str(), glm::value_ptr(transform->scale), 0.01f);
 
           ImGui::Spacing();
         }
@@ -109,10 +105,10 @@ void guiActors(AppState& state) {
         if (CompDirectionalLight* directionalLight = state.scene->ecs.try_get<CompDirectionalLight>(entity)) {
           ImGui::Text("Directional light");
 
-          bChanged |= ImGui::DragFloat3(("Direction##dl" + name.name).c_str(), glm::value_ptr(directionalLight->direction), 0.001f, -1.0f, 1.0f);
-          bChanged |= ImGui::ColorPicker3(("Ambient##dl" + name.name).c_str(), glm::value_ptr(directionalLight->colors.ambient), lightColorEditFlags);
-          bChanged |= ImGui::ColorPicker3(("Diffuse##dl" + name.name).c_str(), glm::value_ptr(directionalLight->colors.diffuse), lightColorEditFlags);
-          bChanged |= ImGui::ColorPicker3(("Specular##dl" + name.name).c_str(), glm::value_ptr(directionalLight->colors.specular), lightColorEditFlags);
+          ImGui::DragFloat3(("Direction##dl" + name.name).c_str(), glm::value_ptr(directionalLight->direction), 0.001f, -1.0f, 1.0f);
+          ImGui::ColorPicker3(("Ambient##dl" + name.name).c_str(), glm::value_ptr(directionalLight->colors.ambient), lightColorEditFlags);
+          ImGui::ColorPicker3(("Diffuse##dl" + name.name).c_str(), glm::value_ptr(directionalLight->colors.diffuse), lightColorEditFlags);
+          ImGui::ColorPicker3(("Specular##dl" + name.name).c_str(), glm::value_ptr(directionalLight->colors.specular), lightColorEditFlags);
 
           ImGui::Spacing();
         }
@@ -120,12 +116,12 @@ void guiActors(AppState& state) {
         if (CompPointLight* pointLight = state.scene->ecs.try_get<CompPointLight>(entity)) {
           ImGui::Text("Point light");
 
-          bChanged |= ImGui::DragFloat("Constant", &pointLight->constant, 0.1f, 1.0f, 100.0f);
-          bChanged |= ImGui::DragFloat("Linear", &pointLight->linear, 0.01f, 0.01f, 10.0f);
-          bChanged |= ImGui::DragFloat("Quadratic", &pointLight->quadratic, 0.001f, 0.01f, 1.0f);
-          bChanged |= ImGui::ColorPicker3(("Ambient##pl" + name.name).c_str(), glm::value_ptr(pointLight->colors.ambient), lightColorEditFlags);
-          bChanged |= ImGui::ColorPicker3(("Diffuse##pl" + name.name).c_str(), glm::value_ptr(pointLight->colors.diffuse), lightColorEditFlags);
-          bChanged |= ImGui::ColorPicker3(("Specular##pl" + name.name).c_str(), glm::value_ptr(pointLight->colors.specular), lightColorEditFlags);
+          ImGui::DragFloat("Constant", &pointLight->constant, 0.1f, 1.0f, 100.0f);
+          ImGui::DragFloat("Linear", &pointLight->linear, 0.01f, 0.01f, 10.0f);
+          ImGui::DragFloat("Quadratic", &pointLight->quadratic, 0.001f, 0.01f, 1.0f);
+          ImGui::ColorPicker3(("Ambient##pl" + name.name).c_str(), glm::value_ptr(pointLight->colors.ambient), lightColorEditFlags);
+          ImGui::ColorPicker3(("Diffuse##pl" + name.name).c_str(), glm::value_ptr(pointLight->colors.diffuse), lightColorEditFlags);
+          ImGui::ColorPicker3(("Specular##pl" + name.name).c_str(), glm::value_ptr(pointLight->colors.specular), lightColorEditFlags);
 
           ImGui::Spacing();
         }
@@ -133,18 +129,14 @@ void guiActors(AppState& state) {
         if (CompSpotlight* spotlight = state.scene->ecs.try_get<CompSpotlight>(entity)) {
           ImGui::Text("Spotlight");
 
-          bChanged |= ImGui::DragFloat3(("Direction##sl" + name.name).c_str(), glm::value_ptr(spotlight->direction), 0.001f, -1.0f, 1.0f);
-          bChanged |= ImGui::DragFloat(("Cut off##sl" + name.name).c_str(), &spotlight->cutOff, 0.01f, 1.0f, spotlight->outerCutOff);
-          bChanged |= ImGui::DragFloat(("Outer cut off##sl" + name.name).c_str(), &spotlight->outerCutOff, 0.01f, spotlight->cutOff, 120.0f);
-          bChanged |= ImGui::ColorPicker3(("Ambient##sl" + name.name).c_str(), glm::value_ptr(spotlight->colors.ambient), lightColorEditFlags);
-          bChanged |= ImGui::ColorPicker3(("Diffuse##sl" + name.name).c_str(), glm::value_ptr(spotlight->colors.diffuse), lightColorEditFlags);
-          bChanged |= ImGui::ColorPicker3(("Specular##sl" + name.name).c_str(), glm::value_ptr(spotlight->colors.specular), lightColorEditFlags);
+          ImGui::DragFloat3(("Direction##sl" + name.name).c_str(), glm::value_ptr(spotlight->direction), 0.001f, -1.0f, 1.0f);
+          ImGui::DragFloat(("Cut off##sl" + name.name).c_str(), &spotlight->cutOff, 0.01f, 1.0f, spotlight->outerCutOff);
+          ImGui::DragFloat(("Outer cut off##sl" + name.name).c_str(), &spotlight->outerCutOff, 0.01f, spotlight->cutOff, 120.0f);
+          ImGui::ColorPicker3(("Ambient##sl" + name.name).c_str(), glm::value_ptr(spotlight->colors.ambient), lightColorEditFlags);
+          ImGui::ColorPicker3(("Diffuse##sl" + name.name).c_str(), glm::value_ptr(spotlight->colors.diffuse), lightColorEditFlags);
+          ImGui::ColorPicker3(("Specular##sl" + name.name).c_str(), glm::value_ptr(spotlight->colors.specular), lightColorEditFlags);
 
           ImGui::Spacing();
-        }
-
-        if (bChanged) {
-          state.scene->ecs.emplace_or_replace<CompDirty>(entity);
         }
 
         ImGui::Unindent();

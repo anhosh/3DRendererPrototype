@@ -2,7 +2,6 @@
 
 #include <Graphics/Buffers/InstanceBuffer.hpp>
 #include <Graphics/RenderingEngine.hpp>
-#include <Scene/Components/Dirty.hpp>
 #include <Scene/Components/Graphics.hpp>
 #include <Scene/Components/Outline.hpp>
 
@@ -28,9 +27,6 @@ std::span<const Draw> Scene::draw(entt::entity entityCamera, RenderingEngine& re
   ZoneScoped;
 
   mCachedDraws.clear();
-  const entt::basic_view dirtyActors = ecs.view<const CompDirty, const CompGraphics,
-                                                entt::exclude_t<CompDirectionalLight, CompPointLight, CompSpotlight>>();
-  ecs.erase<CompDirty>(dirtyActors.begin(), dirtyActors.end());
 
   if (ecs.view<const CompGraphics>().empty()) {
     return mCachedDraws;
