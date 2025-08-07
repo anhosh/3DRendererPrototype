@@ -220,9 +220,8 @@ void guiPostProcessing(AppState& state) {
       state.postProcessingShaderProgramInstances.push_back(state.renderingEngine->createShaderProgramInstance(ShaderProgramType::PostProcessCopy));
 
       const FramebufferHandle newFramebuffer = state.renderingEngine->addFramebuffer({
-        state.windowSize,
-        GL_RGB,
-        false,
+        .size = state.windowSize,
+        .bDepthStencil = false,
       });
       state.postProcessingFramebuffers.push_back(newFramebuffer);
     }

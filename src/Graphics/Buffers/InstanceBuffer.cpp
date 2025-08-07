@@ -6,5 +6,5 @@ void InstanceBuffer::writeToBuffer(const GLuint buffer, const size_t offset) con
   ZoneScoped;
   TracyGpuZone("LightSourceBuffer::writeToBuffer");
 
-  glNamedBufferSubData(buffer, static_cast<GLintptr>(offset), size(), this->instances.data());
+  glNamedBufferSubData(buffer, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(size()), this->instances.data());
 }
