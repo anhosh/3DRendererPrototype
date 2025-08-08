@@ -7,7 +7,7 @@ struct InstanceData {
   mat3 normal;
 };
 
-layout (std430, location = BINDING_SSBO_INSTANCES) readonly buffer Instances {
+layout (std430, binding = BINDING_SSBO_INSTANCES) readonly buffer Instances {
   InstanceData data[];
 } uInstances;
 

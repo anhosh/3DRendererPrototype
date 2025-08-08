@@ -298,7 +298,7 @@ Expected<void> Application::createScene() {
   mState.scene->ecs.emplace<CompGraphics>(entityPlanet, planetMeshes);
 
   const entt::entity entityBackpack = mState.scene->ecs.create();
-  mState.scene->ecs.emplace<CompName>(entityPlanet, "Backpack");
+  mState.scene->ecs.emplace<CompName>(entityBackpack, "Backpack");
   mState.scene->ecs.emplace<CompTransform>(entityBackpack, CompTransform {
     .translation = glm::vec3(0.0f, 6.0f, 0.0f),
   });

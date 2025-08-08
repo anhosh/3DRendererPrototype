@@ -78,7 +78,6 @@ target_sources(stb PRIVATE
 # add tracy to build tree
 message(STATUS "[tracy]")
 if (CMAKE_BUILD_TYPE STREQUAL Release)
-  message(STATUS "Hello")
   set(TRACY_ENABLE OFF)
   set(TRACY_ON_DEMAND OFF)
 else ()
