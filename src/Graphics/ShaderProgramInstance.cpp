@@ -1,10 +1,9 @@
 #include <Graphics/ShaderProgramInstance.hpp>
 
+#include <Graphics/Buffers/BindPoints.hpp>
 #include <Util/Macros/Errors.hpp>
 
 #include <ranges>
-
-#include "Buffers/BindPoints.hpp"
 
 void ShaderProgramInstance::use() const {
   glUseProgram(mShaderProgram->id());

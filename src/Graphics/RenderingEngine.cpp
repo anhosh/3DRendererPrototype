@@ -526,10 +526,12 @@ void RenderingEngine::renderScene(Scene& scene, const entt::entity entityCamera,
     bindTexture(currDraw->emissionMap, lastDraw->emissionMap);
     bindTexture(currDraw->environmentMap, lastDraw->environmentMap);
 
+    currDraw->mesh->bind();
+
     {
       TracyGpuZone("Draw elements instanced");
-      currDraw->mesh->bind();
-      glDrawElementsInstanced(GL_TRIANGLES, currDraw->mesh->indexCount, GL_UNSIGNED_INT, nullptr,
+      glDrawElementsInstanced(GL_TRIANGLES, currDraw->mesh->indexCount(), GL_UNSIGNED_INT,
+                              reinterpret_cast<void*>(currDraw->mesh->indicesOffset()),
                               static_cast<GLsizei>(currDraw->instanceCount));
     }
 
@@ -551,7 +553,7 @@ void RenderingEngine::renderScene(Scene& scene, const entt::entity entityCamera,
   }
 }
 
-void RenderingEngine::renderVertexNormals(Scene& scene, entt::entity entityCamera, const Viewport& viewport, FramebufferHandle dstFramebuffer) {
+void RenderingEngine::renderVertexNormals(Scene& scene, const entt::entity entityCamera, const Viewport& viewport, FramebufferHandle dstFramebuffer) {
   ZoneScoped;
   TracyGpuZone("Render vertex normals");
 
@@ -575,13 +577,16 @@ void RenderingEngine::renderVertexNormals(Scene& scene, entt::entity entityCamer
 
   for (const Draw& currDraw : draws) {
     if (!currDraw.bSkybox) {
-      TracyGpuZone("Draw elements instanced");
       mInstanceBuffer->current()->bindRange(BINDING_SSBO_INSTANCES,
                                          currDraw.instanceOffset * sizeof(InstanceData),
                                          currDraw.instanceCount * sizeof(InstanceData));
       currDraw.mesh->bind();
-      glDrawElementsInstanced(GL_TRIANGLES, currDraw.mesh->indexCount, GL_UNSIGNED_INT, nullptr,
-                              static_cast<GLsizei>(currDraw.instanceCount));
+      {
+        TracyGpuZone("Draw elements instanced");
+        glDrawElementsInstanced(GL_TRIANGLES, currDraw.mesh->indexCount(), GL_UNSIGNED_INT,
+                                reinterpret_cast<void*>(currDraw.mesh->indicesOffset()),
+                                static_cast<GLsizei>(currDraw.instanceCount));
+      }
     }
   }
 

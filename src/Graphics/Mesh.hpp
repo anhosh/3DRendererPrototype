@@ -1,7 +1,6 @@
 #pragma once
 
 #include <Assets/MeshData.hpp>
-#include <Graphics/Buffers/VertexBuffer.hpp>
 #include <Util/Registry.hpp>
 
 class Mesh {
@@ -15,9 +14,13 @@ public:
   void bind() const;
 
 public:
-  VertexBuffer vertexData;
-  GLuint ebo = GL_NONE;
-  GLsizei indexCount = 0;
+  GLsizei indexCount() const { return mIndexCount; }
+  GLsizei indicesOffset() const { return mIndicesOffset; }
+
+private:
+  GLuint mVertexIndexBuffer = GL_NONE;
+  GLsizei mIndexCount = 0;
+  GLsizei mIndicesOffset = 0;
 };
 
 using MeshHandle = Registry<Mesh>::Handle;
