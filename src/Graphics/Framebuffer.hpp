@@ -1,6 +1,5 @@
 #pragma once
 
-#include <Graphics/Sampler.hpp>
 #include <Graphics/Texture2D.hpp>
 #include <Util/Registry.hpp>
 
@@ -13,7 +12,7 @@ struct FramebufferCreateInfo {
 
 class Framebuffer {
 public:
-  explicit Framebuffer(const FramebufferCreateInfo& info, SamplerHandle colorAttachmentSampler);
+  explicit Framebuffer(const FramebufferCreateInfo& info);
 
   void init();
   void destroy();

@@ -7,6 +7,7 @@ cmake_install.cmake
 TracyTargets.cmake
 Makefile
 imgui.ini
+*.cap
+*.rdc
 *.trace
 *.tracy
-*.rdc

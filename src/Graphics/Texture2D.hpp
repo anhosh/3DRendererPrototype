@@ -1,15 +1,14 @@
 #pragma once
 
 #include <Assets/AssetHandle.hpp>
-#include <Graphics/Sampler.hpp>
 #include <Util/Registry.hpp>
 
 class Bitmap;
 
 class Texture2D {
 public:
-  explicit Texture2D(SamplerHandle sampler);
-  explicit Texture2D(AssetHandle<Bitmap> bitmap, SamplerHandle sampler, GLint internalFormat);
+  Texture2D();
+  explicit Texture2D(AssetHandle<Bitmap> bitmap, GLint internalFormat);
 
   void init();
   void allocate(glm::uvec2 size, GLint internalFormat) const;
@@ -23,7 +22,6 @@ public:
 
 private:
   GLuint mID = 0;
-  SamplerHandle mSampler;
 };
 
 using Texture2DHandle = Registry<Texture2D>::Handle;

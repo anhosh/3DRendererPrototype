@@ -2,18 +2,20 @@
 
 #include <Graphics/ShaderProgram.hpp>
 #include <Graphics/ShaderUniform.hpp>
+#include <Util/Log.hpp>
 #include <Util/Registry.hpp>
 
 #include <unordered_map>
 
 enum class ShaderProgramType : int32_t {
   Light,
-  LitSurface,
   LitExploded,
+  LitSurface,
   Outline,
   ReflectiveSurface,
   RefractiveSurface,
-  PostProcessCopy,
+
+  PostProcessCopy, // Keep PostProcessCopy as the first PostProcessX entry, for easy enumeration in the debug menu.
   PostProcessBlur,
   PostProcessEdgeDetection,
   PostProcessEmboss,
@@ -27,7 +29,9 @@ enum class ShaderProgramType : int32_t {
   PostProcessSobelLeft,
   PostProcessSobelRight,
   PostProcessSobelTop,
+
   Skybox,
+
   SurfaceDepth,
   SurfaceNormal,
 };
@@ -67,29 +71,12 @@ private:
     , mType(type)
   {}
 
-  static ShaderProgramInstance newLitSurface(ShaderProgramHandle program);
-  static ShaderProgramInstance newLitExploded(ShaderProgramHandle program);
-  static ShaderProgramInstance newLight(ShaderProgramHandle program);
-  static ShaderProgramInstance newOutline(ShaderProgramHandle program);
-  static ShaderProgramInstance newReflectiveSurface(ShaderProgramHandle program);
-  static ShaderProgramInstance newRefractiveSurface(ShaderProgramHandle program);
-  static ShaderProgramInstance newSurfaceDepth(ShaderProgramHandle program);
-  static ShaderProgramInstance newSurfaceNormal(ShaderProgramHandle program);
-  static ShaderProgramInstance newPostProcessingCopy(ShaderProgramHandle program);
-  static ShaderProgramInstance newPostProcessingBlur(ShaderProgramHandle program);
-  static ShaderProgramInstance newPostProcessingEdgeDetection(ShaderProgramHandle program);
-  static ShaderProgramInstance newPostProcessingEmboss(ShaderProgramHandle program);
-  static ShaderProgramInstance newPostProcessingFlipHorizontally(ShaderProgramHandle program);
-  static ShaderProgramInstance newPostProcessingFlipVertically(ShaderProgramHandle program);
-  static ShaderProgramInstance newPostProcessingGammaCorrection(ShaderProgramHandle program);
-  static ShaderProgramInstance newPostProcessingGrayscale(ShaderProgramHandle program);
-  static ShaderProgramInstance newPostProcessingInvert(ShaderProgramHandle program);
-  static ShaderProgramInstance newPostProcessingSharpen(ShaderProgramHandle program);
-  static ShaderProgramInstance newPostProcessingSobelBottom(ShaderProgramHandle program);
-  static ShaderProgramInstance newPostProcessingSobelLeft(ShaderProgramHandle program);
-  static ShaderProgramInstance newPostProcessingSobelRight(ShaderProgramHandle program);
-  static ShaderProgramInstance newPostProcessingSobelTop(ShaderProgramHandle program);
-  static ShaderProgramInstance newSkybox(ShaderProgramHandle program);
+  template <ShaderProgramType SHADER_TYPE>
+  static ShaderProgramInstance create(const ShaderProgramHandle program) {
+    ZoneScoped;
+    LOG_INFO("Creating an empty shader instance");
+    return ShaderProgramInstance(program, SHADER_TYPE);
+  }
 
 private:
   ShaderProgramHandle mShaderProgram;

@@ -53,10 +53,9 @@ public:
 
   SamplerHandle addSampler(const SamplerOptions& options);
 
-  std::vector<std::optional<Texture2DHandle>> addTexture2Ds(std::span<const std::optional<AssetHandle<Bitmap>>> bitmaps,
-                                                            std::span<const std::optional<SamplerHandle>> samplers);
-  Texture2DHandle addTexture2D(AssetHandle<Bitmap> bitmap, SamplerHandle sampler);
-  TextureCubeMapHandle addTextureCubeMap(const TextureCubeMapBitmaps& bitmaps, SamplerHandle sampler);
+  std::vector<std::optional<Texture2DHandle>> addTexture2Ds(std::span<const std::optional<AssetHandle<Bitmap>>> bitmaps);
+  Texture2DHandle addTexture2D(AssetHandle<Bitmap> bitmap);
+  TextureCubeMapHandle addTextureCubeMap(const TextureCubeMapBitmaps& bitmaps);
 
   FramebufferHandle addFramebuffer(const FramebufferCreateInfo& info);
 
@@ -110,7 +109,10 @@ private:
   std::optional<ShaderProgramHandle> mSkyboxShaderProgram = std::nullopt;
 
   std::optional<SamplerHandle> mColorAttachmentSampler = std::nullopt;
-  std::optional<SamplerHandle> mMeshTextureSampler = std::nullopt;
+  std::optional<SamplerHandle> mDiffuseTextureSampler = std::nullopt;
+  std::optional<SamplerHandle> mSpecularTextureSampler = std::nullopt;
+  std::optional<SamplerHandle> mEmissionTextureSampler = std::nullopt;
+  std::optional<SamplerHandle> mEnvironmentTextureSampler = std::nullopt;
 
   std::optional<DoubleBuffer<BufferHandle>> mCameraUniformBuffer = std::nullopt;
   std::optional<DoubleBuffer<BufferHandle>> mDirectionalLightsStorageBuffer = std::nullopt;

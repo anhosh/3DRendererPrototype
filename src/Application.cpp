@@ -6,7 +6,6 @@
 #include <Scene/Components/Graphics.hpp>
 #include <Scene/Components/Name.hpp>
 #include <Scene/Scene.hpp>
-#include <Util/Log.hpp>
 #include <Util/Macros/Errors.hpp>
 #include <Util/NotNull.hpp>
 #include <Util/Timers/TimedBlock.hpp>
@@ -221,7 +220,6 @@ Expected<void> Application::createScene() {
   std::vector<RenderData> planetMeshes = mState.renderingEngine->addModel(modelPlanet.value(), litSurfaceShader);
   std::vector<RenderData> rockMeshes   = mState.renderingEngine->addModel(modelRock.value(), litSurfaceShader);
 
-  const SamplerHandle skyboxSampler = mState.renderingEngine->addSampler(SamplerOptions { .minFilter = GL_LINEAR });
   TextureCubeMapHandle skyboxTexture = mState.renderingEngine->addTextureCubeMap(
     TextureCubeMapBitmaps {
       bitmapSkyboxRight.value(),
@@ -231,8 +229,7 @@ Expected<void> Application::createScene() {
       bitmapSkyboxBack.value(),
       bitmapSkyboxFront.value(),
       .bSRGB = true,
-    },
-    skyboxSampler
+    }
   );
 
   // Create scene
@@ -260,7 +257,7 @@ Expected<void> Application::createScene() {
   mState.scene->ecs.emplace<CompName>(entitySun, "Sun");
   mState.scene->ecs.emplace<CompDirectionalLight>(entitySun, CompDirectionalLight {
     .colors =  LightColors {
-      .ambient = glm::vec3(0.05f),
+      .ambient = glm::vec3(0.01f),
       .diffuse = glm::vec3(1.0f),
       .specular = glm::vec3(2.0f),
     },
@@ -287,7 +284,7 @@ Expected<void> Application::createScene() {
     });
     mState.scene->ecs.emplace<CompPointLight>(entityLight, CompPointLight {
       .colors = LightColors {
-        .ambient = 0.05f * lightColors[lightIndex],
+        .ambient = 0.01f * lightColors[lightIndex],
         .diffuse = 1.0f * lightColors[lightIndex],
         .specular = 2.0f * lightColors[lightIndex],
       },

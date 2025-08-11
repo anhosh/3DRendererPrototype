@@ -4,19 +4,16 @@
 
 #include <array>
 
-TextureCubeMap::TextureCubeMap(SamplerHandle sampler)
-  : mSampler(sampler)
-{
+TextureCubeMap::TextureCubeMap() {
   ZoneScoped;
 
   this->init();
 }
 
-TextureCubeMap::TextureCubeMap(const TextureCubeMapBitmaps& bitmaps, SamplerHandle sampler, const GLint internalFormat)
-  : TextureCubeMap(sampler)
-{
+TextureCubeMap::TextureCubeMap(const TextureCubeMapBitmaps& bitmaps, const GLint internalFormat) {
   ZoneScoped;
 
+  this->init();
   this->generate(bitmaps, internalFormat);
 }
 
@@ -49,18 +46,13 @@ void TextureCubeMap::destroy() {
     glDeleteTextures(1, &mID);
     mID = GL_NONE;
   }
-  mSampler->destroy();
 }
 
 void TextureCubeMap::bind(const GLuint slot) const {
-  glActiveTexture(GL_TEXTURE0 + slot);
-  glBindTexture(GL_TEXTURE_CUBE_MAP, mID);
-  mSampler->bind(slot);
+  glBindTextureUnit(slot, mID);
 }
 
 void TextureCubeMap::unbind(const GLuint slot) const {
   (void)mID;
-  glActiveTexture(GL_TEXTURE0 + slot);
-  glBindTexture(GL_TEXTURE_CUBE_MAP, GL_NONE);
-  mSampler->unbind(slot);
+  glBindTextureUnit(slot, GL_NONE);
 }

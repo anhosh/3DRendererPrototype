@@ -10,9 +10,12 @@ Mesh::Mesh()
   this->init();
 }
 
-Mesh::Mesh(const MeshData& mesh) : Mesh() {
+Mesh::Mesh(const MeshData& mesh)
+  : vertexData(sizeof(Vertex))
+{
   ZoneScoped;
 
+  this->init();
   this->generateMesh(mesh);
 }
 

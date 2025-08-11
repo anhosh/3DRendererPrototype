@@ -2,19 +2,16 @@
 
 #include <Assets/Bitmap.hpp>
 
-Texture2D::Texture2D(SamplerHandle sampler)
-  : mSampler(sampler)
-{
+Texture2D::Texture2D() {
   ZoneScoped;
 
   this->init();
 }
 
-Texture2D::Texture2D(AssetHandle<Bitmap> bitmap, const SamplerHandle sampler, const GLint internalFormat)
-  : Texture2D(sampler)
-{
+Texture2D::Texture2D(const AssetHandle<Bitmap> bitmap, const GLint internalFormat) {
   ZoneScoped;
 
+  this->init();
   this->generate(bitmap, internalFormat);
 }
 
@@ -52,13 +49,10 @@ void Texture2D::destroy() {
 }
 
 void Texture2D::bind(const GLuint slot) const {
-  glActiveTexture(GL_TEXTURE0 + slot);
-  glBindTexture(GL_TEXTURE_2D, mID);
-  mSampler->bind(slot);
+  glBindTextureUnit(slot, mID);
 }
 
 void Texture2D::unbind(const GLuint slot) const {
-  glActiveTexture(GL_TEXTURE0 + slot);
-  glBindTexture(GL_TEXTURE_2D, GL_NONE);
-  mSampler->unbind(slot);
+  (void)mID;
+  glBindTextureUnit(slot, GL_NONE);
 }

@@ -8,7 +8,7 @@ public:
 
   void init();
   void destroy();
-  void bind(size_t binding, size_t offset = 0) const;
+  void bind(uint32_t binding, size_t offset = 0) const;
 
   template <typename DataType>
   void write(const std::vector<DataType>& data) {

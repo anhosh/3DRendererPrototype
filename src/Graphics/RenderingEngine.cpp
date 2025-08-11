@@ -9,9 +9,10 @@
 #include <Graphics/ShaderProgram.hpp>
 #include <Graphics/Buffers/BindPoints.hpp>
 #include <Graphics/Buffers/CameraUniforms.hpp>
+#include <Graphics/Buffers/InstanceBuffer.hpp>
+#include <Graphics/Viewport.hpp>
 #include <Scene/Components/Camera.hpp>
 #include <Scene/Components/Graphics.hpp>
-#include <Graphics/Viewport.hpp>
 #include <Scene/Scene.hpp>
 #include <Util/Macros/Errors.hpp>
 
@@ -20,7 +21,6 @@
 #include <tracy/TracyOpenGL.hpp>
 
 #include <ranges>
-#include <Graphics/Buffers/InstanceBuffer.hpp>
 
 Expected<void> RenderingEngine::init() {
   ZoneScoped;
@@ -66,7 +66,10 @@ Expected<void> RenderingEngine::init() {
   Vertex::setupVertexAttributes(mMeshesVAO);
 
   mColorAttachmentSampler = this->addSampler(SamplerOptions { .minFilter = GL_LINEAR });
-  mMeshTextureSampler = this->addSampler(SamplerOptions {});
+  mDiffuseTextureSampler = this->addSampler(SamplerOptions {});
+  mSpecularTextureSampler = this->addSampler(SamplerOptions {});
+  mEmissionTextureSampler = this->addSampler(SamplerOptions {});
+  mEnvironmentTextureSampler = this->addSampler(SamplerOptions {});
 
   mCameraUniformBuffer.emplace(this->createBuffer(GL_UNIFORM_BUFFER),
                                this->createBuffer(GL_UNIFORM_BUFFER));
@@ -138,6 +141,12 @@ void RenderingEngine::destroy() {
   mPostProcessKernel3x3ShaderProgram.reset();
   mSkyboxShaderProgram.reset();
 
+  mColorAttachmentSampler.reset();
+  mDiffuseTextureSampler.reset();
+  mSpecularTextureSampler.reset();
+  mEmissionTextureSampler.reset();
+  mEnvironmentTextureSampler.reset();
+
   mCameraUniformBuffer.reset();
   mDirectionalLightsStorageBuffer.reset();
   mPointLightsStorageBuffer.reset();
@@ -168,56 +177,38 @@ ShaderProgramHandle RenderingEngine::addShaderProgram(ShaderProgram&& shaderProg
 ShaderProgramInstanceHandle RenderingEngine::createShaderProgramInstance(const ShaderProgramType type) {
   ZoneScoped;
 
+#define CASE_RETURN(ShaderType, shaderProgramOption) \
+  case ShaderType: \
+    TO_STATEMENT(return this->addShaderProgramInstance(ShaderProgramInstance::create<ShaderType>(shaderProgramOption.value()));)
+
   switch (type) {
-    case ShaderProgramType::LitSurface:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newLitSurface(mLitSurfaceShaderProgram.value()));
-    case ShaderProgramType::LitExploded:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newLitExploded(mLitExplodedShaderProgram.value()));
-    case ShaderProgramType::Light:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newLight(mLightShaderProgram.value()));
-    case ShaderProgramType::Outline:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newOutline(mOutlineShaderProgram.value()));
-    case ShaderProgramType::ReflectiveSurface:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newReflectiveSurface(mReflectiveSurfaceShaderProgram.value()));
-    case ShaderProgramType::RefractiveSurface:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newRefractiveSurface(mRefractiveSurfaceShaderProgram.value()));
-    case ShaderProgramType::PostProcessCopy:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingCopy(mPostProcessCopyShaderProgram.value()));
-    case ShaderProgramType::PostProcessBlur:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingBlur(mPostProcessKernel3x3ShaderProgram.value()));
-    case ShaderProgramType::PostProcessEdgeDetection:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingEdgeDetection(mPostProcessKernel3x3ShaderProgram.value()));
-    case ShaderProgramType::PostProcessEmboss:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingEmboss(mPostProcessKernel3x3ShaderProgram.value()));
-    case ShaderProgramType::PostProcessFlipHorizontally:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingFlipHorizontally(mPostProcessFlipHorizontallyShaderProgram.value()));
-    case ShaderProgramType::PostProcessFlipVertically:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingFlipVertically(mPostProcessFlipVerticallyShaderProgram.value()));
-    case ShaderProgramType::PostProcessGammaCorrection:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingGammaCorrection(mPostProcessGammaCorrectionShaderProgram.value()));
-    case ShaderProgramType::PostProcessGrayscale:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingGrayscale(mPostProcessGrayscaleShaderProgram.value()));
-    case ShaderProgramType::PostProcessInvert:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingInvert(mPostProcessInvertShaderProgram.value()));
-    case ShaderProgramType::PostProcessSharpen:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingSharpen(mPostProcessKernel3x3ShaderProgram.value()));
-    case ShaderProgramType::PostProcessSobelBottom:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingSobelBottom(mPostProcessKernel3x3ShaderProgram.value()));
-    case ShaderProgramType::PostProcessSobelLeft:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingSobelLeft(mPostProcessKernel3x3ShaderProgram.value()));
-    case ShaderProgramType::PostProcessSobelRight:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingSobelRight(mPostProcessKernel3x3ShaderProgram.value()));
-    case ShaderProgramType::PostProcessSobelTop:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingSobelTop(mPostProcessKernel3x3ShaderProgram.value()));
-    case ShaderProgramType::Skybox:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newSkybox(mSkyboxShaderProgram.value()));
-    case ShaderProgramType::SurfaceDepth:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newSurfaceDepth(mSurfaceDepthShaderProgram.value()));
-    case ShaderProgramType::SurfaceNormal:
-      return this->addShaderProgramInstance(ShaderProgramInstance::newSurfaceNormal(mSurfaceNormalShaderProgram.value()));
+    CASE_RETURN(ShaderProgramType::LitSurface, mLitSurfaceShaderProgram);
+    CASE_RETURN(ShaderProgramType::LitExploded, mLitExplodedShaderProgram);
+    CASE_RETURN(ShaderProgramType::Light, mLightShaderProgram);
+    CASE_RETURN(ShaderProgramType::Outline, mOutlineShaderProgram);
+    CASE_RETURN(ShaderProgramType::ReflectiveSurface, mReflectiveSurfaceShaderProgram);
+    CASE_RETURN(ShaderProgramType::RefractiveSurface, mRefractiveSurfaceShaderProgram);
+    CASE_RETURN(ShaderProgramType::PostProcessCopy, mPostProcessCopyShaderProgram);
+    CASE_RETURN(ShaderProgramType::PostProcessBlur, mPostProcessKernel3x3ShaderProgram);
+    CASE_RETURN(ShaderProgramType::PostProcessEdgeDetection, mPostProcessKernel3x3ShaderProgram);
+    CASE_RETURN(ShaderProgramType::PostProcessEmboss, mPostProcessKernel3x3ShaderProgram);
+    CASE_RETURN(ShaderProgramType::PostProcessFlipHorizontally, mPostProcessFlipHorizontallyShaderProgram);
+    CASE_RETURN(ShaderProgramType::PostProcessFlipVertically, mPostProcessFlipVerticallyShaderProgram);
+    CASE_RETURN(ShaderProgramType::PostProcessGammaCorrection, mPostProcessGammaCorrectionShaderProgram);
+    CASE_RETURN(ShaderProgramType::PostProcessGrayscale, mPostProcessGrayscaleShaderProgram);
+    CASE_RETURN(ShaderProgramType::PostProcessInvert, mPostProcessInvertShaderProgram);
+    CASE_RETURN(ShaderProgramType::PostProcessSharpen, mPostProcessKernel3x3ShaderProgram);
+    CASE_RETURN(ShaderProgramType::PostProcessSobelBottom, mPostProcessKernel3x3ShaderProgram);
+    CASE_RETURN(ShaderProgramType::PostProcessSobelLeft, mPostProcessKernel3x3ShaderProgram);
+    CASE_RETURN(ShaderProgramType::PostProcessSobelRight, mPostProcessKernel3x3ShaderProgram);
+    CASE_RETURN(ShaderProgramType::PostProcessSobelTop, mPostProcessKernel3x3ShaderProgram);
+    CASE_RETURN(ShaderProgramType::Skybox, mSkyboxShaderProgram);
+    CASE_RETURN(ShaderProgramType::SurfaceDepth, mSurfaceDepthShaderProgram);
+    CASE_RETURN(ShaderProgramType::SurfaceNormal, mSurfaceNormalShaderProgram);
     default:
       UNREACHABLE();
   }
+#undef CASE_RETURN
 }
 
 ShaderProgramInstanceHandle RenderingEngine::addShaderProgramInstance(ShaderProgramInstance&& instance) {
@@ -234,12 +225,9 @@ const std::vector<RenderData>& RenderingEngine::addModel(AssetHandle<Model> mode
   }
 
   const std::vector<MeshHandle> meshes = this->addMeshes(model->meshes);
-  const std::vector<std::optional<SamplerHandle>> diffuseSamplers(model->diffuseMaps.size(), mMeshTextureSampler);
-  const std::vector<std::optional<SamplerHandle>> specularSamplers(model->specularMaps.size(), mMeshTextureSampler);
-  const std::vector<std::optional<SamplerHandle>> emissionSamplers(model->emissionMaps.size(), mMeshTextureSampler);
-  const std::vector<std::optional<Texture2DHandle>> diffuseMaps = this->addTexture2Ds(model->diffuseMaps, diffuseSamplers);
-  const std::vector<std::optional<Texture2DHandle>> specularMaps = this->addTexture2Ds(model->specularMaps, specularSamplers);
-  const std::vector<std::optional<Texture2DHandle>> emissionMaps = this->addTexture2Ds(model->emissionMaps, emissionSamplers);
+  const std::vector<std::optional<Texture2DHandle>> diffuseMaps = this->addTexture2Ds(model->diffuseMaps);
+  const std::vector<std::optional<Texture2DHandle>> specularMaps = this->addTexture2Ds(model->specularMaps);
+  const std::vector<std::optional<Texture2DHandle>> emissionMaps = this->addTexture2Ds(model->emissionMaps);
 
   std::vector<RenderData> modelResources;
   modelResources.reserve(meshes.size());
@@ -280,20 +268,16 @@ SamplerHandle RenderingEngine::addSampler(const SamplerOptions& options) {
   return mSamplers.add(Sampler(options));
 }
 
-auto RenderingEngine::addTexture2Ds(const std::span<const std::optional<AssetHandle<Bitmap>>> bitmaps,
-                                    const std::span<const std::optional<SamplerHandle>> samplers)
+auto RenderingEngine::addTexture2Ds(const std::span<const std::optional<AssetHandle<Bitmap>>> bitmaps)
   -> std::vector<std::optional<Texture2DHandle>>
 {
   ZoneScoped;
-
-  assert(bitmaps.size() == samplers.size());
 
   std::vector<std::optional<Texture2DHandle>> handles;
   handles.reserve(bitmaps.size());
   for (size_t i = 0; const std::optional bitmap : bitmaps) {
     if (bitmap.has_value()) {
-      const SamplerHandle sampler = samplers[i].value();
-      const Texture2DHandle ref = this->addTexture2D(bitmap.value(), sampler);
+      const Texture2DHandle ref = this->addTexture2D(bitmap.value());
       handles.emplace_back(ref);
     } else {
       handles.emplace_back();
@@ -303,7 +287,7 @@ auto RenderingEngine::addTexture2Ds(const std::span<const std::optional<AssetHan
   return handles;
 }
 
-Texture2DHandle RenderingEngine::addTexture2D(const AssetHandle<Bitmap> bitmap, const SamplerHandle sampler) {
+Texture2DHandle RenderingEngine::addTexture2D(const AssetHandle<Bitmap> bitmap) {
   ZoneScoped;
 
   if (mUploadedTextures.contains(bitmap.itemID())) {
@@ -313,12 +297,12 @@ Texture2DHandle RenderingEngine::addTexture2D(const AssetHandle<Bitmap> bitmap, 
   const GLint internalFormat = bitmap->bSRGB && bitmap->channels() == 4 ? GL_SRGB8_ALPHA8 :
                                bitmap->bSRGB && bitmap->channels() < 4  ? GL_SRGB8 :
                               !bitmap->bSRGB && bitmap->channels() == 4 ? GL_RGBA8 : GL_RGB8;
-  const Texture2DHandle handle = mTexture2Ds.add(Texture2D(bitmap, sampler, internalFormat));
+  const Texture2DHandle handle = mTexture2Ds.add(Texture2D(bitmap, internalFormat));
   mUploadedTextures.emplace(bitmap.itemID(), handle);
   return handle;
 }
 
-TextureCubeMapHandle RenderingEngine::addTextureCubeMap(const TextureCubeMapBitmaps& bitmaps, const SamplerHandle sampler) {
+TextureCubeMapHandle RenderingEngine::addTextureCubeMap(const TextureCubeMapBitmaps& bitmaps) {
   ZoneScoped;
 
   const uint32_t maxChannels = std::max({ bitmaps.right->channels(), bitmaps.left->channels(),
@@ -329,13 +313,13 @@ TextureCubeMapHandle RenderingEngine::addTextureCubeMap(const TextureCubeMapBitm
                                bitmaps.bSRGB && maxChannels < 4  ? GL_SRGB8 :
                               !bitmaps.bSRGB && maxChannels == 4 ? GL_RGBA8 : GL_RGB8;
 
-  return mTextureCubeMaps.add(TextureCubeMap(bitmaps, sampler, internalFormat));
+  return mTextureCubeMaps.add(TextureCubeMap(bitmaps, internalFormat));
 }
 
 FramebufferHandle RenderingEngine::addFramebuffer(const FramebufferCreateInfo& info) {
   ZoneScoped;
 
-  return mFramebuffers.add(Framebuffer(info, mColorAttachmentSampler.value()));
+  return mFramebuffers.add(Framebuffer(info));
 }
 
 BufferHandle RenderingEngine::createBuffer(const GLenum type) {
@@ -452,6 +436,10 @@ void RenderingEngine::renderScene(Scene& scene, const entt::entity entityCamera,
                                          [&] { return scene.createSpotlightUniforms(); });
 
   glBindVertexArray(mMeshesVAO);
+  mDiffuseTextureSampler.value()->bind(BINDING_SAMPLER_DIFFUSE);
+  mSpecularTextureSampler.value()->bind(BINDING_SAMPLER_SPECULAR);
+  mEmissionTextureSampler.value()->bind(BINDING_SAMPLER_EMISSION);
+  mEnvironmentTextureSampler.value()->bind(BINDING_SAMPLER_ENVIRONMENT);
 
   const Draw* lastDraw = &draws.front();
   for (size_t drawIdx = 0; drawIdx < draws.size(); drawIdx++) {
@@ -521,23 +509,22 @@ void RenderingEngine::renderScene(Scene& scene, const entt::entity entityCamera,
     }
 
     GLuint slot = 0;
-    const auto bindTexture = [&, this](const auto& currTexture, const auto& lastTexture, const GLenum target) {
+    const auto bindTexture = [&, this](const auto& currTexture, const auto& lastTexture) {
       if (drawIdx == 0 || currTexture != lastTexture) {
         if (currTexture.has_value()) {
           currTexture->get().bind(slot);
           mBoundTextureSlots.insert(slot);
         } else {
-          glActiveTexture(GL_TEXTURE0 + slot);
-          glBindTexture(target, 0);
+          glBindTextureUnit(slot, GL_NONE);
           mBoundTextureSlots.erase(slot);
         }
       }
       ++slot;
     };
-    bindTexture(currDraw->diffuseMap, lastDraw->diffuseMap, GL_TEXTURE_2D);
-    bindTexture(currDraw->specularMap, lastDraw->specularMap, GL_TEXTURE_2D);
-    bindTexture(currDraw->emissionMap, lastDraw->emissionMap, GL_TEXTURE_2D);
-    bindTexture(currDraw->environmentMap, lastDraw->environmentMap, GL_TEXTURE_CUBE_MAP);
+    bindTexture(currDraw->diffuseMap, lastDraw->diffuseMap);
+    bindTexture(currDraw->specularMap, lastDraw->specularMap);
+    bindTexture(currDraw->emissionMap, lastDraw->emissionMap);
+    bindTexture(currDraw->environmentMap, lastDraw->environmentMap);
 
     {
       TracyGpuZone("Draw elements instanced");
@@ -625,7 +612,8 @@ void RenderingEngine::postProcess(const Viewport& viewport, ShaderProgramInstanc
 
   postProcessingShader->use();
   postProcessingShader->bindUniforms();
-  srcFramebuffer->colorAttachment.bind(0);
+  srcFramebuffer->colorAttachment.bind(BINDING_SAMPLER_SCREEN);
+  mColorAttachmentSampler.value()->bind(BINDING_SAMPLER_SCREEN);
 
   glBindVertexArray(mScreenQuadVAO);
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -656,7 +644,8 @@ void RenderingEngine::present(const glm::uvec2 windowSize, FramebufferHandle src
   glClear(GL_COLOR_BUFFER_BIT);
 
   glUseProgram(mPostProcessCopyShaderProgram.value()->id());
-  srcFramebuffer->colorAttachment.bind(0);
+  srcFramebuffer->colorAttachment.bind(BINDING_SAMPLER_SCREEN);
+  mColorAttachmentSampler.value()->bind(BINDING_SAMPLER_SCREEN);
   glBindVertexArray(mScreenQuadVAO);
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 

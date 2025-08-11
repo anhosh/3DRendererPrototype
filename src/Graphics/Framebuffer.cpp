@@ -4,9 +4,8 @@
 
 #include <tracy/TracyOpenGL.hpp>
 
-Framebuffer::Framebuffer(const FramebufferCreateInfo& info, SamplerHandle colorAttachmentSampler)
-  : colorAttachment(colorAttachmentSampler)
-  , mInfo(info)
+Framebuffer::Framebuffer(const FramebufferCreateInfo& info)
+  : mInfo(info)
 {
   ZoneScoped;
 
@@ -90,8 +89,8 @@ void Framebuffer::resolveMultisample() const {
     TracyGpuZone("Blit framebuffer");
 
     glBlitNamedFramebuffer(mMultisampledFBO, mFBO,
-                           0, 0, mInfo.size.x, mInfo.size.y,
-                           0, 0, mInfo.size.x, mInfo.size.y,
+                           0, 0, static_cast<GLint>(mInfo.size.x), static_cast<GLint>(mInfo.size.y),
+                           0, 0, static_cast<GLint>(mInfo.size.x), static_cast<GLint>(mInfo.size.y),
                            GL_COLOR_BUFFER_BIT, GL_NEAREST);
   }
 }

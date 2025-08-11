@@ -13,6 +13,6 @@ void VertexBuffer::destroy() {
   vbo = GL_NONE;
 }
 
-void VertexBuffer::bind(const size_t binding, const size_t offset) const {
+void VertexBuffer::bind(const uint32_t binding, const size_t offset) const {
   glBindVertexBuffer(binding, vbo, static_cast<GLintptr>(offset), stride);
 }
