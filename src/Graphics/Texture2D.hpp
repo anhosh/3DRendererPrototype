@@ -9,11 +9,11 @@ class Bitmap;
 class Texture2D {
 public:
   explicit Texture2D(SamplerHandle sampler);
-  explicit Texture2D(AssetHandle<Bitmap> bitmap, SamplerHandle sampler);
+  explicit Texture2D(AssetHandle<Bitmap> bitmap, SamplerHandle sampler, GLint internalFormat);
 
   void init();
-  void allocate(glm::uvec2 size, GLint format) const;
-  void generate(AssetHandle<Bitmap> bitmap) const;
+  void allocate(glm::uvec2 size, GLint internalFormat) const;
+  void generate(AssetHandle<Bitmap> bitmap, GLint internalFormat) const;
   void destroy();
 
   void bind(GLuint slot) const;

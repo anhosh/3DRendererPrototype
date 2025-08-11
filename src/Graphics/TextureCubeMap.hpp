@@ -13,15 +13,16 @@ struct TextureCubeMapBitmaps {
   AssetHandle<Bitmap> bottom;
   AssetHandle<Bitmap> back;
   AssetHandle<Bitmap> front;
+  bool bSRGB = false;
 };
 
 class TextureCubeMap {
 public:
   explicit TextureCubeMap(SamplerHandle sampler);
-  explicit TextureCubeMap(const TextureCubeMapBitmaps& bitmaps, SamplerHandle sampler);
+  explicit TextureCubeMap(const TextureCubeMapBitmaps& bitmaps, SamplerHandle sampler, GLint internalFormat);
 
   void init();
-  void generate(const TextureCubeMapBitmaps& bitmaps) const;
+  void generate(const TextureCubeMapBitmaps& bitmaps, GLint internalFormat) const;
   void destroy();
 
   void bind(GLuint slot) const;

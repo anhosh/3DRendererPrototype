@@ -148,7 +148,7 @@ Expected<void> AssetManager::processMesh(Model& model, aiMesh* mesh, const aiSce
   return {};
 }
 
-Expected<AssetHandle<Bitmap>> AssetManager::processTexture(const aiMaterial* material, aiTextureType type) {
+Expected<AssetHandle<Bitmap>> AssetManager::processTexture(const aiMaterial* material, const aiTextureType type) {
   ZoneScoped;
 
   if (material->GetTextureCount(type) == 0) {
@@ -157,5 +157,8 @@ Expected<AssetHandle<Bitmap>> AssetManager::processTexture(const aiMaterial* mat
 
   aiString pathStr;
   material->GetTexture(type, 0, &pathStr);
-  return this->loadBitmap(pathStr.C_Str());
+  Expected bitmap = this->loadBitmap(pathStr.C_Str());
+  RETURN_ERROR_IF_UNEXPECTED(bitmap);
+  bitmap.value()->bSRGB = type == aiTextureType_DIFFUSE || type == aiTextureType_EMISSIVE;
+  return bitmap;
 }

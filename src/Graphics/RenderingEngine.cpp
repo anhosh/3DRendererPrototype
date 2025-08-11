@@ -35,11 +35,12 @@ Expected<void> RenderingEngine::init() {
   Expected reflectiveSurface = this->createShaderProgram({.vertex = "clipSpace.vert",  .fragment = "reflectiveSurface.frag"});
   Expected refractiveSurface = this->createShaderProgram({.vertex = "clipSpace.vert",  .fragment = "refractiveSurface.frag"});
   Expected copy              = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/copy.frag"});
+  Expected flipHorizontally  = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/flipHorizontally.frag"});
+  Expected flipVertically    = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/flipVertically.frag"});
+  Expected gammaCorrection   = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/gammaCorrection.frag"});
   Expected grayscale         = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/grayscale.frag"});
   Expected invert            = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/invert.frag"});
   Expected kernel3x3         = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/kernel3x3.frag"});
-  Expected flipHorizontally  = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/flipHorizontally.frag"});
-  Expected flipVertically    = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/flipVertically.frag"});
   Expected skybox            = this->createShaderProgram({.vertex = "skybox.vert",     .fragment = "skybox.frag"});
 
   ASSIGN_EXPECTED_OR_RETURN(mLitSurfaceShaderProgram, litSurface);
@@ -52,11 +53,12 @@ Expected<void> RenderingEngine::init() {
   ASSIGN_EXPECTED_OR_RETURN(mReflectiveSurfaceShaderProgram, reflectiveSurface);
   ASSIGN_EXPECTED_OR_RETURN(mRefractiveSurfaceShaderProgram, refractiveSurface);
   ASSIGN_EXPECTED_OR_RETURN(mPostProcessCopyShaderProgram, copy);
+  ASSIGN_EXPECTED_OR_RETURN(mPostProcessFlipHorizontallyShaderProgram, flipHorizontally);
+  ASSIGN_EXPECTED_OR_RETURN(mPostProcessFlipVerticallyShaderProgram, flipVertically);
+  ASSIGN_EXPECTED_OR_RETURN(mPostProcessGammaCorrectionShaderProgram, gammaCorrection);
   ASSIGN_EXPECTED_OR_RETURN(mPostProcessGrayscaleShaderProgram, grayscale);
   ASSIGN_EXPECTED_OR_RETURN(mPostProcessInvertShaderProgram, invert);
   ASSIGN_EXPECTED_OR_RETURN(mPostProcessKernel3x3ShaderProgram, kernel3x3);
-  ASSIGN_EXPECTED_OR_RETURN(mPostProcessFlipHorizontallyShaderProgram, flipHorizontally);
-  ASSIGN_EXPECTED_OR_RETURN(mPostProcessFlipVerticallyShaderProgram, flipVertically);
   ASSIGN_EXPECTED_OR_RETURN(mSkyboxShaderProgram, skybox);
 
   glCreateVertexArrays(1, &mScreenQuadVAO);
@@ -191,6 +193,8 @@ ShaderProgramInstanceHandle RenderingEngine::createShaderProgramInstance(const S
       return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingFlipHorizontally(mPostProcessFlipHorizontallyShaderProgram.value()));
     case ShaderProgramType::PostProcessFlipVertically:
       return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingFlipVertically(mPostProcessFlipVerticallyShaderProgram.value()));
+    case ShaderProgramType::PostProcessGammaCorrection:
+      return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingGammaCorrection(mPostProcessGammaCorrectionShaderProgram.value()));
     case ShaderProgramType::PostProcessGrayscale:
       return this->addShaderProgramInstance(ShaderProgramInstance::newPostProcessingGrayscale(mPostProcessGrayscaleShaderProgram.value()));
     case ShaderProgramType::PostProcessInvert:
@@ -306,7 +310,10 @@ Texture2DHandle RenderingEngine::addTexture2D(const AssetHandle<Bitmap> bitmap, 
     return mUploadedTextures.at(bitmap.itemID());
   }
 
-  const Texture2DHandle handle = mTexture2Ds.add(Texture2D(bitmap, sampler));
+  const GLint internalFormat = bitmap->bSRGB && bitmap->channels() == 4 ? GL_SRGB8_ALPHA8 :
+                               bitmap->bSRGB && bitmap->channels() < 4  ? GL_SRGB8 :
+                              !bitmap->bSRGB && bitmap->channels() == 4 ? GL_RGBA8 : GL_RGB8;
+  const Texture2DHandle handle = mTexture2Ds.add(Texture2D(bitmap, sampler, internalFormat));
   mUploadedTextures.emplace(bitmap.itemID(), handle);
   return handle;
 }
@@ -314,7 +321,15 @@ Texture2DHandle RenderingEngine::addTexture2D(const AssetHandle<Bitmap> bitmap, 
 TextureCubeMapHandle RenderingEngine::addTextureCubeMap(const TextureCubeMapBitmaps& bitmaps, const SamplerHandle sampler) {
   ZoneScoped;
 
-  return mTextureCubeMaps.add(TextureCubeMap(bitmaps, sampler));
+  const uint32_t maxChannels = std::max({ bitmaps.right->channels(), bitmaps.left->channels(),
+                                          bitmaps.top->channels(), bitmaps.bottom->channels(),
+                                          bitmaps.front->channels(), bitmaps.back->channels() });
+
+  const GLint internalFormat = bitmaps.bSRGB && maxChannels == 4 ? GL_SRGB8_ALPHA8 :
+                               bitmaps.bSRGB && maxChannels < 4  ? GL_SRGB8 :
+                              !bitmaps.bSRGB && maxChannels == 4 ? GL_RGBA8 : GL_RGB8;
+
+  return mTextureCubeMaps.add(TextureCubeMap(bitmaps, sampler, internalFormat));
 }
 
 FramebufferHandle RenderingEngine::addFramebuffer(const FramebufferCreateInfo& info) {
@@ -593,7 +608,7 @@ void RenderingEngine::postProcess(const Viewport& viewport, ShaderProgramInstanc
                                   FramebufferHandle srcFramebuffer, FramebufferHandle dstFramebuffer) const
 {
   ZoneScoped;
-  TracyGpuZone("postProcess");
+  TracyGpuZone("Postprocess");
 
   assert(mInitialised);
 
@@ -624,7 +639,7 @@ void RenderingEngine::postProcess(const Viewport& viewport, ShaderProgramInstanc
 
 void RenderingEngine::present(const glm::uvec2 windowSize, FramebufferHandle srcFramebuffer) const {
   ZoneScoped;
-  TracyGpuZone("present");
+  TracyGpuZone("Present");
 
   assert(mInitialised);
 

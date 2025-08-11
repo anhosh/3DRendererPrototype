@@ -57,12 +57,19 @@ Expected<Application> Application::create(std::string_view title, glm::uvec2 ini
     .samples = 4,
   });
 
+  const ShaderProgramInstanceHandle gammaCorrectionShader = app.mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::PostProcessGammaCorrection);
+  app.mState.postProcessingShaderProgramInstances.push_back(gammaCorrectionShader);
+  app.mState.postProcessingFramebuffers.push_back(app.mState.renderingEngine->addFramebuffer({
+    .size = initialWindowSize,
+    .bDepthStencil = false,
+  }));
+
   RETURN_ERROR_IF_UNEXPECTED(app.createScene());
   FrameMarkEnd(markerName.data());
   return app;
 }
 
-Expected<void> Application::createContext(std::string_view title, glm::uvec2 initialWindowSize) {
+Expected<void> Application::createContext(const std::string_view title, const glm::uvec2 initialWindowSize) {
   ZoneScoped;
 
   glfwInit();
@@ -184,17 +191,19 @@ Expected<void> Application::createScene() {
   const Expected modelPlanet = mState.assetManager->loadModel("planet/planet.obj");
   const Expected modelRock = mState.assetManager->loadModel("rock/rock.obj");
 
-  const Expected bitmapSkyboxRight  = mState.assetManager->loadBitmap("skybox/space/right.png", false);
-  const Expected bitmapSkyboxLeft   = mState.assetManager->loadBitmap("skybox/space/left.png", false);
-  const Expected bitmapSkyboxTop    = mState.assetManager->loadBitmap("skybox/space/top.png", false);
-  const Expected bitmapSkyboxBottom = mState.assetManager->loadBitmap("skybox/space/bottom.png", false);
-  const Expected bitmapSkyboxBack   = mState.assetManager->loadBitmap("skybox/space/back.png", false);
-  const Expected bitmapSkyboxFront  = mState.assetManager->loadBitmap("skybox/space/front.png", false);
+  Expected bitmapSkyboxRight  = mState.assetManager->loadBitmap("skybox/space/right.png", false);
+  Expected bitmapSkyboxLeft   = mState.assetManager->loadBitmap("skybox/space/left.png", false);
+  Expected bitmapSkyboxTop    = mState.assetManager->loadBitmap("skybox/space/top.png", false);
+  Expected bitmapSkyboxBottom = mState.assetManager->loadBitmap("skybox/space/bottom.png", false);
+  Expected bitmapSkyboxBack   = mState.assetManager->loadBitmap("skybox/space/back.png", false);
+  Expected bitmapSkyboxFront  = mState.assetManager->loadBitmap("skybox/space/front.png", false);
 
   const AssetHandle<MeshData> skyboxCubeMesh = mState.assetManager->addMesh(MeshData::createCube(glm::vec3(2.0f)));
   const AssetHandle<MeshData> lightCubeMesh = mState.assetManager->addMesh(MeshData::createCube(glm::vec3(1.0f)));
 
+  RETURN_ERROR_IF_UNEXPECTED(modelBackpack);
   RETURN_ERROR_IF_UNEXPECTED(modelPlanet);
+  RETURN_ERROR_IF_UNEXPECTED(modelRock);
   RETURN_ERROR_IF_UNEXPECTED(bitmapSkyboxRight);
   RETURN_ERROR_IF_UNEXPECTED(bitmapSkyboxLeft);
   RETURN_ERROR_IF_UNEXPECTED(bitmapSkyboxTop);
@@ -203,7 +212,8 @@ Expected<void> Application::createScene() {
   RETURN_ERROR_IF_UNEXPECTED(bitmapSkyboxFront);
 
   // Get shader instances
-  ShaderProgramInstanceHandle litSurfaceShader = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::LitSurface);
+  const ShaderProgramInstanceHandle litSurfaceShader = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::LitSurface);
+
   mState.postProcessingCopyShader = mState.renderingEngine->createShaderProgramInstance(ShaderProgramType::PostProcessCopy);
 
   // Upload assets to GPU
@@ -211,7 +221,7 @@ Expected<void> Application::createScene() {
   std::vector<RenderData> planetMeshes = mState.renderingEngine->addModel(modelPlanet.value(), litSurfaceShader);
   std::vector<RenderData> rockMeshes   = mState.renderingEngine->addModel(modelRock.value(), litSurfaceShader);
 
-  SamplerHandle skyboxSampler = mState.renderingEngine->addSampler(SamplerOptions { .minFilter = GL_LINEAR });
+  const SamplerHandle skyboxSampler = mState.renderingEngine->addSampler(SamplerOptions { .minFilter = GL_LINEAR });
   TextureCubeMapHandle skyboxTexture = mState.renderingEngine->addTextureCubeMap(
     TextureCubeMapBitmaps {
       bitmapSkyboxRight.value(),
@@ -220,6 +230,7 @@ Expected<void> Application::createScene() {
       bitmapSkyboxBottom.value(),
       bitmapSkyboxBack.value(),
       bitmapSkyboxFront.value(),
+      .bSRGB = true,
     },
     skyboxSampler
   );
@@ -250,8 +261,8 @@ Expected<void> Application::createScene() {
   mState.scene->ecs.emplace<CompDirectionalLight>(entitySun, CompDirectionalLight {
     .colors =  LightColors {
       .ambient = glm::vec3(0.05f),
-      .diffuse = glm::vec3(1.2f),
-      .specular = glm::vec3(3.0f),
+      .diffuse = glm::vec3(1.0f),
+      .specular = glm::vec3(2.0f),
     },
     .direction = glm::vec3(0.3f, -1.0f, -0.3f),
   });
@@ -277,8 +288,8 @@ Expected<void> Application::createScene() {
     mState.scene->ecs.emplace<CompPointLight>(entityLight, CompPointLight {
       .colors = LightColors {
         .ambient = 0.05f * lightColors[lightIndex],
-        .diffuse = 1.2f * lightColors[lightIndex],
-        .specular = 3.0f * lightColors[lightIndex],
+        .diffuse = 1.0f * lightColors[lightIndex],
+        .specular = 2.0f * lightColors[lightIndex],
       },
     });
     mState.scene->ecs.emplace<CompGraphics>(entityLight, CompGraphics {

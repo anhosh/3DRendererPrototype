@@ -24,7 +24,7 @@ Expected<Bitmap> Bitmap::fromFile(const fs::path& fileName, bool bFlipVertically
   return ret;
 }
 
-Expected<Bitmap> Bitmap::fromMemory(std::span<const uint8_t> bytes, glm::uvec2 size, uint32_t channels) {
+Expected<Bitmap> Bitmap::fromMemory(std::span<const uint8_t> bytes, const glm::uvec2 size, const uint32_t channels) {
   ZoneScoped;
 
   if (bytes.size() != size.x * size.y * channels) {

@@ -18,6 +18,9 @@ public:
   [[nodiscard]] uint32_t channels() const { return mChannels; }
   [[nodiscard]] const std::filesystem::path& filePath() const { return mFilePath; }
 
+public:
+  bool bSRGB = false;
+
 private:
   std::vector<uint8_t> mData;
   glm::uvec2 mSize = glm::uvec2(0);

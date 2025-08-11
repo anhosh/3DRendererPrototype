@@ -35,7 +35,6 @@ struct AppState {
   entt::entity backCamera;
 
   ShaderProgramType backpackShaderProgramType = ShaderProgramType::LitSurface;
-  std::vector<ShaderProgramType> postProcessingShaderProgramTypes;
   std::vector<ShaderProgramInstanceHandle> postProcessingShaderProgramInstances;
 
   std::optional<FramebufferHandle> mainSceneFramebuffer;

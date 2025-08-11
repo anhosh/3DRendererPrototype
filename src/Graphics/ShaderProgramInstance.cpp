@@ -203,6 +203,17 @@ ShaderProgramInstance ShaderProgramInstance::newPostProcessingFlipVertically(con
   return instance;
 }
 
+ShaderProgramInstance ShaderProgramInstance::newPostProcessingGammaCorrection(ShaderProgramHandle program) {
+  ZoneScoped;
+
+  ShaderProgramInstance instance(program, ShaderProgramType::PostProcessGammaCorrection);
+
+  instance.setUniform("uScreenTexture", TEXTURE_SLOT_SCREEN);
+  instance.setUniform("uGamma", 2.2f);
+
+  return instance;
+}
+
 ShaderProgramInstance ShaderProgramInstance::newPostProcessingGrayscale(const ShaderProgramHandle program) {
   ZoneScoped;
 

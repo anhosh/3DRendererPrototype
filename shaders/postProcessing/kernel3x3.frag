@@ -1,4 +1,4 @@
-layout (location = 0) uniform sampler2D uScreenTexture;
+uniform sampler2D uScreenTexture;
 layout (location = 1) uniform float uOffset;
 layout (location = 2) uniform mat3 uKernel;
 

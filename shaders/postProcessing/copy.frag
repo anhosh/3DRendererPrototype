@@ -1,4 +1,4 @@
-layout (location = 0) uniform sampler2D uScreenTexture;
+uniform sampler2D uScreenTexture;
 
 in VS_OUT {
   vec2 texCoord;

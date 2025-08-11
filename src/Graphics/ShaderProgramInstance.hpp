@@ -19,6 +19,7 @@ enum class ShaderProgramType : int32_t {
   PostProcessEmboss,
   PostProcessFlipHorizontally,
   PostProcessFlipVertically,
+  PostProcessGammaCorrection,
   PostProcessGrayscale,
   PostProcessInvert,
   PostProcessSharpen,
@@ -80,6 +81,7 @@ private:
   static ShaderProgramInstance newPostProcessingEmboss(ShaderProgramHandle program);
   static ShaderProgramInstance newPostProcessingFlipHorizontally(ShaderProgramHandle program);
   static ShaderProgramInstance newPostProcessingFlipVertically(ShaderProgramHandle program);
+  static ShaderProgramInstance newPostProcessingGammaCorrection(ShaderProgramHandle program);
   static ShaderProgramInstance newPostProcessingGrayscale(ShaderProgramHandle program);
   static ShaderProgramInstance newPostProcessingInvert(ShaderProgramHandle program);
   static ShaderProgramInstance newPostProcessingSharpen(ShaderProgramHandle program);

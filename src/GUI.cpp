@@ -155,9 +155,8 @@ void guiPostProcessing(AppState& state) {
 
     constexpr auto firstPostProcessingEffectIndex = static_cast<int32_t>(ShaderProgramType::PostProcessCopy);
     std::optional<int32_t> effectToDelete = std::nullopt;
-    for (size_t effectIndex = 0; effectIndex < state.postProcessingShaderProgramTypes.size(); effectIndex++) {
-      const size_t fsTypeNameIndex = static_cast<size_t>(state.postProcessingShaderProgramTypes[effectIndex]) - firstPostProcessingEffectIndex;
-      ShaderProgramType& shaderProgramType = state.postProcessingShaderProgramTypes[effectIndex];
+    for (size_t effectIndex = 0; effectIndex < state.postProcessingShaderProgramInstances.size(); effectIndex++) {
+      const size_t fsTypeNameIndex = static_cast<size_t>(state.postProcessingShaderProgramInstances[effectIndex]->type()) - firstPostProcessingEffectIndex;
       ShaderProgramInstanceHandle& shaderProgramInstance = state.postProcessingShaderProgramInstances[effectIndex];
 
       static constexpr auto fsTypeNames = std::array {
@@ -167,6 +166,7 @@ void guiPostProcessing(AppState& state) {
         "Emboss",
         "Flip horizontally",
         "Flip vertically",
+        "Gamma correction",
         "Grayscale",
         "Invert",
         "Sharpen",
@@ -181,7 +181,7 @@ void guiPostProcessing(AppState& state) {
       if (ImGui::BeginCombo(("##postProcessingEffect" + effectIndexStr).c_str(), fsTypeNames[fsTypeNameIndex])) {
         for (size_t fsTypeOptionIndex = 0; fsTypeOptionIndex < fsTypeNames.size(); fsTypeOptionIndex++) {
           if (ImGui::MenuItem(fsTypeNames[fsTypeOptionIndex])) {
-            shaderProgramType = static_cast<ShaderProgramType>(fsTypeOptionIndex + firstPostProcessingEffectIndex);
+            const auto shaderProgramType = static_cast<ShaderProgramType>(fsTypeOptionIndex + firstPostProcessingEffectIndex);
             shaderProgramInstance.erase();
             shaderProgramInstance = state.renderingEngine->createShaderProgramInstance(shaderProgramType);
           }
@@ -196,25 +196,29 @@ void guiPostProcessing(AppState& state) {
 
       if (shaderProgramInstance->uniforms.contains("uOffset")) {
         auto* uOffset = shaderProgramInstance->uniforms.at("uOffset").getPtr<GLfloat>();
-        ImGui::DragFloat(("Offset##postProcessingEffect" + effectIndexStr).c_str(), uOffset, 0.00001f, 0.0f, 0.01f, "%f.04");
+        ImGui::DragFloat(("Offset##postProcessingEffect" + effectIndexStr).c_str(), uOffset, 0.00001f, 0.0f, 0.01f, "%.05f");
+      }
+
+      if (shaderProgramInstance->uniforms.contains("uGamma")) {
+        auto* uOffset = shaderProgramInstance->uniforms.at("uGamma").getPtr<GLfloat>();
+        ImGui::DragFloat(("Gamma##postProcessingEffect" + effectIndexStr).c_str(), uOffset, 0.001f, 1.0f, 10.0f, "%.03f");
       }
     }
 
     if (effectToDelete.has_value()) {
-      state.postProcessingShaderProgramTypes.erase(state.postProcessingShaderProgramTypes.begin() + effectToDelete.value());
       state.postProcessingShaderProgramInstances[static_cast<size_t>(effectToDelete.value())].erase();
       state.postProcessingShaderProgramInstances.erase(state.postProcessingShaderProgramInstances.begin() + effectToDelete.value());
       state.postProcessingFramebuffers.erase(state.postProcessingFramebuffers.begin() + effectToDelete.value());
     }
 
     if (ImGui::Button("+ Add effect")) {
-      state.postProcessingShaderProgramTypes.push_back(ShaderProgramType::PostProcessCopy);
-      state.postProcessingShaderProgramInstances.push_back(state.renderingEngine->createShaderProgramInstance(ShaderProgramType::PostProcessCopy));
-
+      const ShaderProgramInstanceHandle shader = state.renderingEngine->createShaderProgramInstance(ShaderProgramType::PostProcessCopy);
       const FramebufferHandle newFramebuffer = state.renderingEngine->addFramebuffer({
         .size = state.windowSize,
         .bDepthStencil = false,
       });
+
+      state.postProcessingShaderProgramInstances.push_back(shader);
       state.postProcessingFramebuffers.push_back(newFramebuffer);
     }
 

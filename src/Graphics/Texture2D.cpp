@@ -10,12 +10,12 @@ Texture2D::Texture2D(SamplerHandle sampler)
   this->init();
 }
 
-Texture2D::Texture2D(AssetHandle<Bitmap> bitmap, SamplerHandle sampler)
+Texture2D::Texture2D(AssetHandle<Bitmap> bitmap, const SamplerHandle sampler, const GLint internalFormat)
   : Texture2D(sampler)
 {
   ZoneScoped;
 
-  this->generate(bitmap);
+  this->generate(bitmap, internalFormat);
 }
 
 void Texture2D::init() {
@@ -26,16 +26,16 @@ void Texture2D::init() {
   }
 }
 
-void Texture2D::allocate(const glm::uvec2 size, const GLint format) const {
-  glTextureStorage2D(mID, 1, format, static_cast<GLsizei>(size.x), static_cast<GLsizei>(size.y));
+void Texture2D::allocate(const glm::uvec2 size, const GLint internalFormat) const {
+  glTextureStorage2D(mID, 1, internalFormat, static_cast<GLsizei>(size.x), static_cast<GLsizei>(size.y));
 }
 
-void Texture2D::generate(AssetHandle<Bitmap> bitmap) const {
+void Texture2D::generate(AssetHandle<Bitmap> bitmap, const GLint internalFormat) const {
   ZoneScoped;
 
-  this->allocate(bitmap->size(), GL_RGBA8);
+  this->allocate(bitmap->size(), internalFormat);
 
-  static constexpr GLenum formats[] = { GL_RED, GL_RG, GL_RGB, GL_RGBA };
+  constexpr auto formats = std::array { GL_RED, GL_RG, GL_RGB, GL_RGBA };
   const GLenum format = formats[bitmap->channels() - 1];
   const glm::ivec2 size = bitmap->size();
   glTextureSubImage2D(mID, 0, 0, 0, size.x, size.y, format, GL_UNSIGNED_BYTE, bitmap->bytes());

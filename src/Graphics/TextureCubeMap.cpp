@@ -12,12 +12,12 @@ TextureCubeMap::TextureCubeMap(SamplerHandle sampler)
   this->init();
 }
 
-TextureCubeMap::TextureCubeMap(const TextureCubeMapBitmaps& bitmaps, SamplerHandle sampler)
+TextureCubeMap::TextureCubeMap(const TextureCubeMapBitmaps& bitmaps, SamplerHandle sampler, const GLint internalFormat)
   : TextureCubeMap(sampler)
 {
   ZoneScoped;
 
-  this->generate(bitmaps);
+  this->generate(bitmaps, internalFormat);
 }
 
 void TextureCubeMap::init() {
@@ -26,17 +26,17 @@ void TextureCubeMap::init() {
   glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &mID);
 }
 
-void TextureCubeMap::generate(const TextureCubeMapBitmaps& bitmaps) const {
+void TextureCubeMap::generate(const TextureCubeMapBitmaps& bitmaps, const GLint internalFormat) const {
   ZoneScoped;
 
   const auto faces = std::array { bitmaps.right, bitmaps.left, bitmaps.top, bitmaps.bottom, bitmaps.front, bitmaps.back };
-  static constexpr GLenum formats[] = { GL_RED, GL_RG, GL_RGB, GL_RGBA };
-  glTextureStorage2D(mID, 1, GL_RGBA8,  faces[0]->size().x, faces[0]->size().y);
+  constexpr auto formats = std::array { GL_RED, GL_RG, GL_RGB, GL_RGBA };
+  glTextureStorage2D(mID, 1, internalFormat,  static_cast<GLsizei>(faces[0]->size().x), static_cast<GLsizei>(faces[0]->size().y));
   for (size_t i = 0; i < faces.size(); ++i) {
     const GLenum format = formats[faces[i]->channels() - 1];
     glTextureSubImage3D(mID, 0,
-                        0, 0, i,
-                        faces[i]->size().x, faces[i]->size().y, 1,
+                        0, 0, static_cast<GLint>(i),
+                        static_cast<GLsizei>(faces[i]->size().x), static_cast<GLsizei>(faces[i]->size().y), 1,
                         format, GL_UNSIGNED_BYTE, faces[i]->bytes());
   }
   glGenerateTextureMipmap(mID);

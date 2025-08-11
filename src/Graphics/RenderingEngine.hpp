@@ -103,6 +103,7 @@ private:
   std::optional<ShaderProgramHandle> mPostProcessCopyShaderProgram = std::nullopt;
   std::optional<ShaderProgramHandle> mPostProcessFlipHorizontallyShaderProgram = std::nullopt;
   std::optional<ShaderProgramHandle> mPostProcessFlipVerticallyShaderProgram = std::nullopt;
+  std::optional<ShaderProgramHandle> mPostProcessGammaCorrectionShaderProgram = std::nullopt;
   std::optional<ShaderProgramHandle> mPostProcessGrayscaleShaderProgram = std::nullopt;
   std::optional<ShaderProgramHandle> mPostProcessInvertShaderProgram = std::nullopt;
   std::optional<ShaderProgramHandle> mPostProcessKernel3x3ShaderProgram = std::nullopt;
