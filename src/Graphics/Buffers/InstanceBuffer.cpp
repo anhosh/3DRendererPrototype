@@ -2,9 +2,9 @@
 
 #include <tracy/TracyOpenGL.hpp>
 
-void InstanceBuffer::writeToBuffer(const GLuint buffer, const size_t offset) const {
+void InstanceBuffer::writeToBuffer(const std::span<uint8_t> buffer, const size_t offset) const {
   ZoneScoped;
   TracyGpuZone("LightSourceBuffer::writeToBuffer");
 
-  glNamedBufferSubData(buffer, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(size()), this->instances.data());
+  std::ranges::copy(this->instances, reinterpret_cast<InstanceData*>(buffer.subspan(offset).data()));
 }

@@ -26,5 +26,5 @@ struct InstanceBuffer {
     return this->instances.size() * sizeof(InstanceData);
   }
 
-  void writeToBuffer(GLuint buffer, size_t offset = 0) const;
+  void writeToBuffer(std::span<uint8_t> buffer, size_t offset = 0) const;
 };

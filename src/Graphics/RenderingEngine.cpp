@@ -71,18 +71,13 @@ Expected<void> RenderingEngine::init() {
   mEmissionTextureSampler = this->addSampler(SamplerOptions {});
   mEnvironmentTextureSampler = this->addSampler(SamplerOptions {});
 
-  mCameraUniformBuffer.emplace(this->createBuffer(GL_UNIFORM_BUFFER),
-                               this->createBuffer(GL_UNIFORM_BUFFER));
-  mCameraUniformBuffer->current()->allocate(sizeof(CameraUniforms));
+  mCameraUniformBuffer.emplace(this->createBuffer(GL_UNIFORM_BUFFER));
+  mCameraUniformBuffer.value()->allocate(sizeof(CameraUniforms));
 
-  mDirectionalLightsStorageBuffer.emplace(this->createBuffer(GL_SHADER_STORAGE_BUFFER),
-                                          this->createBuffer(GL_SHADER_STORAGE_BUFFER));
-  mPointLightsStorageBuffer.emplace(this->createBuffer(GL_SHADER_STORAGE_BUFFER),
-                                    this->createBuffer(GL_SHADER_STORAGE_BUFFER));
-  mSpotlightsStorageBuffer.emplace(this->createBuffer(GL_SHADER_STORAGE_BUFFER),
-                                   this->createBuffer(GL_SHADER_STORAGE_BUFFER));
-  mInstanceBuffer.emplace(this->createBuffer(GL_SHADER_STORAGE_BUFFER),
-                          this->createBuffer(GL_SHADER_STORAGE_BUFFER));
+  mDirectionalLightsStorageBuffer.emplace(this->createBuffer(GL_SHADER_STORAGE_BUFFER));
+  mPointLightsStorageBuffer.emplace(this->createBuffer(GL_SHADER_STORAGE_BUFFER));
+  mSpotlightsStorageBuffer.emplace(this->createBuffer(GL_SHADER_STORAGE_BUFFER));
+  mInstanceBuffer.emplace(this->createBuffer(GL_SHADER_STORAGE_BUFFER));
 
   mInitialised = true;
   return {};
@@ -333,7 +328,7 @@ void RenderingEngine::updateInstances(const size_t first, const InstanceBuffer& 
 
   assert(mInitialised);
 
-  mInstanceBuffer->current()->write(instances, first * sizeof(InstanceData));
+  mInstanceBuffer.value()->write(instances, first * sizeof(InstanceData));
 }
 
 void RenderingEngine::submitRenderPasses(const std::span<RenderPass> renderPasses) {
@@ -402,8 +397,8 @@ void RenderingEngine::renderScene(Scene& scene, const entt::entity entityCamera,
 
   const auto [camera, cameraTransform] = scene.ecs.get<const CompCamera, const CompTransform>(entityCamera);
   const CameraUniforms cameraUniformData = CameraUniforms::from(camera, cameraTransform, dstFramebuffer->size());
-  mCameraUniformBuffer->current()->write(cameraUniformData);
-  mCameraUniformBuffer->current()->bindWhole(BINDING_UBO_CAMERA);
+  mCameraUniformBuffer.value()->write(cameraUniformData);
+  mCameraUniformBuffer.value()->bindWhole(BINDING_UBO_CAMERA);
 
   const auto updateLights = [&scene]<typename CompLight>(BufferHandle storageBuffer, const uint32_t bindPoint, const auto getLightUniformData) {
     const entt::basic_view lights = scene.ecs.view<const CompLight>();
@@ -425,13 +420,13 @@ void RenderingEngine::renderScene(Scene& scene, const entt::entity entityCamera,
     }
   };
 
-  updateLights.operator()<CompDirectionalLight>(mDirectionalLightsStorageBuffer->current(),
+  updateLights.operator()<CompDirectionalLight>(mDirectionalLightsStorageBuffer.value(),
                                                 BINDING_SSBO_DIRECTIONAL_LIGHTS,
                                                 [&] { return scene.createDirectionalLightUniforms(); });
-  updateLights.operator()<CompPointLight>(mPointLightsStorageBuffer->current(),
+  updateLights.operator()<CompPointLight>(mPointLightsStorageBuffer.value(),
                                           BINDING_SSBO_POINT_LIGHTS,
                                           [&] { return scene.createPointLightUniforms(); });
-  updateLights.operator()<CompSpotlight>(mSpotlightsStorageBuffer->current(),
+  updateLights.operator()<CompSpotlight>(mSpotlightsStorageBuffer.value(),
                                          BINDING_SSBO_SPOTLIGHTS,
                                          [&] { return scene.createSpotlightUniforms(); });
 
@@ -457,7 +452,7 @@ void RenderingEngine::renderScene(Scene& scene, const entt::entity entityCamera,
       }
     }
 
-    mInstanceBuffer->current()->bindRange(BINDING_SSBO_INSTANCES,
+    mInstanceBuffer.value()->bindRange(BINDING_SSBO_INSTANCES,
                                        currDraw->instanceOffset * sizeof(InstanceData),
                                        currDraw->instanceCount * sizeof(InstanceData));
 
@@ -577,7 +572,7 @@ void RenderingEngine::renderVertexNormals(Scene& scene, const entt::entity entit
 
   for (const Draw& currDraw : draws) {
     if (!currDraw.bSkybox) {
-      mInstanceBuffer->current()->bindRange(BINDING_SSBO_INSTANCES,
+      mInstanceBuffer.value()->bindRange(BINDING_SSBO_INSTANCES,
                                          currDraw.instanceOffset * sizeof(InstanceData),
                                          currDraw.instanceCount * sizeof(InstanceData));
       currDraw.mesh->bind();
@@ -657,14 +652,4 @@ void RenderingEngine::present(const glm::uvec2 windowSize, FramebufferHandle src
   glUseProgram(GL_NONE);
   glBindVertexArray(GL_NONE);
   glBindTexture(GL_TEXTURE_2D, GL_NONE);
-}
-
-void RenderingEngine::swapDoubleBuffers() {
-  assert(mInitialised);
-
-  mCameraUniformBuffer->switchToNext();
-  mDirectionalLightsStorageBuffer->switchToNext();
-  mPointLightsStorageBuffer->switchToNext();
-  mSpotlightsStorageBuffer->switchToNext();
-  mInstanceBuffer->switchToNext();
 }

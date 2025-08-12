@@ -18,15 +18,18 @@ void Buffer::destroy() {
   if (mID != GL_NONE) {
     glDeleteBuffers(1, &mID);
     mID = GL_NONE;
-    mSize = 0;
+    mMapped = {};
   }
 }
 
 void Buffer::allocate(const size_t size) {
   ZoneScoped;
 
-  glNamedBufferStorage(mID, static_cast<GLsizeiptr>(size), nullptr, GL_DYNAMIC_STORAGE_BIT);
-  mSize = size;
+  constexpr GLbitfield mappingFlags = GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
+
+  glNamedBufferStorage(mID, static_cast<GLsizeiptr>(size), nullptr, GL_DYNAMIC_STORAGE_BIT | mappingFlags);
+  uint8_t* mapped = static_cast<uint8_t*>(glMapNamedBufferRange(mID, 0, size, mappingFlags));
+  mMapped = std::span(mapped, size);
 }
 
 void Buffer::reallocate(const size_t newSize) {
@@ -35,7 +38,7 @@ void Buffer::reallocate(const size_t newSize) {
   assert(mID != GL_NONE);
 
   const GLuint oldBuffer = mID;
-  const size_t oldSize = mSize;
+  const size_t oldSize = mMapped.size_bytes();
 
   this->init();
   this->allocate(newSize);

@@ -69,7 +69,6 @@ public:
   void postProcess(const Viewport& viewport, ShaderProgramInstanceHandle postProcessingShader,
                    FramebufferHandle srcFramebuffer, FramebufferHandle dstFramebuffer) const;
   void present(glm::uvec2 windowSize, FramebufferHandle srcFramebuffer) const;
-  void swapDoubleBuffers();
 
 public:
   SceneRenderMode sceneRenderMode = SceneRenderMode::Normal;
@@ -114,11 +113,11 @@ private:
   std::optional<SamplerHandle> mEmissionTextureSampler = std::nullopt;
   std::optional<SamplerHandle> mEnvironmentTextureSampler = std::nullopt;
 
-  std::optional<DoubleBuffer<BufferHandle>> mCameraUniformBuffer = std::nullopt;
-  std::optional<DoubleBuffer<BufferHandle>> mDirectionalLightsStorageBuffer = std::nullopt;
-  std::optional<DoubleBuffer<BufferHandle>> mPointLightsStorageBuffer = std::nullopt;
-  std::optional<DoubleBuffer<BufferHandle>> mSpotlightsStorageBuffer = std::nullopt;
-  std::optional<DoubleBuffer<BufferHandle>> mInstanceBuffer = std::nullopt;
+  std::optional<BufferHandle> mCameraUniformBuffer = std::nullopt;
+  std::optional<BufferHandle> mDirectionalLightsStorageBuffer = std::nullopt;
+  std::optional<BufferHandle> mPointLightsStorageBuffer = std::nullopt;
+  std::optional<BufferHandle> mSpotlightsStorageBuffer = std::nullopt;
+  std::optional<BufferHandle> mInstanceBuffer = std::nullopt;
 
   std::unordered_map<RegItemID, Texture2DHandle> mUploadedTextures;
   std::unordered_map<RegItemID, std::vector<RenderData>> mUploadedModels;

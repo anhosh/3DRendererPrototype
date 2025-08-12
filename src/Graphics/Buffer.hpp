@@ -18,7 +18,7 @@ public:
   void bindRange(uint32_t bindPoint, size_t offset, size_t size) const;
 
   template <typename BufferData> requires
-    requires (BufferData t, GLuint buffer, size_t offset) {
+    requires (BufferData t, std::span<uint8_t> buffer, size_t offset) {
       { t.size() } -> std::same_as<size_t>;
       { t.writeToBuffer(buffer, offset) } -> std::same_as<void>;
     }
@@ -26,20 +26,20 @@ public:
     ZoneScoped;
 
     const size_t requiredSize = data.size();
-    if (mSize < offset + requiredSize) {
+    if (mMapped.size_bytes() < offset + requiredSize) {
       this->reallocate(offset + requiredSize);
     }
 
-    data.writeToBuffer(mID, offset);
+    data.writeToBuffer(mMapped, offset);
   }
 
   [[nodiscard]] GLuint id() const { return mID; }
-  [[nodiscard]] size_t size() const { return mSize; }
+  [[nodiscard]] size_t size() const { return mMapped.size_bytes(); }
 
 private:
   GLuint mID = GL_NONE;
   GLenum mBindTarget = GL_NONE;
-  size_t mSize = 0;
+  std::span<uint8_t> mMapped;
 };
 
 using BufferHandle = Registry<Buffer>::Handle;

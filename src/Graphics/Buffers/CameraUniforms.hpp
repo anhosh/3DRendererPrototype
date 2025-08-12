@@ -19,5 +19,5 @@ struct CameraUniforms {
     return sizeof(CameraUniforms);
   }
 
-  void writeToBuffer(GLuint buffer, size_t offset) const;
+  void writeToBuffer(std::span<uint8_t> buffer, size_t offset) const;
 };

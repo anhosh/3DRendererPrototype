@@ -1,7 +1,7 @@
 #include <Graphics/Mesh.hpp>
 
 #include <cassert>
-#include <Util/Alignment.hpp>
+#include <Util/Memory.hpp>
 
 Mesh::Mesh() {
   ZoneScoped;

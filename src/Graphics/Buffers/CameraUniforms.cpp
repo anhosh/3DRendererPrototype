@@ -15,8 +15,8 @@ CameraUniforms CameraUniforms::from(const CompCamera& camera, const CompTransfor
   };
 }
 
-void CameraUniforms::writeToBuffer(const GLuint buffer, const size_t offset) const {
+void CameraUniforms::writeToBuffer(const std::span<uint8_t> buffer, const size_t offset) const {
   ZoneScoped;
 
-  glNamedBufferSubData(buffer, static_cast<GLintptr>(offset), this->size(), this);
+  std::copy_n(this, 1, reinterpret_cast<CameraUniforms*>(buffer.subspan(offset).data()));
 }

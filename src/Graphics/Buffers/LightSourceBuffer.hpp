@@ -3,6 +3,7 @@
 #include <Scene/Components/Light.hpp>
 #include <Scene/Components/Transform.hpp>
 #include <Util/IntoBytes.hpp>
+#include <Util/Memory.hpp>
 
 #include <tracy/TracyOpenGL.hpp>
 
@@ -33,13 +34,13 @@ struct LightSourceBuffer {
     return sizeof(glm::uvec4) + this->sources.size() * sizeof(LightSourceUniforms);
   }
 
-  void writeToBuffer(const GLuint buffer, const size_t offset = 0) const {
+  void writeToBuffer(const std::span<uint8_t> buffer, const size_t offset = 0) const {
     ZoneScoped;
     TracyGpuZone("LightSourceBuffer::writeToBuffer");
 
     const std::array lengthBytes = asBytes(glm::uvec4(this->sources.size(), 0, 0, 0));
-    glNamedBufferSubData(buffer, static_cast<GLintptr>(offset), lengthBytes.size(), lengthBytes.data());
-    glNamedBufferSubData(buffer, static_cast<GLintptr>(offset + lengthBytes.size()), size() - lengthBytes.size(), this->sources.data());
+    std::ranges::copy(lengthBytes, buffer.subspan(offset).data());
+    std::ranges::copy(this->sources, reinterpret_cast<LightSourceUniforms*>(buffer.subspan(offset + lengthBytes.size()).data()));
   }
 };
 
