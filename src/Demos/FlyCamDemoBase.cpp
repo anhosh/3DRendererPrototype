@@ -1,0 +1,127 @@
+#include <Demos/FlyCamDemoBase.hpp>
+
+#include <Graphics/RenderPass.hpp>
+#include <Scene/Components/Camera.hpp>
+#include <Scene/Components/Name.hpp>
+#include <Scene/Components/Transform.hpp>
+#include <Util/Macros/Errors.hpp>
+
+#include <imgui.h>
+
+Expected<void> FlyCamDemoBase::init(const std::shared_ptr<AssetManager>& assets, const std::shared_ptr<RenderingEngine>& renderer) {
+  RETURN_ERROR_IF_UNEXPECTED(DemoBase::init(assets, renderer));
+
+  mMainCamera = mScene.ecs.create();
+  mScene.ecs.emplace<CompName>(mMainCamera, "Main camera");
+  mScene.ecs.emplace<CompTransform>(mMainCamera, CompTransform {
+    .translation = glm::vec3(0.0f, 0.0f, 10.0f),
+    .rotation = glm::vec3(-90.0f, 0.0f, 0.0f),
+  });
+  CompCamera& mainCamera = mScene.ecs.emplace<CompCamera>(mMainCamera);
+  mainCamera.speed = 10.0f;
+  return {};
+}
+
+void FlyCamDemoBase::processKeyboard(GLFWwindow* window) {
+  ZoneScoped;
+
+  if (glfwGetKey(window, GLFW_KEY_LEFT_SUPER) == GLFW_PRESS) {
+    return;
+  }
+
+  if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+    glfwSetWindowShouldClose(window, true);
+  }
+
+  if (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS) {
+    if (!mbFreeCursorPressed) {
+      mbFreeCursor = !mbFreeCursor;
+      mbFirstMouse = !mbFreeCursor;
+      glfwSetInputMode(window, GLFW_CURSOR, mbFreeCursor ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED);
+      mbFreeCursorPressed = true;
+    }
+  } else {
+    mbFreeCursorPressed = false;
+  }
+
+  auto [camera, cameraTransform] = mScene.ecs.get<CompCamera, CompTransform>(mMainCamera);
+
+  mCameraVelocity = glm::vec3(0.0f);
+  if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+    mCameraVelocity += camera.speed * cameraTransform.forward();
+  }
+  if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
+    mCameraVelocity -= camera.speed * cameraTransform.forward();
+  }
+  if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+    mCameraVelocity -= camera.speed * glm::normalize(glm::cross(cameraTransform.forward(), cameraTransform.up()));
+  }
+  if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
+    mCameraVelocity += camera.speed * glm::normalize(glm::cross(cameraTransform.forward(), cameraTransform.up()));
+  }
+  if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
+    mCameraVelocity += camera.speed * cameraTransform.up();
+  }
+  if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
+    mCameraVelocity -= camera.speed * cameraTransform.up();
+  }
+}
+
+void FlyCamDemoBase::processMouse(const glm::vec2 mousePosition) {
+  ZoneScoped;
+
+  if (mbFreeCursor) {
+    return;
+  }
+
+  if (mbFirstMouse) {
+    mLastMousePosition = mousePosition;
+    mbFirstMouse = false;
+  }
+
+  mScene.ecs.patch<CompTransform>(mMainCamera, [&](CompTransform& cameraTransform) {
+    constexpr float sensitivity = 0.1f;
+    const glm::vec2 offset = {
+      (mousePosition.x - mLastMousePosition.x) * sensitivity,
+      (mLastMousePosition.y - mousePosition.y) * sensitivity,
+    };
+    cameraTransform.rotation.x += offset.x;
+    cameraTransform.rotation.y = glm::clamp(cameraTransform.rotation.y + offset.y, -89.0f, 89.0f);
+  });
+
+  mLastMousePosition = mousePosition;
+}
+
+void FlyCamDemoBase::update(const double dt) {
+  auto [camera, cameraTransform] = mScene.ecs.get<CompCamera, CompTransform>(mMainCamera);
+  cameraTransform.translation += mCameraVelocity * static_cast<float>(dt);
+}
+
+void FlyCamDemoBase::render(std::vector<RenderPass>& passes) {
+  passes.emplace_back(Viewport {}, mMainSceneFramebuffer.value(), RenderScenePass { &mScene, mMainCamera });
+  DemoBase::render(passes);
+}
+
+void FlyCamDemoBase::onWindowResize(GLFWwindow* window, const glm::uvec2 newSize) {
+  DemoBase::onWindowResize(window, newSize);
+
+  mLastMousePosition = glm::vec2(newSize) * 0.5f;
+  mbFirstMouse = true;
+}
+
+void FlyCamDemoBase::gui(AppState& state) {
+  ZoneScoped;
+  DemoBase::gui(state);
+
+  if (ImGui::CollapsingHeader("Camera")) {
+    ImGui::Indent();
+    CompCamera& camera = mScene.ecs.get<CompCamera>(mMainCamera);
+
+    ImGui::DragFloat("Movement speed", &camera.speed, 0.001f, 0.0f, 5.0f);
+    ImGui::DragFloat("FOV", &camera.fov, 0.1f, 10.0f, 120.0f);
+    ImGui::DragFloat("Near", &camera.near, 0.01f, 0.01f, 10.0f);
+    ImGui::DragFloat("Far", &camera.far, 0.01f, 10.0f, 1000.0f);
+
+    ImGui::Unindent();
+  }
+}

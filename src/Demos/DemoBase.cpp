@@ -1,0 +1,246 @@
+#include <Demos/DemoBase.hpp>
+
+#include <AppState.hpp>
+#include <Graphics/RenderPass.hpp>
+#include <Scene/Components/Name.hpp>
+#include <Scene/Components/Outline.hpp>
+
+#include <imgui.h>
+
+Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const std::shared_ptr<RenderingEngine>& renderer) {
+  mAssetManager = assets;
+  mRenderingEngine = renderer;
+  return {};
+}
+
+void DemoBase::render(std::vector<RenderPass>& passes) {
+  FramebufferHandle lastFramebuffer = mMainSceneFramebuffer.value();
+  size_t shaderIndex = 0;
+  for (FramebufferHandle framebuffer : mPostProcessingFramebuffers) {
+    const PostProcessingPass pass = {
+      .srcFramebuffer = lastFramebuffer,
+      .postProcessingShader = mPostProcessingShaderProgramInstances[shaderIndex++],
+    };
+    passes.emplace_back(Viewport {}, framebuffer, pass);
+    lastFramebuffer = framebuffer;
+  }
+}
+
+void DemoBase::onWindowResize(GLFWwindow*, const glm::uvec2 newSize) {
+  mMainSceneFramebuffer.value()->resize(newSize);
+  for (FramebufferHandle framebuffer : mPostProcessingFramebuffers) {
+    framebuffer->resize(newSize);
+  }
+}
+
+void DemoBase::runGUI(AppState& state) {
+  ZoneScoped;
+
+  if (ImGui::Begin("Test")) {
+    this->gui(state);
+  }
+  ImGui::End();
+}
+
+void DemoBase::gui(AppState& state) {
+  guiStats(state);
+  guiDebug();
+  guiActors();
+  guiPostProcessing(state);
+}
+
+void DemoBase::guiStats(const AppState& state) const {
+  (void)this;
+  ImGui::Text("FPS: %.03f", 1.0 / (state.currentFrameTime - state.lastFrameTime));
+  ImGui::Text("Frame duration: %.03f ms", (state.currentFrameTime - state.lastFrameTime) * 1000.0);
+  ImGui::Text("Scene draw: %.03f ms", state.lastSceneRenderDuration * 1000.0);
+  ImGui::Text("GUI draw: %.03f ms", state.lastGuiRenderDuration * 1000.0);
+  ImGui::Text("Window size: %ux%u", state.windowSize.x, state.windowSize.y);
+}
+
+void DemoBase::guiDebug() {
+  ZoneScoped;
+
+  if (ImGui::CollapsingHeader("Debug")) {
+    ImGui::Indent();
+
+    static constexpr auto sceneRenderModeNames = std::array {
+      "Normal",
+      "Wireframe",
+      "Surface normal",
+      "Surface depth",
+    };
+    ImGui::Combo("Render mode", reinterpret_cast<int32_t*>(&mRenderingEngine->sceneRenderMode),
+                 sceneRenderModeNames.data(), sceneRenderModeNames.size());
+
+    ImGui::Checkbox("Draw vertex normals", &mRenderingEngine->bVisualiseVertexNormals);
+
+    ImGui::Unindent();
+  }
+}
+
+void DemoBase::guiActors() {
+  ZoneScoped;
+
+  constexpr ImGuiColorEditFlags lightColorEditFlags = ImGuiColorEditFlags_Float | ImGuiColorEditFlags_HDR;
+
+  if (ImGui::CollapsingHeader("Actors")) {
+    ImGui::Indent();
+
+    entt::basic_view transforms = mScene.ecs.view<const CompName>();
+    for (auto [entity, name] : transforms.each()) {
+      if (ImGui::CollapsingHeader(name.name.c_str())) {
+        ImGui::Indent();
+
+        bool bOutlined = mScene.ecs.all_of<CompOutline>(entity);
+        if (ImGui::Checkbox(("Draw outline##" + name.name).c_str(), &bOutlined)) {
+          if (bOutlined) {
+            const ShaderProgramInstanceHandle outlineShader = mRenderingEngine->createShaderProgramInstance(ShaderProgramType::Outline);
+            mScene.ecs.emplace<CompOutline>(entity, outlineShader);
+          } else {
+            mScene.ecs.erase<CompOutline>(entity);
+          }
+        }
+
+        if (CompOutline* outline = mScene.ecs.try_get<CompOutline>(entity)) {
+          ImGui::Text("Outline");
+
+          auto& outlineColor = outline->outlineShader->uniforms["uOutlineColor"].getRef<glm::vec3>();
+          ImGui::ColorPicker3(("Outline color##" + name.name).c_str(), glm::value_ptr(outlineColor));
+
+          ImGui::Spacing();
+        }
+
+        if (CompTransform* transform = mScene.ecs.try_get<CompTransform>(entity)) {
+          ImGui::Text("Transform");
+
+          ImGui::DragFloat3(("Translation##" + name.name).c_str(), glm::value_ptr(transform->translation), 0.01f);
+          ImGui::DragFloat3(("Rotation##" + name.name).c_str(), glm::value_ptr(transform->rotation), 0.01f);
+          ImGui::DragFloat3(("Scale##" + name.name).c_str(), glm::value_ptr(transform->scale), 0.01f);
+
+          ImGui::Spacing();
+        }
+
+        if (CompDirectionalLight* directionalLight = mScene.ecs.try_get<CompDirectionalLight>(entity)) {
+          ImGui::Text("Directional light");
+
+          ImGui::DragFloat3(("Direction##dl" + name.name).c_str(), glm::value_ptr(directionalLight->direction), 0.001f, -1.0f, 1.0f);
+          ImGui::ColorPicker3(("Ambient##dl" + name.name).c_str(), glm::value_ptr(directionalLight->colors.ambient), lightColorEditFlags);
+          ImGui::ColorPicker3(("Diffuse##dl" + name.name).c_str(), glm::value_ptr(directionalLight->colors.diffuse), lightColorEditFlags);
+          ImGui::ColorPicker3(("Specular##dl" + name.name).c_str(), glm::value_ptr(directionalLight->colors.specular), lightColorEditFlags);
+
+          ImGui::Spacing();
+        }
+
+        if (CompPointLight* pointLight = mScene.ecs.try_get<CompPointLight>(entity)) {
+          ImGui::Text("Point light");
+
+          ImGui::DragFloat("Constant", &pointLight->constant, 0.1f, 1.0f, 100.0f);
+          ImGui::DragFloat("Linear", &pointLight->linear, 0.01f, 0.01f, 10.0f);
+          ImGui::DragFloat("Quadratic", &pointLight->quadratic, 0.001f, 0.01f, 1.0f);
+          ImGui::ColorPicker3(("Ambient##pl" + name.name).c_str(), glm::value_ptr(pointLight->colors.ambient), lightColorEditFlags);
+          ImGui::ColorPicker3(("Diffuse##pl" + name.name).c_str(), glm::value_ptr(pointLight->colors.diffuse), lightColorEditFlags);
+          ImGui::ColorPicker3(("Specular##pl" + name.name).c_str(), glm::value_ptr(pointLight->colors.specular), lightColorEditFlags);
+
+          ImGui::Spacing();
+        }
+
+        if (CompSpotlight* spotlight = mScene.ecs.try_get<CompSpotlight>(entity)) {
+          ImGui::Text("Spotlight");
+
+          ImGui::DragFloat3(("Direction##sl" + name.name).c_str(), glm::value_ptr(spotlight->direction), 0.001f, -1.0f, 1.0f);
+          ImGui::DragFloat(("Cut off##sl" + name.name).c_str(), &spotlight->cutOff, 0.01f, 1.0f, spotlight->outerCutOff);
+          ImGui::DragFloat(("Outer cut off##sl" + name.name).c_str(), &spotlight->outerCutOff, 0.01f, spotlight->cutOff, 120.0f);
+          ImGui::ColorPicker3(("Ambient##sl" + name.name).c_str(), glm::value_ptr(spotlight->colors.ambient), lightColorEditFlags);
+          ImGui::ColorPicker3(("Diffuse##sl" + name.name).c_str(), glm::value_ptr(spotlight->colors.diffuse), lightColorEditFlags);
+          ImGui::ColorPicker3(("Specular##sl" + name.name).c_str(), glm::value_ptr(spotlight->colors.specular), lightColorEditFlags);
+
+          ImGui::Spacing();
+        }
+
+        ImGui::Unindent();
+      }
+    }
+
+    ImGui::Unindent();
+  }
+}
+
+void DemoBase::guiPostProcessing(const AppState& state) {
+  ZoneScoped;
+
+  if (ImGui::CollapsingHeader("Post processing")) {
+    ImGui::Indent();
+
+    constexpr auto firstPostProcessingEffectIndex = static_cast<int32_t>(ShaderProgramType::PostProcessCopy);
+    std::optional<int32_t> effectToDelete = std::nullopt;
+    for (size_t effectIndex = 0; effectIndex < mPostProcessingShaderProgramInstances.size(); effectIndex++) {
+      const size_t fsTypeNameIndex = static_cast<size_t>(mPostProcessingShaderProgramInstances[effectIndex]->type()) - firstPostProcessingEffectIndex;
+      ShaderProgramInstanceHandle& shaderProgramInstance = mPostProcessingShaderProgramInstances[effectIndex];
+
+      static constexpr auto fsTypeNames = std::array {
+        "Copy",
+        "Blur",
+        "Edge detection",
+        "Emboss",
+        "Flip horizontally",
+        "Flip vertically",
+        "Gamma correction",
+        "Grayscale",
+        "Invert",
+        "Sharpen",
+        "Sobel bottom",
+        "Sobel left",
+        "Sobel right",
+        "Sobel top",
+      };
+
+      const std::string effectIndexStr = std::to_string(effectIndex);
+
+      if (ImGui::BeginCombo(("##postProcessingEffect" + effectIndexStr).c_str(), fsTypeNames[fsTypeNameIndex])) {
+        for (size_t fsTypeOptionIndex = 0; fsTypeOptionIndex < fsTypeNames.size(); fsTypeOptionIndex++) {
+          if (ImGui::MenuItem(fsTypeNames[fsTypeOptionIndex])) {
+            const auto shaderProgramType = static_cast<ShaderProgramType>(fsTypeOptionIndex + firstPostProcessingEffectIndex);
+            shaderProgramInstance.erase();
+            shaderProgramInstance = mRenderingEngine->createShaderProgramInstance(shaderProgramType);
+          }
+        }
+        ImGui::EndCombo();
+      }
+
+      ImGui::SameLine();
+      if (ImGui::Button(("Delete##postProcessingEffect" + effectIndexStr).c_str())) {
+        effectToDelete = static_cast<int32_t>(effectIndex);
+      }
+
+      if (shaderProgramInstance->uniforms.contains("uOffset")) {
+        auto* uOffset = shaderProgramInstance->uniforms.at("uOffset").getPtr<GLfloat>();
+        ImGui::DragFloat(("Offset##postProcessingEffect" + effectIndexStr).c_str(), uOffset, 0.00001f, 0.0f, 0.01f, "%.05f");
+      }
+
+      if (shaderProgramInstance->uniforms.contains("uGamma")) {
+        auto* uOffset = shaderProgramInstance->uniforms.at("uGamma").getPtr<GLfloat>();
+        ImGui::DragFloat(("Gamma##postProcessingEffect" + effectIndexStr).c_str(), uOffset, 0.001f, 1.0f, 10.0f, "%.03f");
+      }
+    }
+
+    if (effectToDelete.has_value()) {
+      mPostProcessingShaderProgramInstances[static_cast<size_t>(effectToDelete.value())].erase();
+      mPostProcessingShaderProgramInstances.erase(mPostProcessingShaderProgramInstances.begin() + effectToDelete.value());
+      mPostProcessingFramebuffers.erase(mPostProcessingFramebuffers.begin() + effectToDelete.value());
+    }
+
+    if (ImGui::Button("+ Add effect")) {
+      const ShaderProgramInstanceHandle shader = mRenderingEngine->createShaderProgramInstance(ShaderProgramType::PostProcessCopy);
+      const FramebufferHandle newFramebuffer = mRenderingEngine->addFramebuffer({
+        .size = state.windowSize,
+        .bDepthStencil = false,
+      });
+
+      mPostProcessingShaderProgramInstances.push_back(shader);
+      mPostProcessingFramebuffers.push_back(newFramebuffer);
+    }
+
+    ImGui::Unindent();
+  }
+}

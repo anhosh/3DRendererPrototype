@@ -20,16 +20,12 @@ private:
   static void APIENTRY openGlDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity,
                                            GLsizei length, const GLchar* logMessage, const void* userParam);
 #endif
-  [[nodiscard]] Expected<void> createScene();
 
 public:
   void run();
   void shutDown();
 
 private:
-  void processKeyboard();
-  void processMousePosition(glm::vec2 mousePosition);
-  void updateScene();
   void drawFrame();
 
 private:

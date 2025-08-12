@@ -14,8 +14,8 @@ public:
   void bind() const;
 
 public:
-  GLsizei indexCount() const { return mIndexCount; }
-  GLsizei indicesOffset() const { return mIndicesOffset; }
+  [[nodiscard]] GLsizei indexCount() const { return mIndexCount; }
+  [[nodiscard]] GLsizei indicesOffset() const { return mIndicesOffset; }
 
 private:
   GLuint mVertexIndexBuffer = GL_NONE;
