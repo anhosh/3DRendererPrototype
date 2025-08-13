@@ -212,6 +212,50 @@ ShaderProgramInstanceHandle RenderingEngine::addShaderProgramInstance(ShaderProg
   return mShaderProgramInstances.add(std::forward<ShaderProgramInstance>(instance));
 }
 
+auto RenderingEngine::groupMeshesByTextures(AssetHandle<Model> model) {
+  ZoneScoped;
+
+  struct TexturePackHash {
+    static size_t textureOptionHash(const std::optional<AssetHandle<Bitmap>>& texOpt) {
+      const auto path = texOpt
+        .and_then([](AssetHandle<Bitmap> bitmap) { return std::optional(bitmap->filePath()); })
+        .value_or(std::filesystem::path());
+      return std::hash<std::filesystem::path>{}(path);
+    }
+
+    size_t operator()(const TexturePack& texturePack) const {
+      const size_t hashDiffuse = textureOptionHash(texturePack.diffuseMap);
+      const size_t hashSpecular = textureOptionHash(texturePack.specularMap);
+      const size_t hashEmission = textureOptionHash(texturePack.emissionMap);
+      return hashDiffuse ^ ((hashSpecular ^ (hashEmission << 1)) << 1);
+    }
+  };
+
+  std::unordered_map<TexturePack, std::vector<NotNull<const MeshData>>, TexturePackHash> texturesToMesh;
+  for (size_t meshRes = 0; meshRes < model->meshes.size(); ++meshRes) {
+    const auto pack = TexturePack {
+      .diffuseMap = model->diffuseMaps[meshRes],
+      .specularMap = model->specularMaps[meshRes],
+      .emissionMap = model->emissionMaps[meshRes],
+    };
+    texturesToMesh[pack].push_back(&model->meshes[meshRes].get());
+  }
+  return texturesToMesh;
+}
+
+MeshData RenderingEngine::mergeMeshes(const std::span<const NotNull<const MeshData>> meshes) {
+  ZoneScoped;
+
+  MeshData mergedMeshData;
+  for (size_t accumulatedVertices = 0; NotNull mesh : meshes) {
+    mergedMeshData.vertices.append_range(mesh->vertices);
+    mergedMeshData.indices.append_range(mesh->indices |
+      std::views::transform([=](const uint32_t index) { return index + accumulatedVertices; }));
+    accumulatedVertices += mesh->vertices.size();
+  }
+  return mergedMeshData;
+}
+
 const std::vector<RenderData>& RenderingEngine::addModel(AssetHandle<Model> model, ShaderProgramInstanceHandle initialShader) {
   ZoneScoped;
 
@@ -219,22 +263,23 @@ const std::vector<RenderData>& RenderingEngine::addModel(AssetHandle<Model> mode
     return mUploadedModels.at(model.itemID());
   }
 
-  const std::vector<MeshHandle> meshes = this->addMeshes(model->meshes);
-  const std::vector<std::optional<Texture2DHandle>> diffuseMaps = this->addTexture2Ds(model->diffuseMaps);
-  const std::vector<std::optional<Texture2DHandle>> specularMaps = this->addTexture2Ds(model->specularMaps);
-  const std::vector<std::optional<Texture2DHandle>> emissionMaps = this->addTexture2Ds(model->emissionMaps);
-
-  std::vector<RenderData> modelResources;
-  modelResources.reserve(meshes.size());
-  for (size_t meshRes = 0; meshRes < meshes.size(); ++meshRes) {
-    RenderData resources { .mesh = meshes[meshRes], .shaderProgramInstance = initialShader };
-    resources.diffuseMap = diffuseMaps[meshRes];
-    resources.specularMap = specularMaps[meshRes];
-    resources.emissionMap = emissionMaps[meshRes];
-    modelResources.push_back(resources);
+  const auto texturesToMeshes = RenderingEngine::groupMeshesByTextures(model);
+  std::vector<RenderData> modelRenderData;
+  modelRenderData.reserve(texturesToMeshes.size());
+  for (const auto& [textures, meshes] : texturesToMeshes) {
+    const MeshData mergedMesh = RenderingEngine::mergeMeshes(meshes);
+    const auto optionalAddTexture2D = [this](const AssetHandle<Bitmap> texture) { return this->addTexture2D(texture); };
+    RenderData renderData = {
+      .mesh = this->addMesh(mergedMesh),
+      .shaderProgramInstance = initialShader,
+      .diffuseMap = textures.diffuseMap.transform(optionalAddTexture2D),
+      .specularMap = textures.specularMap.transform(optionalAddTexture2D),
+      .emissionMap = textures.emissionMap.transform(optionalAddTexture2D),
+    };
+    modelRenderData.push_back(renderData);
   }
 
-  const auto [it, inserted] = mUploadedModels.emplace(model.itemID(), std::move(modelResources));
+  const auto [it, inserted] = mUploadedModels.emplace(model.itemID(), std::move(modelRenderData));
   const auto& [index, resources] = *it;
   return resources;
 }
@@ -254,7 +299,13 @@ std::vector<MeshHandle> RenderingEngine::addMeshes(std::span<const AssetHandle<M
 MeshHandle RenderingEngine::addMesh(AssetHandle<MeshData> meshData) {
   ZoneScoped;
 
-  return mMeshes.add(Mesh(meshData.get()));
+  return this->addMesh(meshData.get());
+}
+
+MeshHandle RenderingEngine::addMesh(const MeshData& meshData) {
+  ZoneScoped;
+
+  return mMeshes.add(Mesh(meshData));
 }
 
 SamplerHandle RenderingEngine::addSampler(const SamplerOptions& options) {

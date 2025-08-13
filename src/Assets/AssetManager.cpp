@@ -13,8 +13,6 @@
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
 
-#include <print>
-
 AssetManager::AssetManager() {
   ZoneScoped;
 
@@ -28,7 +26,7 @@ AssetHandle<MeshData> AssetManager::addMesh(MeshData&& mesh) {
   return mMeshes.add(std::forward<MeshData>(mesh));
 }
 
-Expected<AssetHandle<Bitmap>> AssetManager::loadBitmap(const std::filesystem::path& filePath, bool bFlipVertically) {
+Expected<AssetHandle<Bitmap>> AssetManager::loadBitmap(const std::filesystem::path& filePath, const bool bFlipVertically) {
   ZoneScoped;
 
   const std::filesystem::path fullPath = mTexturesDir / filePath;
@@ -88,7 +86,7 @@ Expected<void> AssetManager::locateTextures() {
   return std::unexpected("Could not locate texture directory");
 }
 
-Expected<void> AssetManager::processNode(Model& model, aiNode* node, const aiScene* scene) {
+Expected<void> AssetManager::processNode(Model& model, const aiNode* node, const aiScene* scene) {
   ZoneScoped;
 
   for (size_t i = 0; i < node->mNumMeshes; ++i) {
@@ -103,7 +101,7 @@ Expected<void> AssetManager::processNode(Model& model, aiNode* node, const aiSce
   return {};
 }
 
-Expected<void> AssetManager::processMesh(Model& model, aiMesh* mesh, const aiScene* scene) {
+Expected<void> AssetManager::processMesh(Model& model, const aiMesh* mesh, const aiScene* scene) {
   ZoneScoped;
 
   std::vector<Vertex> vertices;

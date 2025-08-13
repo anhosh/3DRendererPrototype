@@ -29,8 +29,8 @@ private:
   [[nodiscard]] Expected<void> locateModels();
   [[nodiscard]] Expected<void> locateTextures();
 
-  [[nodiscard]] Expected<void> processNode(Model& model, aiNode* node, const aiScene* scene);
-  [[nodiscard]] Expected<void> processMesh(Model& model, aiMesh* mesh, const aiScene* scene);
+  [[nodiscard]] Expected<void> processNode(Model& model, const aiNode* node, const aiScene* scene);
+  [[nodiscard]] Expected<void> processMesh(Model& model, const aiMesh* mesh, const aiScene* scene);
   [[nodiscard]] Expected<AssetHandle<Bitmap>> processTexture(const aiMaterial* material, aiTextureType type);
 
 private:

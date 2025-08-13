@@ -10,7 +10,6 @@
 #include <Graphics/Texture2D.hpp>
 #include <Graphics/TextureCubeMap.hpp>
 #include <Util/Registry.hpp>
-#include <Util/MultiBuffer.hpp>
 
 #include <entt/entity/entity.hpp>
 
@@ -46,10 +45,26 @@ public:
   ShaderProgramInstanceHandle createShaderProgramInstance(ShaderProgramType type);
   ShaderProgramInstanceHandle addShaderProgramInstance(ShaderProgramInstance&& instance);
 
+private:
+  struct TexturePack {
+    std::optional<AssetHandle<Bitmap>> diffuseMap = std::nullopt;
+    std::optional<AssetHandle<Bitmap>> specularMap = std::nullopt;
+    std::optional<AssetHandle<Bitmap>> emissionMap = std::nullopt;
+
+    auto operator<=>(const TexturePack&) const = default;
+  };
+
+  static auto groupMeshesByTextures(AssetHandle<Model> model);
+  // -> std::unordered_map<TexturePack, std::vector<NotNull<const MeshData>>, TexturePackHash>
+
+  static MeshData mergeMeshes(std::span<const NotNull<const MeshData>> meshes);
+
+public:
   const std::vector<RenderData>& addModel(AssetHandle<Model> model, ShaderProgramInstanceHandle initialShader);
 
   std::vector<MeshHandle> addMeshes(std::span<const AssetHandle<MeshData>> meshesData);
   MeshHandle addMesh(AssetHandle<MeshData> meshData);
+  MeshHandle addMesh(const MeshData& meshData);
 
   SamplerHandle addSampler(const SamplerOptions& options);
 
