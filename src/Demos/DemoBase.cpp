@@ -10,6 +10,20 @@
 Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const std::shared_ptr<RenderingEngine>& renderer) {
   mAssetManager = assets;
   mRenderingEngine = renderer;
+
+  mMainSceneFramebuffer = mRenderingEngine->addFramebuffer({
+    .size = glm::uvec2(1),
+    .samples = 4,
+    .colorFormat = GL_RGB16, // Remove quantisation artifacts which occur during gamma correction from RGB8.
+  });
+
+  const ShaderProgramInstanceHandle gammaCorrectionShader = mRenderingEngine->createShaderProgramInstance(ShaderProgramType::PostProcessGammaCorrection);
+  mPostProcessingShaderProgramInstances.push_back(gammaCorrectionShader);
+  mPostProcessingFramebuffers.push_back(mRenderingEngine->addFramebuffer({
+    .size = glm::uvec2(1),
+    .bDepthStencil = false,
+  }));
+
   return {};
 }
 
@@ -58,7 +72,7 @@ void DemoBase::guiStats(const AppState& state) const {
   ImGui::Text("Window size: %ux%u", state.windowSize.x, state.windowSize.y);
 }
 
-void DemoBase::guiDebug() {
+void DemoBase::guiDebug() const {
   ZoneScoped;
 
   if (ImGui::CollapsingHeader("Debug")) {

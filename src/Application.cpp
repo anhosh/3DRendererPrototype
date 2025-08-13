@@ -157,6 +157,7 @@ void APIENTRY Application::openGlDebugCallback(GLenum source, GLenum type, GLuin
 
 void Application::run() {
   FrameMark;
+
   while (!glfwWindowShouldClose(mState.window)) {
     ZoneScopedN("Frame");
 

@@ -23,7 +23,7 @@ public:
 
 private:
   void guiStats(const AppState& state) const;
-  void guiDebug();
+  void guiDebug() const;
   void guiActors();
   void guiPostProcessing(const AppState& state);
 
