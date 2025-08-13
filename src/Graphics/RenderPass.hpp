@@ -12,9 +12,9 @@ class Scene;
 
 enum class SceneRenderMode : int32_t {
   Full,
+  Wireframe,
   SurfaceNormal,
   SurfaceDepth,
-  Wireframe,
   VertexNormals,
 };
 
@@ -22,6 +22,7 @@ struct RenderScenePass {
   NotNull<Scene> scene;
   entt::entity entityCamera;
   SceneRenderMode mode;
+  bool bClearFramebuffer = true;
 };
 
 struct PostProcessingPass {

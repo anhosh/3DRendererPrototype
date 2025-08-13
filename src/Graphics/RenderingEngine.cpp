@@ -390,9 +390,9 @@ void RenderingEngine::submitRenderPasses(const std::span<RenderPass> renderPasse
   for (auto& [viewport, dstFramebuffer, pass] : renderPasses) {
     if (auto* renderScenePass = std::get_if<RenderScenePass>(&pass)) {
       if (renderScenePass->mode == SceneRenderMode::Full) {
-        this->renderSceneFull(*renderScenePass->scene, renderScenePass->entityCamera, viewport, dstFramebuffer);
+        this->renderSceneFull(*renderScenePass, viewport, dstFramebuffer);
       } else {
-        this->renderSceneSimple(*renderScenePass->scene, renderScenePass->entityCamera, viewport, dstFramebuffer, renderScenePass->mode);
+        this->renderSceneSimple(*renderScenePass, viewport, dstFramebuffer);
       }
     } else if (const auto* postProcessingPass = std::get_if<PostProcessingPass>(&pass)) {
       this->postProcess(viewport, postProcessingPass->postProcessingShader, postProcessingPass->srcFramebuffer, dstFramebuffer);
@@ -400,7 +400,7 @@ void RenderingEngine::submitRenderPasses(const std::span<RenderPass> renderPasse
   }
 }
 
-void RenderingEngine::renderSceneFull(Scene& scene, const entt::entity entityCamera, const Viewport& viewport, FramebufferHandle dstFramebuffer) {
+void RenderingEngine::renderSceneFull(RenderScenePass& pass, const Viewport& viewport, FramebufferHandle dstFramebuffer) {
   ZoneScoped;
   TracyGpuZone("Render scene");
 
@@ -421,48 +421,17 @@ void RenderingEngine::renderSceneFull(Scene& scene, const entt::entity entityCam
   glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
   glStencilMask(0xff);
 
-  glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+  if (pass.bClearFramebuffer) {
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+  }
 
-  const std::span<const Draw> draws = scene.draw(entityCamera, *this);
+  const std::span<const Draw> draws = pass.scene->draw(pass.entityCamera, *this);
   if (draws.empty()) {
     return;
   }
 
-  const auto [camera, cameraTransform] = scene.ecs.get<const CompCamera, const CompTransform>(entityCamera);
-  const CameraUniforms cameraUniformData = CameraUniforms::from(camera, cameraTransform, dstFramebuffer->size());
-  mCameraUniformBuffer.value()->write(cameraUniformData);
-  mCameraUniformBuffer.value()->bindWhole(BINDING_UBO_CAMERA);
-
-  const auto updateLights = [&scene]<typename CompLight>(BufferHandle storageBuffer, const uint32_t bindPoint, const auto getLightUniformData) {
-    const entt::basic_view lights = scene.ecs.view<const CompLight>();
-    if (lights.begin() == lights.end()) {
-      return;
-    }
-
-    const auto lightUniformData = getLightUniformData();
-    storageBuffer->write(lightUniformData);
-    storageBuffer->bindWhole(bindPoint);
-    for (auto [entity, light] : lights.each()) {
-      if (CompGraphics* graphics = scene.ecs.try_get<CompGraphics>(entity)) {
-        for (RenderData& renderData : graphics->renderData) {
-          if (renderData.shaderProgramInstance->type() == ShaderProgramType::Light) {
-            renderData.shaderProgramInstance->uniforms["uLightColor"] = light.colors.diffuse;
-          }
-        }
-      }
-    }
-  };
-
-  updateLights.operator()<CompDirectionalLight>(mDirectionalLightsStorageBuffer.value(),
-                                                BINDING_SSBO_DIRECTIONAL_LIGHTS,
-                                                [&] { return scene.createDirectionalLightUniforms(); });
-  updateLights.operator()<CompPointLight>(mPointLightsStorageBuffer.value(),
-                                          BINDING_SSBO_POINT_LIGHTS,
-                                          [&] { return scene.createPointLightUniforms(); });
-  updateLights.operator()<CompSpotlight>(mSpotlightsStorageBuffer.value(),
-                                         BINDING_SSBO_SPOTLIGHTS,
-                                         [&] { return scene.createSpotlightUniforms(); });
+  this->updateStorageAndUniformBuffers(pass, dstFramebuffer->size());
 
   glBindVertexArray(mMeshesVAO);
   mDiffuseTextureSampler.value()->bind(BINDING_SAMPLER_DIFFUSE);
@@ -564,12 +533,7 @@ void RenderingEngine::renderSceneFull(Scene& scene, const entt::entity entityCam
   mBoundTextureSlots.clear();
 }
 
-void RenderingEngine::renderSceneSimple(Scene& scene,
-                                        const entt::entity entityCamera,
-                                        const Viewport& viewport,
-                                        const FramebufferHandle dstFramebuffer,
-                                        const SceneRenderMode mode)
-{
+void RenderingEngine::renderSceneSimple(RenderScenePass& pass, const Viewport& viewport, const FramebufferHandle dstFramebuffer) {
   ZoneScoped;
   TracyGpuZone("Render vertex normals");
 
@@ -583,14 +547,21 @@ void RenderingEngine::renderSceneSimple(Scene& scene,
 
   glEnable(GL_DEPTH_TEST);
 
-  const std::span<const Draw> draws = scene.draw(entityCamera, *this);
+  if (pass.bClearFramebuffer) {
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+  }
+
+  const std::span<const Draw> draws = pass.scene->draw(pass.entityCamera, *this);
   if (draws.empty()) {
     return;
   }
 
+  this->updateStorageAndUniformBuffers(pass, dstFramebuffer->size());
+
   glBindVertexArray(mMeshesVAO);
 
-  switch (mode) {
+  switch (pass.mode) {
     case SceneRenderMode::Full:
       UNREACHABLE();
 
@@ -604,6 +575,7 @@ void RenderingEngine::renderSceneSimple(Scene& scene,
 
     case SceneRenderMode::Wireframe:
       glUseProgram(mLightShaderProgram.value()->id());
+      glUniform3f(4, 1.0f, 1.0f, 1.0f);
       glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
       break;
 
@@ -632,7 +604,7 @@ void RenderingEngine::renderSceneSimple(Scene& scene,
   glBindVertexArray(GL_NONE);
   glUseProgram(GL_NONE);
 
-  if (mode == SceneRenderMode::Wireframe) {
+  if (pass.mode == SceneRenderMode::Wireframe) {
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
   }
 }
@@ -698,4 +670,42 @@ void RenderingEngine::present(const glm::uvec2 windowSize, FramebufferHandle src
   glUseProgram(GL_NONE);
   glBindVertexArray(GL_NONE);
   glBindTexture(GL_TEXTURE_2D, GL_NONE);
+}
+
+void RenderingEngine::updateStorageAndUniformBuffers(RenderScenePass& pass, const glm::uvec2 framebufferSize) {
+  const auto [camera, cameraTransform] = pass.scene->ecs.get<const CompCamera, const CompTransform>(pass.entityCamera);
+  const CameraUniforms cameraUniformData = CameraUniforms::from(camera, cameraTransform, framebufferSize);
+  mCameraUniformBuffer.value()->write(cameraUniformData);
+  mCameraUniformBuffer.value()->bindWhole(BINDING_UBO_CAMERA);
+
+  const auto updateLights = [&pass]<typename CompLight>(BufferHandle storageBuffer, const uint32_t bindPoint, const auto getLightUniformData) {
+    const entt::basic_view lights = pass.scene->ecs.view<const CompLight>();
+    if (lights.begin() == lights.end()) {
+      return;
+    }
+
+    const auto lightUniformData = getLightUniformData();
+    storageBuffer->write(lightUniformData);
+    storageBuffer->bindWhole(bindPoint);
+    for (auto [entity, light] : lights.each()) {
+      if (CompGraphics* graphics = pass.scene->ecs.try_get<CompGraphics>(entity)) {
+        for (RenderData& renderData : graphics->renderData) {
+          if (renderData.shaderProgramInstance->type() == ShaderProgramType::Light) {
+            renderData.shaderProgramInstance->uniforms["uLightColor"] = light.colors.diffuse;
+          }
+        }
+      }
+    }
+  };
+
+  updateLights.operator()<CompDirectionalLight>(mDirectionalLightsStorageBuffer.value(),
+                                                BINDING_SSBO_DIRECTIONAL_LIGHTS,
+                                                [&] { return pass.scene->createDirectionalLightUniforms(); });
+  updateLights.operator()<CompPointLight>(mPointLightsStorageBuffer.value(),
+                                          BINDING_SSBO_POINT_LIGHTS,
+                                          [&] { return pass.scene->createPointLightUniforms(); });
+  updateLights.operator()<CompSpotlight>(mSpotlightsStorageBuffer.value(),
+                                         BINDING_SSBO_SPOTLIGHTS,
+                                         [&] { return pass.scene->createSpotlightUniforms(); });
+
 }

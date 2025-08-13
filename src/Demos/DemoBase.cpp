@@ -47,13 +47,18 @@ std::vector<RenderPass> DemoBase::render() {
   std::vector<RenderPass> passes;
   passes.reserve(1 + mPostProcessingFramebuffers.size());
 
-  passes.emplace_back(Viewport {}, mMainSceneFramebuffer.value(), RenderScenePass { &mScene, mMainCamera });
+  passes.emplace_back(Viewport {}, mMainSceneFramebuffer.value(), RenderScenePass {
+    .scene = &mScene,
+    .entityCamera = mMainCamera,
+    .mode = mSceneRenderMode,
+  });
 
   if (mbDebugVisualiseVertexNormals) {
     passes.emplace_back(Viewport {}, mMainSceneFramebuffer.value(), RenderScenePass {
       .scene = &mScene,
       .entityCamera = mMainCamera,
       .mode = SceneRenderMode::VertexNormals,
+      .bClearFramebuffer = false,
     });
   }
 
@@ -110,7 +115,7 @@ void DemoBase::guiDebug() {
     ImGui::Indent();
 
     static constexpr auto sceneRenderModeNames = std::array {
-      "Normal",
+      "Full",
       "Wireframe",
       "Surface normal",
       "Surface depth",

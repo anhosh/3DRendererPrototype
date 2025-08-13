@@ -73,11 +73,14 @@ public:
   void updateInstances(size_t first, const InstanceBuffer& instances);
 
   void submitRenderPasses(std::span<RenderPass> renderPasses);
-  void renderSceneFull(Scene& scene, entt::entity entityCamera, const Viewport& viewport, FramebufferHandle dstFramebuffer);
-  void renderSceneSimple(Scene& scene, entt::entity entityCamera, const Viewport& viewport, FramebufferHandle dstFramebuffer, SceneRenderMode mode);
+  void renderSceneFull(RenderScenePass& pass, const Viewport& viewport, FramebufferHandle dstFramebuffer);
+  void renderSceneSimple(RenderScenePass& pass, const Viewport& viewport, FramebufferHandle dstFramebuffer);
   void postProcess(const Viewport& viewport, ShaderProgramInstanceHandle postProcessingShader,
                    FramebufferHandle srcFramebuffer, FramebufferHandle dstFramebuffer) const;
   void present(glm::uvec2 windowSize, FramebufferHandle srcFramebuffer) const;
+
+private:
+  void updateStorageAndUniformBuffers(RenderScenePass& pass, glm::uvec2 framebufferSize);
 
 private:
   bool mInitialised = false;
