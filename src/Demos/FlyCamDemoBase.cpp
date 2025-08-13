@@ -2,25 +2,10 @@
 
 #include <Graphics/RenderPass.hpp>
 #include <Scene/Components/Camera.hpp>
-#include <Scene/Components/Name.hpp>
 #include <Scene/Components/Transform.hpp>
 #include <Util/Macros/Errors.hpp>
 
 #include <imgui.h>
-
-Expected<void> FlyCamDemoBase::init(const std::shared_ptr<AssetManager>& assets, const std::shared_ptr<RenderingEngine>& renderer) {
-  RETURN_ERROR_IF_UNEXPECTED(DemoBase::init(assets, renderer));
-
-  mMainCamera = mScene.ecs.create();
-  mScene.ecs.emplace<CompName>(mMainCamera, "Main camera");
-  mScene.ecs.emplace<CompTransform>(mMainCamera, CompTransform {
-    .translation = glm::vec3(0.0f, 0.0f, 10.0f),
-    .rotation = glm::vec3(-90.0f, 0.0f, 0.0f),
-  });
-  CompCamera& mainCamera = mScene.ecs.emplace<CompCamera>(mMainCamera);
-  mainCamera.speed = 10.0f;
-  return {};
-}
 
 void FlyCamDemoBase::processKeyboard(GLFWwindow* window) {
   ZoneScoped;
@@ -95,11 +80,6 @@ void FlyCamDemoBase::processMouse(const glm::vec2 mousePosition) {
 void FlyCamDemoBase::update(const double dt) {
   auto [camera, cameraTransform] = mScene.ecs.get<CompCamera, CompTransform>(mMainCamera);
   cameraTransform.translation += mCameraVelocity * static_cast<float>(dt);
-}
-
-void FlyCamDemoBase::render(std::vector<RenderPass>& passes) {
-  passes.emplace_back(Viewport {}, mMainSceneFramebuffer.value(), RenderScenePass { &mScene, mMainCamera });
-  DemoBase::render(passes);
 }
 
 void FlyCamDemoBase::onWindowResize(GLFWwindow* window, const glm::uvec2 newSize) {

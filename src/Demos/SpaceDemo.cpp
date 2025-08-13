@@ -10,8 +10,6 @@
 
 Expected<void> SpaceDemo::init(const std::shared_ptr<AssetManager>& assets, const std::shared_ptr<RenderingEngine>& renderer) {
   ZoneScoped;
-  
-  RETURN_ERROR_IF_UNEXPECTED(FlyCamDemoBase::init(assets, renderer));
 
   // Load assets
   const Expected modelPlanet = assets->loadModel("planet/planet.obj");
@@ -36,13 +34,13 @@ Expected<void> SpaceDemo::init(const std::shared_ptr<AssetManager>& assets, cons
   RETURN_ERROR_IF_UNEXPECTED(bitmapSkyboxFront);
 
   // Get shader instances
-  const ShaderProgramInstanceHandle litSurfaceShader = mRenderingEngine->createShaderProgramInstance(ShaderProgramType::LitSurface);
+  const ShaderProgramInstanceHandle litSurfaceShader = renderer->createShaderProgramInstance(ShaderProgramType::LitSurface);
 
   // Upload assets to GPU
-  std::vector<RenderData> planetMeshes = mRenderingEngine->addModel(modelPlanet.value(), litSurfaceShader);
-  std::vector<RenderData> rockMeshes   = mRenderingEngine->addModel(modelRock.value(), litSurfaceShader);
+  std::vector<RenderData> planetMeshes = renderer->addModel(modelPlanet.value(), litSurfaceShader);
+  std::vector<RenderData> rockMeshes   = renderer->addModel(modelRock.value(), litSurfaceShader);
 
-  TextureCubeMapHandle skyboxTexture = mRenderingEngine->addTextureCubeMap(
+  TextureCubeMapHandle skyboxTexture = renderer->addTextureCubeMap(
     TextureCubeMapBitmaps {
       bitmapSkyboxRight.value(),
       bitmapSkyboxLeft.value(),
@@ -56,9 +54,9 @@ Expected<void> SpaceDemo::init(const std::shared_ptr<AssetManager>& assets, cons
 
   // Create scene
   mScene.skybox = Skybox {
-    .cubeMesh = mRenderingEngine->addMesh(skyboxCubeMesh),
+    .cubeMesh = renderer->addMesh(skyboxCubeMesh),
     .texture = skyboxTexture,
-    .shader = mRenderingEngine->createShaderProgramInstance(ShaderProgramType::Skybox),
+    .shader = renderer->createShaderProgramInstance(ShaderProgramType::Skybox),
   };
 
   const entt::entity entitySun = mScene.ecs.create();
@@ -101,6 +99,5 @@ Expected<void> SpaceDemo::init(const std::shared_ptr<AssetManager>& assets, cons
     mScene.ecs.emplace<CompGraphics>(entityAsteroid, rockMeshes);
   }
 
-  mScene.prepareForRendering();
-  return {};
+  return FlyCamDemoBase::init(assets, renderer);
 }

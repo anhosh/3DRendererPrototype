@@ -2,6 +2,7 @@
 
 #include <AppState.hpp>
 #include <Graphics/RenderPass.hpp>
+#include <Scene/Components/Camera.hpp>
 #include <Scene/Components/Name.hpp>
 #include <Scene/Components/Outline.hpp>
 
@@ -24,10 +25,26 @@ Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const
     .bDepthStencil = false,
   }));
 
+  mMainCamera = mScene.ecs.create();
+  mScene.ecs.emplace<CompName>(mMainCamera, "Main camera");
+  mScene.ecs.emplace<CompTransform>(mMainCamera, CompTransform {
+    .translation = glm::vec3(0.0f, 0.0f, 10.0f),
+    .rotation = glm::vec3(-90.0f, 0.0f, 0.0f),
+  });
+  CompCamera& mainCamera = mScene.ecs.emplace<CompCamera>(mMainCamera);
+  mainCamera.speed = 10.0f;
+
+  mScene.prepareForRendering();
+
   return {};
 }
 
-void DemoBase::render(std::vector<RenderPass>& passes) {
+std::vector<RenderPass> DemoBase::render() {
+  std::vector<RenderPass> passes;
+  passes.reserve(1 + mPostProcessingFramebuffers.size());
+
+  passes.emplace_back(Viewport {}, mMainSceneFramebuffer.value(), RenderScenePass { &mScene, mMainCamera });
+
   FramebufferHandle lastFramebuffer = mMainSceneFramebuffer.value();
   size_t shaderIndex = 0;
   for (FramebufferHandle framebuffer : mPostProcessingFramebuffers) {
@@ -38,6 +55,8 @@ void DemoBase::render(std::vector<RenderPass>& passes) {
     passes.emplace_back(Viewport {}, framebuffer, pass);
     lastFramebuffer = framebuffer;
   }
+
+  return passes;
 }
 
 void DemoBase::onWindowResize(GLFWwindow*, const glm::uvec2 newSize) {

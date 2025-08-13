@@ -1,6 +1,7 @@
 #include <Application.hpp>
 
 #include <GUI.hpp>
+#include <Demos/FloatingBackpackDemo.hpp>
 #include <Demos/SpaceDemo.hpp>
 #include <Graphics/RenderingEngine.hpp>
 #include <Graphics/RenderPass.hpp>
@@ -39,7 +40,8 @@ Expected<Application> Application::create(const std::string_view title, const gl
   app.mState.renderingEngine = std::make_shared<RenderingEngine>();
   RETURN_ERROR_IF_UNEXPECTED(app.mState.renderingEngine->init());
 
-  app.mState.currentDemo = std::make_unique<SpaceDemo>();
+  // app.mState.currentDemo = std::make_unique<SpaceDemo>();
+  app.mState.currentDemo = std::make_unique<FloatingBackpackDemo>();
   RETURN_ERROR_IF_UNEXPECTED(app.mState.currentDemo->init(app.mState.assetManager, app.mState.renderingEngine));
   FrameMarkEnd(markerName.data());
   return app;
@@ -199,9 +201,7 @@ void Application::shutDown() {
 void Application::drawFrame() {
   ZoneScoped;
 
-  std::vector<RenderPass> renderPasses;
-  mState.currentDemo->render(renderPasses);
-
+  std::vector<RenderPass> renderPasses = mState.currentDemo->render();
   mState.lastSceneRenderDuration = timedBlock([&, this] {
     mState.renderingEngine->submitRenderPasses(renderPasses);
     mState.renderingEngine->present(mState.windowSize, renderPasses.back().dstFramebuffer);

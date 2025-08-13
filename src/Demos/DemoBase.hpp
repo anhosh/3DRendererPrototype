@@ -14,7 +14,7 @@ public:
   virtual void processKeyboard(GLFWwindow* window) = 0;
   virtual void processMouse(glm::vec2 mousePosition) = 0;
   virtual void update(double dt) = 0;
-  virtual void render(std::vector<RenderPass>& passes);
+  [[nodiscard]] virtual std::vector<RenderPass> render();
 
   virtual void onWindowResize(GLFWwindow* window, glm::uvec2 newSize);
 
@@ -29,6 +29,8 @@ private:
 
 protected:
   Scene mScene;
+
+  entt::entity mMainCamera = entt::null;
 
   std::shared_ptr<AssetManager> mAssetManager;
   std::shared_ptr<RenderingEngine> mRenderingEngine;
