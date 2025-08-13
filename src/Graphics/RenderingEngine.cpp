@@ -389,9 +389,10 @@ void RenderingEngine::submitRenderPasses(const std::span<RenderPass> renderPasse
 
   for (auto& [viewport, dstFramebuffer, pass] : renderPasses) {
     if (auto* renderScenePass = std::get_if<RenderScenePass>(&pass)) {
-      this->renderScene(*renderScenePass->scene, renderScenePass->entityCamera, viewport, dstFramebuffer);
-      if (bVisualiseVertexNormals) {
-        this->renderVertexNormals(*renderScenePass->scene, renderScenePass->entityCamera, viewport, dstFramebuffer);
+      if (renderScenePass->mode == SceneRenderMode::Full) {
+        this->renderSceneFull(*renderScenePass->scene, renderScenePass->entityCamera, viewport, dstFramebuffer);
+      } else {
+        this->renderSceneSimple(*renderScenePass->scene, renderScenePass->entityCamera, viewport, dstFramebuffer, renderScenePass->mode);
       }
     } else if (const auto* postProcessingPass = std::get_if<PostProcessingPass>(&pass)) {
       this->postProcess(viewport, postProcessingPass->postProcessingShader, postProcessingPass->srcFramebuffer, dstFramebuffer);
@@ -399,7 +400,7 @@ void RenderingEngine::submitRenderPasses(const std::span<RenderPass> renderPasse
   }
 }
 
-void RenderingEngine::renderScene(Scene& scene, const entt::entity entityCamera, const Viewport& viewport, FramebufferHandle dstFramebuffer) {
+void RenderingEngine::renderSceneFull(Scene& scene, const entt::entity entityCamera, const Viewport& viewport, FramebufferHandle dstFramebuffer) {
   ZoneScoped;
   TracyGpuZone("Render scene");
 
@@ -426,24 +427,6 @@ void RenderingEngine::renderScene(Scene& scene, const entt::entity entityCamera,
   const std::span<const Draw> draws = scene.draw(entityCamera, *this);
   if (draws.empty()) {
     return;
-  }
-
-  if (sceneRenderMode == SceneRenderMode::Wireframe) {
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-  }
-
-  switch (sceneRenderMode) {
-    case SceneRenderMode::Normal:
-    case SceneRenderMode::Wireframe:
-      break;
-
-    case SceneRenderMode::SurfaceDepth:
-      glUseProgram(mSurfaceDepthShaderProgram.value()->id());
-      break;
-
-    case SceneRenderMode::SurfaceNormal:
-      glUseProgram(mSurfaceNormalShaderProgram.value()->id());
-      break;
   }
 
   const auto [camera, cameraTransform] = scene.ecs.get<const CompCamera, const CompTransform>(entityCamera);
@@ -491,18 +474,6 @@ void RenderingEngine::renderScene(Scene& scene, const entt::entity entityCamera,
   for (size_t drawIdx = 0; drawIdx < draws.size(); drawIdx++) {
     const Draw* currDraw = &draws[drawIdx];
 
-    if (currDraw->bSkybox) {
-      switch (sceneRenderMode) {
-        case SceneRenderMode::Normal:
-        case SceneRenderMode::Wireframe:
-          break;
-
-        case SceneRenderMode::SurfaceDepth:
-        case SceneRenderMode::SurfaceNormal:
-          continue;
-      }
-    }
-
     mInstanceBuffer.value()->bindRange(BINDING_SSBO_INSTANCES,
                                        currDraw->instanceOffset * sizeof(InstanceData),
                                        currDraw->instanceCount * sizeof(InstanceData));
@@ -544,9 +515,7 @@ void RenderingEngine::renderScene(Scene& scene, const entt::entity entityCamera,
     }
 
     const ShaderProgramInstance& currShader = currDraw->shaderProgramInstance.get();
-    if ((sceneRenderMode == SceneRenderMode::Normal || sceneRenderMode == SceneRenderMode::Wireframe) &&
-        (drawIdx == 0 || currDraw->shaderProgramInstance.itemID() != lastDraw->shaderProgramInstance.itemID()))
-    {
+    if (drawIdx == 0 || currDraw->shaderProgramInstance.itemID() != lastDraw->shaderProgramInstance.itemID()) {
       const ShaderProgramInstance& lastShader = lastDraw->shaderProgramInstance.get();
       if (drawIdx == 0 || currShader.shaderProgram() != lastShader.shaderProgram()) {
         currShader.use();
@@ -593,13 +562,14 @@ void RenderingEngine::renderScene(Scene& scene, const entt::entity entityCamera,
     glBindTexture(GL_TEXTURE_2D, GL_NONE);
   }
   mBoundTextureSlots.clear();
-
-  if (sceneRenderMode == SceneRenderMode::Wireframe) {
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-  }
 }
 
-void RenderingEngine::renderVertexNormals(Scene& scene, const entt::entity entityCamera, const Viewport& viewport, FramebufferHandle dstFramebuffer) {
+void RenderingEngine::renderSceneSimple(Scene& scene,
+                                        const entt::entity entityCamera,
+                                        const Viewport& viewport,
+                                        const FramebufferHandle dstFramebuffer,
+                                        const SceneRenderMode mode)
+{
   ZoneScoped;
   TracyGpuZone("Render vertex normals");
 
@@ -619,7 +589,28 @@ void RenderingEngine::renderVertexNormals(Scene& scene, const entt::entity entit
   }
 
   glBindVertexArray(mMeshesVAO);
-  glUseProgram(mVertexNormalShaderProgram.value()->id());
+
+  switch (mode) {
+    case SceneRenderMode::Full:
+      UNREACHABLE();
+
+    case SceneRenderMode::SurfaceDepth:
+      glUseProgram(mSurfaceDepthShaderProgram.value()->id());
+      break;
+
+    case SceneRenderMode::SurfaceNormal:
+      glUseProgram(mSurfaceNormalShaderProgram.value()->id());
+      break;
+
+    case SceneRenderMode::Wireframe:
+      glUseProgram(mLightShaderProgram.value()->id());
+      glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+      break;
+
+    case SceneRenderMode::VertexNormals:
+      glUseProgram(mVertexNormalShaderProgram.value()->id());
+      break;
+  }
 
   for (const Draw& currDraw : draws) {
     if (!currDraw.bSkybox) {
@@ -640,6 +631,10 @@ void RenderingEngine::renderVertexNormals(Scene& scene, const entt::entity entit
 
   glBindVertexArray(GL_NONE);
   glUseProgram(GL_NONE);
+
+  if (mode == SceneRenderMode::Wireframe) {
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+  }
 }
 
 void RenderingEngine::postProcess(const Viewport& viewport, ShaderProgramInstanceHandle postProcessingShader,
@@ -663,7 +658,7 @@ void RenderingEngine::postProcess(const Viewport& viewport, ShaderProgramInstanc
 
   postProcessingShader->use();
   postProcessingShader->bindUniforms();
-  srcFramebuffer->colorAttachment.bind(BINDING_SAMPLER_SCREEN);
+  srcFramebuffer->colorAttachments[0].bind(BINDING_SAMPLER_SCREEN);
   mColorAttachmentSampler.value()->bind(BINDING_SAMPLER_SCREEN);
 
   glBindVertexArray(mScreenQuadVAO);
@@ -695,7 +690,7 @@ void RenderingEngine::present(const glm::uvec2 windowSize, FramebufferHandle src
   glClear(GL_COLOR_BUFFER_BIT);
 
   glUseProgram(mPostProcessCopyShaderProgram.value()->id());
-  srcFramebuffer->colorAttachment.bind(BINDING_SAMPLER_SCREEN);
+  srcFramebuffer->colorAttachments[0].bind(BINDING_SAMPLER_SCREEN);
   mColorAttachmentSampler.value()->bind(BINDING_SAMPLER_SCREEN);
   glBindVertexArray(mScreenQuadVAO);
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);

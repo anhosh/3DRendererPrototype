@@ -33,22 +33,22 @@ void FlyCamDemoBase::processKeyboard(GLFWwindow* window) {
 
   mCameraVelocity = glm::vec3(0.0f);
   if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-    mCameraVelocity += camera.speed * cameraTransform.forward();
+    mCameraVelocity += mCameraSpeed * cameraTransform.forward();
   }
   if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-    mCameraVelocity -= camera.speed * cameraTransform.forward();
+    mCameraVelocity -= mCameraSpeed * cameraTransform.forward();
   }
   if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-    mCameraVelocity -= camera.speed * glm::normalize(glm::cross(cameraTransform.forward(), cameraTransform.up()));
+    mCameraVelocity -= mCameraSpeed * glm::normalize(glm::cross(cameraTransform.forward(), cameraTransform.up()));
   }
   if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
-    mCameraVelocity += camera.speed * glm::normalize(glm::cross(cameraTransform.forward(), cameraTransform.up()));
+    mCameraVelocity += mCameraSpeed * glm::normalize(glm::cross(cameraTransform.forward(), cameraTransform.up()));
   }
   if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
-    mCameraVelocity += camera.speed * cameraTransform.up();
+    mCameraVelocity += mCameraSpeed * cameraTransform.up();
   }
   if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
-    mCameraVelocity -= camera.speed * cameraTransform.up();
+    mCameraVelocity -= mCameraSpeed * cameraTransform.up();
   }
 }
 
@@ -93,14 +93,10 @@ void FlyCamDemoBase::gui(AppState& state) {
   ZoneScoped;
   DemoBase::gui(state);
 
-  if (ImGui::CollapsingHeader("Camera")) {
+  if (ImGui::CollapsingHeader("Fly cam")) {
     ImGui::Indent();
-    CompCamera& camera = mScene.ecs.get<CompCamera>(mMainCamera);
 
-    ImGui::DragFloat("Movement speed", &camera.speed, 0.001f, 0.0f, 5.0f);
-    ImGui::DragFloat("FOV", &camera.fov, 0.1f, 10.0f, 120.0f);
-    ImGui::DragFloat("Near", &camera.near, 0.01f, 0.01f, 10.0f);
-    ImGui::DragFloat("Far", &camera.far, 0.01f, 10.0f, 1000.0f);
+    ImGui::DragFloat("Movement speed", &mCameraSpeed, 0.001f, 0.0f, 5.0f);
 
     ImGui::Unindent();
   }

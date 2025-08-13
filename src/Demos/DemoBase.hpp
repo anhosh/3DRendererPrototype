@@ -23,7 +23,7 @@ public:
 
 private:
   void guiStats(const AppState& state) const;
-  void guiDebug() const;
+  void guiDebug();
   void guiActors();
   void guiPostProcessing(const AppState& state);
 
@@ -38,5 +38,9 @@ protected:
   std::vector<ShaderProgramInstanceHandle> mPostProcessingShaderProgramInstances;
 
   std::optional<FramebufferHandle> mMainSceneFramebuffer;
+  std::vector<FramebufferHandle> mShadowMaps;
   std::vector<FramebufferHandle> mPostProcessingFramebuffers;
+
+  SceneRenderMode mSceneRenderMode = SceneRenderMode::Full;
+  bool mbDebugVisualiseVertexNormals = false;
 };

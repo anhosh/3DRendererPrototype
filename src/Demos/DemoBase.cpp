@@ -15,14 +15,19 @@ Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const
   mMainSceneFramebuffer = mRenderingEngine->addFramebuffer({
     .size = glm::uvec2(1),
     .samples = 4,
-    .colorFormat = GL_RGB16, // Remove quantisation artifacts which occur during gamma correction from RGB8.
+    .colorAttachments = {
+      ColorAttachmentInfo {
+        .internalFormat = GL_RGB16, // Remove quantisation artifacts which occur during gamma correction from RGB8.
+      },
+    },
   });
 
   const ShaderProgramInstanceHandle gammaCorrectionShader = mRenderingEngine->createShaderProgramInstance(ShaderProgramType::PostProcessGammaCorrection);
   mPostProcessingShaderProgramInstances.push_back(gammaCorrectionShader);
   mPostProcessingFramebuffers.push_back(mRenderingEngine->addFramebuffer({
     .size = glm::uvec2(1),
-    .bDepthStencil = false,
+    .colorAttachments = { ColorAttachmentInfo {} },
+    .depthStencilMode = DepthStencilMode::None,
   }));
 
   mMainCamera = mScene.ecs.create();
@@ -31,8 +36,7 @@ Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const
     .translation = glm::vec3(0.0f, 0.0f, 10.0f),
     .rotation = glm::vec3(-90.0f, 0.0f, 0.0f),
   });
-  CompCamera& mainCamera = mScene.ecs.emplace<CompCamera>(mMainCamera);
-  mainCamera.speed = 10.0f;
+  mScene.ecs.emplace<CompCamera>(mMainCamera);
 
   mScene.prepareForRendering();
 
@@ -44,6 +48,14 @@ std::vector<RenderPass> DemoBase::render() {
   passes.reserve(1 + mPostProcessingFramebuffers.size());
 
   passes.emplace_back(Viewport {}, mMainSceneFramebuffer.value(), RenderScenePass { &mScene, mMainCamera });
+
+  if (mbDebugVisualiseVertexNormals) {
+    passes.emplace_back(Viewport {}, mMainSceneFramebuffer.value(), RenderScenePass {
+      .scene = &mScene,
+      .entityCamera = mMainCamera,
+      .mode = SceneRenderMode::VertexNormals,
+    });
+  }
 
   FramebufferHandle lastFramebuffer = mMainSceneFramebuffer.value();
   size_t shaderIndex = 0;
@@ -91,7 +103,7 @@ void DemoBase::guiStats(const AppState& state) const {
   ImGui::Text("Window size: %ux%u", state.windowSize.x, state.windowSize.y);
 }
 
-void DemoBase::guiDebug() const {
+void DemoBase::guiDebug() {
   ZoneScoped;
 
   if (ImGui::CollapsingHeader("Debug")) {
@@ -103,10 +115,10 @@ void DemoBase::guiDebug() const {
       "Surface normal",
       "Surface depth",
     };
-    ImGui::Combo("Render mode", reinterpret_cast<int32_t*>(&mRenderingEngine->sceneRenderMode),
+    ImGui::Combo("Render mode", reinterpret_cast<int32_t*>(&mSceneRenderMode),
                  sceneRenderModeNames.data(), sceneRenderModeNames.size());
 
-    ImGui::Checkbox("Draw vertex normals", &mRenderingEngine->bVisualiseVertexNormals);
+    ImGui::Checkbox("Draw vertex normals", &mbDebugVisualiseVertexNormals);
 
     ImGui::Unindent();
   }
@@ -125,31 +137,23 @@ void DemoBase::guiActors() {
       if (ImGui::CollapsingHeader(name.name.c_str())) {
         ImGui::Indent();
 
-        bool bOutlined = mScene.ecs.all_of<CompOutline>(entity);
-        if (ImGui::Checkbox(("Draw outline##" + name.name).c_str(), &bOutlined)) {
-          if (bOutlined) {
-            const ShaderProgramInstanceHandle outlineShader = mRenderingEngine->createShaderProgramInstance(ShaderProgramType::Outline);
-            mScene.ecs.emplace<CompOutline>(entity, outlineShader);
-          } else {
-            mScene.ecs.erase<CompOutline>(entity);
-          }
-        }
-
-        if (CompOutline* outline = mScene.ecs.try_get<CompOutline>(entity)) {
-          ImGui::Text("Outline");
-
-          auto& outlineColor = outline->outlineShader->uniforms["uOutlineColor"].getRef<glm::vec3>();
-          ImGui::ColorPicker3(("Outline color##" + name.name).c_str(), glm::value_ptr(outlineColor));
-
-          ImGui::Spacing();
-        }
-
         if (CompTransform* transform = mScene.ecs.try_get<CompTransform>(entity)) {
           ImGui::Text("Transform");
 
           ImGui::DragFloat3(("Translation##" + name.name).c_str(), glm::value_ptr(transform->translation), 0.01f);
           ImGui::DragFloat3(("Rotation##" + name.name).c_str(), glm::value_ptr(transform->rotation), 0.01f);
           ImGui::DragFloat3(("Scale##" + name.name).c_str(), glm::value_ptr(transform->scale), 0.01f);
+
+          ImGui::Spacing();
+        }
+
+        if (CompCamera* camera = mScene.ecs.try_get<CompCamera>(entity)) {
+          ImGui::Text("Camera");
+
+          ImGui::DragFloat("FOV", &camera->fov, 0.1f, 10.0f, 120.0f);
+          ImGui::DragFloat("Near", &camera->near, 0.01f, 0.01f, 10.0f);
+          ImGui::DragFloat("Far", &camera->far, 0.01f, 10.0f, 1000.0f);
+          ImGui::Checkbox("Orthographic", &camera->bOrthographic);
 
           ImGui::Spacing();
         }
@@ -187,6 +191,24 @@ void DemoBase::guiActors() {
           ImGui::ColorPicker3(("Ambient##sl" + name.name).c_str(), glm::value_ptr(spotlight->colors.ambient), lightColorEditFlags);
           ImGui::ColorPicker3(("Diffuse##sl" + name.name).c_str(), glm::value_ptr(spotlight->colors.diffuse), lightColorEditFlags);
           ImGui::ColorPicker3(("Specular##sl" + name.name).c_str(), glm::value_ptr(spotlight->colors.specular), lightColorEditFlags);
+
+          ImGui::Spacing();
+        }
+
+        ImGui::Text("Outline");
+        bool bOutlined = mScene.ecs.all_of<CompOutline>(entity);
+        if (ImGui::Checkbox(("Draw outline##" + name.name).c_str(), &bOutlined)) {
+          if (bOutlined) {
+            const ShaderProgramInstanceHandle outlineShader = mRenderingEngine->createShaderProgramInstance(ShaderProgramType::Outline);
+            mScene.ecs.emplace<CompOutline>(entity, outlineShader);
+          } else {
+            mScene.ecs.erase<CompOutline>(entity);
+          }
+        }
+
+        if (CompOutline* outline = mScene.ecs.try_get<CompOutline>(entity)) {
+          auto& outlineColor = outline->outlineShader->uniforms["uOutlineColor"].getRef<glm::vec3>();
+          ImGui::ColorPicker3(("Outline color##" + name.name).c_str(), glm::value_ptr(outlineColor));
 
           ImGui::Spacing();
         }
@@ -267,7 +289,8 @@ void DemoBase::guiPostProcessing(const AppState& state) {
       const ShaderProgramInstanceHandle shader = mRenderingEngine->createShaderProgramInstance(ShaderProgramType::PostProcessCopy);
       const FramebufferHandle newFramebuffer = mRenderingEngine->addFramebuffer({
         .size = state.windowSize,
-        .bDepthStencil = false,
+        .colorAttachments = { ColorAttachmentInfo {} },
+        .depthStencilMode = DepthStencilMode::None,
       });
 
       mPostProcessingShaderProgramInstances.push_back(shader);

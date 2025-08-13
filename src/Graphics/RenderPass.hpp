@@ -10,9 +10,18 @@
 struct CompCamera;
 class Scene;
 
+enum class SceneRenderMode : int32_t {
+  Full,
+  SurfaceNormal,
+  SurfaceDepth,
+  Wireframe,
+  VertexNormals,
+};
+
 struct RenderScenePass {
   NotNull<Scene> scene;
   entt::entity entityCamera;
+  SceneRenderMode mode;
 };
 
 struct PostProcessingPass {

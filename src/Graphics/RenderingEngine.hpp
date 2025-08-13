@@ -5,6 +5,7 @@
 #include <Graphics/Framebuffer.hpp>
 #include <Graphics/Mesh.hpp>
 #include <Graphics/RenderData.hpp>
+#include <Graphics/RenderPass.hpp>
 #include <Graphics/Sampler.hpp>
 #include <Graphics/ShaderProgramInstance.hpp>
 #include <Graphics/Texture2D.hpp>
@@ -27,13 +28,6 @@ struct Viewport;
 
 class RenderingEngine {
 public:
-  enum class SceneRenderMode {
-    Normal,
-    Wireframe,
-    SurfaceNormal,
-    SurfaceDepth,
-  };
-
   ~RenderingEngine() { this->destroy(); }
 
   Expected<void> init();
@@ -79,15 +73,11 @@ public:
   void updateInstances(size_t first, const InstanceBuffer& instances);
 
   void submitRenderPasses(std::span<RenderPass> renderPasses);
-  void renderScene(Scene& scene, entt::entity entityCamera, const Viewport& viewport, FramebufferHandle dstFramebuffer);
-  void renderVertexNormals(Scene& scene, entt::entity entityCamera, const Viewport& viewport, FramebufferHandle dstFramebuffer);
+  void renderSceneFull(Scene& scene, entt::entity entityCamera, const Viewport& viewport, FramebufferHandle dstFramebuffer);
+  void renderSceneSimple(Scene& scene, entt::entity entityCamera, const Viewport& viewport, FramebufferHandle dstFramebuffer, SceneRenderMode mode);
   void postProcess(const Viewport& viewport, ShaderProgramInstanceHandle postProcessingShader,
                    FramebufferHandle srcFramebuffer, FramebufferHandle dstFramebuffer) const;
   void present(glm::uvec2 windowSize, FramebufferHandle srcFramebuffer) const;
-
-public:
-  SceneRenderMode sceneRenderMode = SceneRenderMode::Normal;
-  bool bVisualiseVertexNormals = false;
 
 private:
   bool mInitialised = false;
