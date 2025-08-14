@@ -40,8 +40,8 @@ Expected<Application> Application::create(const std::string_view title, const gl
   app.mState.renderingEngine = std::make_shared<RenderingEngine>();
   RETURN_ERROR_IF_UNEXPECTED(app.mState.renderingEngine->init());
 
-  // app.mState.currentDemo = std::make_unique<SpaceDemo>();
-  app.mState.currentDemo = std::make_unique<FloatingBackpackDemo>();
+  app.mState.currentDemo = std::make_unique<SpaceDemo>();
+  // app.mState.currentDemo = std::make_unique<FloatingBackpackDemo>();
   RETURN_ERROR_IF_UNEXPECTED(app.mState.currentDemo->init(app.mState.assetManager, app.mState.renderingEngine));
   FrameMarkEnd(markerName.data());
   return app;

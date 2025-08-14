@@ -52,6 +52,8 @@ std::span<const Draw> Scene::draw(entt::entity entityCamera, RenderingEngine& re
 
   // Schedule instanced draws for meshes.
   {
+    InstanceBuffer instancesData;
+    instancesData.instances.reserve(mCachedSortedMeshes.size() + mCachedSortedOutlines.size());
     ZoneScopedN("Schedule draws");
     size_t firstInstanceIndex = 0;
     size_t instanceCount = 0;
@@ -72,13 +74,13 @@ std::span<const Draw> Scene::draw(entt::entity entityCamera, RenderingEngine& re
 
         {
           ZoneScopedN("Transforms");
-          InstanceBuffer instancesData;
-          instancesData.instances.resize(instanceCount);
-          const auto rangeStart = mCachedSortedMeshes.begin() + static_cast<long>(firstInstanceIndex);
-          const auto rangeEnd = rangeStart + static_cast<long>(instanceCount);
+          const auto instancesStart = instancesData.instances.end();
+          instancesData.instances.resize(instancesData.instances.size() + instanceCount);
+          const auto meshesStart = mCachedSortedMeshes.begin() + static_cast<long>(firstInstanceIndex);
+          const auto meshesEnd = meshesStart + static_cast<long>(instanceCount);
           {
             ZoneScopedN("Create instance data");
-            std::transform(std::execution::par_unseq, rangeStart, rangeEnd, instancesData.instances.begin(),
+            std::transform(std::execution::par_unseq, meshesStart, meshesEnd, instancesStart,
               [&](const MeshDataReference& meshRef) {
                 const CompTransform& transform = ecs.get<const CompTransform>(meshRef.entity);
                 const glm::mat4 model  = transform.modelMatrix();
@@ -86,7 +88,6 @@ std::span<const Draw> Scene::draw(entt::entity entityCamera, RenderingEngine& re
                 return InstanceData(model, normal);
               });
           }
-          renderingEngine.updateInstances(firstInstanceIndex, instancesData);
         }
 
         mCachedDraws.push_back(Draw {
@@ -136,11 +137,11 @@ std::span<const Draw> Scene::draw(entt::entity entityCamera, RenderingEngine& re
 
         {
           ZoneScopedN("Transforms");
-          InstanceBuffer instancesData;
-          instancesData.instances.resize(instanceCount);
-          const auto rangeStart = mCachedSortedOutlines.begin() + static_cast<long>(firstInstanceIndex);
-          const auto rangeEnd = rangeStart + static_cast<long>(instanceCount);
-          std::transform(std::execution::par_unseq, rangeStart, rangeEnd, instancesData.instances.begin(),
+          const auto instancesStart = instancesData.instances.end();
+          instancesData.instances.resize(instancesData.instances.size() + instanceCount);
+          const auto meshesStart = mCachedSortedOutlines.begin() + static_cast<long>(firstInstanceIndex);
+          const auto meshesEnd = meshesStart + static_cast<long>(instanceCount);
+          std::transform(std::execution::par_unseq, meshesStart, meshesEnd, instancesStart,
             [&](const MeshDataReference& meshRef) {
               CompTransform outlineTransform = ecs.get<const CompTransform>(meshRef.entity);
               outlineTransform.scale *= 1.1f;
@@ -148,7 +149,6 @@ std::span<const Draw> Scene::draw(entt::entity entityCamera, RenderingEngine& re
               const glm::mat3 normal = glm::transpose(glm::inverse(model));
               return InstanceData(model, normal);
             });
-          renderingEngine.updateInstances(firstOutlineIndex + firstInstanceIndex, instancesData);
         }
 
         const CompOutline& outline = firstInstance.ecs->get<CompOutline>(firstInstance.entity);
@@ -159,13 +159,14 @@ std::span<const Draw> Scene::draw(entt::entity entityCamera, RenderingEngine& re
           .instanceCount = instanceCount,
           .bBackfaceCulling = true,
           .bStencilTest = true,
-          .bDepthTest = false,
+          .bDepthTest = true,
         });
 
         firstInstanceIndex = meshIndex;
         instanceCount = 0;
       }
     }
+    renderingEngine.updateInstances(0, instancesData);
   }
 
   return mCachedDraws;
@@ -226,8 +227,7 @@ void Scene::onOutlineComponentDestroyed(entt::registry&, const entt::entity enti
   const auto mesh = std::ranges::find_if(mCachedSortedMeshes, [=](const MeshDataReference& mesh) {
     return mesh.entity == entity;
   });
-  if (mesh != mCachedSortedMeshes.end())
-  {
+  if (mesh != mCachedSortedMeshes.end()) {
     mesh->bHasOutline = false;
   }
   auto removedOutlines = std::ranges::remove_if(mCachedSortedOutlines, [=](const MeshDataReference& mesh) {

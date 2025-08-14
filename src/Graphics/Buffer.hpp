@@ -37,6 +37,7 @@ public:
 
   [[nodiscard]] GLuint id() const { return mID; }
   [[nodiscard]] size_t size() const { return mMapped.size_bytes(); }
+  [[nodiscard]] std::span<uint8_t> data() const { return mMapped; }
 
 private:
   GLuint mID = GL_NONE;

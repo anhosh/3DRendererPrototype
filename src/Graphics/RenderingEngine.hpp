@@ -2,6 +2,7 @@
 
 #include <Assets/AssetManager.hpp>
 #include <Graphics/Buffer.hpp>
+#include <Graphics/Draw.hpp>
 #include <Graphics/Framebuffer.hpp>
 #include <Graphics/Mesh.hpp>
 #include <Graphics/RenderData.hpp>
@@ -72,15 +73,16 @@ public:
   void updateInstances(size_t first, const InstanceBuffer& instances);
 
   void submitRenderPasses(std::span<RenderPass> renderPasses);
-  void renderSceneFull(RenderScenePass& pass, const Viewport& viewport, FramebufferHandle dstFramebuffer);
-  void renderSceneSimple(RenderScenePass& pass, const Viewport& viewport, FramebufferHandle dstFramebuffer);
+  void renderSceneFull(std::span<const Draw> draws, const Viewport& viewport, FramebufferHandle dstFramebuffer, bool bClearFramebuffer = true);
+  void renderSceneSimple(std::span<const Draw> draws, const Viewport& viewport, FramebufferHandle dstFramebuffer, SceneRenderMode mode, bool bClearFramebuffer = true);
   void postProcess(const Viewport& viewport, ShaderProgramInstanceHandle postProcessingShader,
                    FramebufferHandle srcFramebuffer, FramebufferHandle dstFramebuffer) const;
   void present(glm::uvec2 windowSize, FramebufferHandle srcFramebuffer) const;
   void swapBuffers();
 
 private:
-  void updateStorageAndUniformBuffers(RenderScenePass& pass, glm::uvec2 framebufferSize);
+  void updateCameraData(Scene& scene, entt::entity entityCamera, glm::uvec2 framebufferSize);
+  void updateLightSourceData(Scene& scene);
 
 private:
   bool mInitialised = false;

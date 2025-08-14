@@ -29,7 +29,7 @@ Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const
     mScene.ecs.emplace<CompCamera>(entity, CompCamera { .bOrthographic = true });
     mScene.ecs.emplace<CompTransform>(entity);
     mShadowMaps.push_back(renderer->addFramebuffer({
-      .size = glm::uvec2(1024),
+      .size = glm::uvec2(2048),
       .samples = 1,
       .depthStencilMode = DepthStencilMode::DepthAttachment,
     }));
@@ -61,7 +61,7 @@ void DemoBase::update(double dt) {
     const glm::vec3 lightDirection = glm::normalize(light.direction);
     transform.translation = -lightDirection * 50.0f;
     transform.rotation = glm::vec3 {
-      glm::degrees(glm::atan2(lightDirection.x, lightDirection.z)),
+      glm::degrees(glm::atan2(lightDirection.z, lightDirection.x)),
       glm::degrees(glm::asin(lightDirection.y)),
       0.0f,
     };;
