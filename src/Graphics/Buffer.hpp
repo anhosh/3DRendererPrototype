@@ -4,6 +4,8 @@
 
 #include <concepts>
 #include <vector>
+#include <tracy/TracyOpenGL.hpp>
+#include <Util/Macros/Errors.hpp>
 
 class Buffer {
 public:

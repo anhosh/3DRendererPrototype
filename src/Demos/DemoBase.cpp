@@ -7,6 +7,7 @@
 #include <Scene/Components/Outline.hpp>
 
 #include <imgui.h>
+#include <Scene/Components/Graphics.hpp>
 
 Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const std::shared_ptr<RenderingEngine>& renderer) {
   mAssetManager = assets;
@@ -200,22 +201,24 @@ void DemoBase::guiActors() {
           ImGui::Spacing();
         }
 
-        ImGui::Text("Outline");
-        bool bOutlined = mScene.ecs.all_of<CompOutline>(entity);
-        if (ImGui::Checkbox(("Draw outline##" + name.name).c_str(), &bOutlined)) {
-          if (bOutlined) {
-            const ShaderProgramInstanceHandle outlineShader = mRenderingEngine->createShaderProgramInstance(ShaderProgramType::Outline);
-            mScene.ecs.emplace<CompOutline>(entity, outlineShader);
-          } else {
-            mScene.ecs.erase<CompOutline>(entity);
+        if (mScene.ecs.all_of<CompGraphics>(entity)) {
+          ImGui::Text("Outline");
+          bool bOutlined = mScene.ecs.all_of<CompOutline>(entity);
+          if (ImGui::Checkbox(("Draw outline##" + name.name).c_str(), &bOutlined)) {
+            if (bOutlined) {
+              const ShaderProgramInstanceHandle outlineShader = mRenderingEngine->createShaderProgramInstance(ShaderProgramType::Outline);
+              mScene.ecs.emplace<CompOutline>(entity, outlineShader);
+            } else {
+              mScene.ecs.erase<CompOutline>(entity);
+            }
           }
-        }
 
-        if (CompOutline* outline = mScene.ecs.try_get<CompOutline>(entity)) {
-          auto& outlineColor = outline->outlineShader->uniforms["uOutlineColor"].getRef<glm::vec3>();
-          ImGui::ColorPicker3(("Outline color##" + name.name).c_str(), glm::value_ptr(outlineColor));
+          if (CompOutline* outline = mScene.ecs.try_get<CompOutline>(entity)) {
+            auto& outlineColor = outline->outlineShader->uniforms["uOutlineColor"].getRef<glm::vec3>();
+            ImGui::ColorPicker3(("Outline color##" + name.name).c_str(), glm::value_ptr(outlineColor));
 
-          ImGui::Spacing();
+            ImGui::Spacing();
+          }
         }
 
         ImGui::Unindent();

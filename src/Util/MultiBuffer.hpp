@@ -16,8 +16,13 @@ public:
   template <typename... Ts> requires (std::same_as<T, Ts> && ...)
   explicit MultiBuffer(Ts&&... initialBuffers) : mBuffers({ initialBuffers... }) {}
 
-  [[nodiscard]] T& current() { return mBuffers[mCurrent]; }
-  [[nodiscard]] const T& current() const { return mBuffers[mCurrent]; }
+  [[nodiscard]] T& current() {
+    return mBuffers[mCurrent];
+  }
+
+  [[nodiscard]] const T& current() const {
+    return mBuffers[mCurrent];
+  }
 
   void switchToNext() {
     mCurrent = (mCurrent + 1) % N;
@@ -30,3 +35,5 @@ private:
 
 template <typename T>
 using DoubleBuffer = MultiBuffer<T, 2>;
+template <typename T>
+using TripleBuffer = MultiBuffer<T, 3>;

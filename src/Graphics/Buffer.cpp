@@ -28,8 +28,8 @@ void Buffer::allocate(const size_t size) {
   constexpr GLbitfield mappingFlags = GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
 
   glNamedBufferStorage(mID, static_cast<GLsizeiptr>(size), nullptr, GL_DYNAMIC_STORAGE_BIT | mappingFlags);
-  uint8_t* mapped = static_cast<uint8_t*>(glMapNamedBufferRange(mID, 0, size, mappingFlags));
-  mMapped = std::span(mapped, size);
+  NotNull mapped = static_cast<uint8_t*>(glMapNamedBufferRange(mID, 0, size, mappingFlags));
+  mMapped = std::span(mapped.get(), size);
 }
 
 void Buffer::reallocate(const size_t newSize) {

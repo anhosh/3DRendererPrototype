@@ -12,8 +12,6 @@
 #include <Graphics/TextureCubeMap.hpp>
 #include <Util/Registry.hpp>
 
-#include <entt/entity/entity.hpp>
-
 #include <optional>
 #include <unordered_map>
 #include <unordered_set>
@@ -80,7 +78,9 @@ public:
   void present(glm::uvec2 windowSize, FramebufferHandle srcFramebuffer) const;
 
 private:
+  void waitForBuffers() const;
   void updateStorageAndUniformBuffers(RenderScenePass& pass, glm::uvec2 framebufferSize);
+  void lockBuffers();
 
 private:
   bool mInitialised = false;
@@ -96,6 +96,8 @@ private:
 
   GLuint mMeshesVAO = GL_NONE;
   GLuint mScreenQuadVAO = GL_NONE;
+
+  GLsync mBuffersFence = GL_NONE;
 
   std::optional<ShaderProgramHandle> mLitSurfaceShaderProgram = std::nullopt;
   std::optional<ShaderProgramHandle> mLitExplodedShaderProgram = std::nullopt;

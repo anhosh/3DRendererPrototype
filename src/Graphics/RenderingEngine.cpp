@@ -389,11 +389,13 @@ void RenderingEngine::submitRenderPasses(const std::span<RenderPass> renderPasse
 
   for (auto& [viewport, dstFramebuffer, pass] : renderPasses) {
     if (auto* renderScenePass = std::get_if<RenderScenePass>(&pass)) {
+      this->waitForBuffers();
       if (renderScenePass->mode == SceneRenderMode::Full) {
         this->renderSceneFull(*renderScenePass, viewport, dstFramebuffer);
       } else {
         this->renderSceneSimple(*renderScenePass, viewport, dstFramebuffer);
       }
+      this->lockBuffers();
     } else if (const auto* postProcessingPass = std::get_if<PostProcessingPass>(&pass)) {
       this->postProcess(viewport, postProcessingPass->postProcessingShader, postProcessingPass->srcFramebuffer, dstFramebuffer);
     }
@@ -672,7 +674,27 @@ void RenderingEngine::present(const glm::uvec2 windowSize, FramebufferHandle src
   glBindTexture(GL_TEXTURE_2D, GL_NONE);
 }
 
+void RenderingEngine::waitForBuffers() const {
+  ZoneScoped;
+
+  if (mBuffersFence != GL_NONE) {
+    GLenum waitResult = GL_UNSIGNALED;
+    while (waitResult != GL_ALREADY_SIGNALED && waitResult != GL_CONDITION_SATISFIED) {
+      waitResult = glClientWaitSync(mBuffersFence, GL_SYNC_FLUSH_COMMANDS_BIT, 1);
+    }
+  }
+}
+
+void RenderingEngine::lockBuffers() {
+  ZoneScoped;
+
+  glDeleteSync(mBuffersFence);
+  mBuffersFence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+}
+
 void RenderingEngine::updateStorageAndUniformBuffers(RenderScenePass& pass, const glm::uvec2 framebufferSize) {
+  ZoneScoped;
+
   const auto [camera, cameraTransform] = pass.scene->ecs.get<const CompCamera, const CompTransform>(pass.entityCamera);
   const CameraUniforms cameraUniformData = CameraUniforms::from(camera, cameraTransform, framebufferSize);
   mCameraUniformBuffer.value()->write(cameraUniformData);
@@ -707,5 +729,4 @@ void RenderingEngine::updateStorageAndUniformBuffers(RenderScenePass& pass, cons
   updateLights.operator()<CompSpotlight>(mSpotlightsStorageBuffer.value(),
                                          BINDING_SSBO_SPOTLIGHTS,
                                          [&] { return pass.scene->createSpotlightUniforms(); });
-
 }
