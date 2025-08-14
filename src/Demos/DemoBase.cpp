@@ -64,7 +64,14 @@ void DemoBase::update(double dt) {
       glm::degrees(glm::atan2(lightDirection.z, lightDirection.x)),
       glm::degrees(glm::asin(lightDirection.y)),
       0.0f,
-    };;
+    };
+    if (CompGraphics* graphics = mScene.ecs.try_get<CompGraphics>(entity)) {
+      for (RenderData& renderData : graphics->renderData) {
+        if (renderData.shaderProgramInstance->type() == ShaderProgramType::Light) {
+          renderData.shaderProgramInstance->uniforms["uLightColor"] = light.colors.diffuse;
+        }
+      }
+    }
   }
 }
 

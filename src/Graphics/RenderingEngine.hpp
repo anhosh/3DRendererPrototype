@@ -81,8 +81,8 @@ public:
   void swapBuffers();
 
 private:
-  void updateCameraData(Scene& scene, entt::entity entityCamera, glm::uvec2 framebufferSize);
-  void updateLightSourceData(Scene& scene);
+  void updateCameraData(const Scene& scene, entt::entity entityCamera, glm::uvec2 framebufferSize);
+  void updateLightSourceData(const Scene& scene);
 
 private:
   bool mInitialised = false;

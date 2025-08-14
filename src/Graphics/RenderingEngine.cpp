@@ -710,7 +710,7 @@ void RenderingEngine::swapBuffers() {
   mInstanceBuffer->switchToNext();
 }
 
-void RenderingEngine::updateCameraData(Scene& scene, entt::entity entityCamera, const glm::uvec2 framebufferSize) {
+void RenderingEngine::updateCameraData(const Scene& scene, const entt::entity entityCamera, const glm::uvec2 framebufferSize) {
   ZoneScoped;
 
   assert(mInitialised);
@@ -721,7 +721,7 @@ void RenderingEngine::updateCameraData(Scene& scene, entt::entity entityCamera, 
   mCameraUniformBuffer->current()->bindWhole(BINDING_UBO_CAMERA);
 }
 
-void RenderingEngine::updateLightSourceData(Scene& scene) {
+void RenderingEngine::updateLightSourceData(const Scene& scene) {
   ZoneScoped;
 
   assert(mInitialised);
@@ -735,15 +735,6 @@ void RenderingEngine::updateLightSourceData(Scene& scene) {
     const auto lightUniformData = getLightUniformData();
     storageBuffer->write(lightUniformData);
     storageBuffer->bindWhole(bindPoint);
-    for (auto [entity, light] : lights.each()) {
-      if (CompGraphics* graphics = scene.ecs.try_get<CompGraphics>(entity)) {
-        for (RenderData& renderData : graphics->renderData) {
-          if (renderData.shaderProgramInstance->type() == ShaderProgramType::Light) {
-            renderData.shaderProgramInstance->uniforms["uLightColor"] = light.colors.diffuse;
-          }
-        }
-      }
-    }
   };
 
   updateLights.operator()<CompDirectionalLight>(mDirectionalLightsStorageBuffer->current(),
