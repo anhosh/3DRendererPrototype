@@ -5,8 +5,8 @@
 
 glm::mat4 CompCamera::projection(const glm::uvec2 screenSize) const {
   if (bOrthographic) {
-    return glm::ortho(0.0f, 0.0f,
-                      static_cast<float>(screenSize.x), static_cast<float>(screenSize.y),
+    return glm::ortho(-0.01f * static_cast<float>(screenSize.x), 0.01f * static_cast<float>(screenSize.x),
+                      -0.01f * static_cast<float>(screenSize.y), 0.01f * static_cast<float>(screenSize.y),
                       near, far);
   }
   return glm::perspective(glm::radians(fov),

@@ -42,6 +42,7 @@ public:
   void unbind() const;
 
   [[nodiscard]] glm::uvec2 size() const { return mInfo.size; }
+  [[nodiscard]] DepthStencilMode depthStencilMode() const { return mInfo.depthStencilMode; }
 
 public:
   std::vector<Texture2D> colorAttachments;

@@ -80,6 +80,8 @@ void FlyCamDemoBase::processMouse(const glm::vec2 mousePosition) {
 void FlyCamDemoBase::update(const double dt) {
   auto [camera, cameraTransform] = mScene.ecs.get<CompCamera, CompTransform>(mMainCamera);
   cameraTransform.translation += mCameraVelocity * static_cast<float>(dt);
+
+  DemoBase::update(dt);
 }
 
 void FlyCamDemoBase::onWindowResize(GLFWwindow* window, const glm::uvec2 newSize) {

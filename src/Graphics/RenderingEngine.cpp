@@ -25,6 +25,7 @@
 Expected<void> RenderingEngine::init() {
   ZoneScoped;
 
+  Expected noColor           = this->createShaderProgram({.vertex = "positionOnly.vert",  .fragment = "noColor.frag"});
   Expected litSurface        = this->createShaderProgram({.vertex = "clipSpace.vert",  .fragment = "litSurface.frag"});
   Expected litExploded       = this->createShaderProgram({.vertex = "worldSpace.vert", .geometry = "explode.geom", .fragment = "litSurface.frag"});
   Expected light             = this->createShaderProgram({.vertex = "clipSpace.vert",  .fragment = "light.frag"});
@@ -43,6 +44,7 @@ Expected<void> RenderingEngine::init() {
   Expected kernel3x3         = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/kernel3x3.frag"});
   Expected skybox            = this->createShaderProgram({.vertex = "skybox.vert",     .fragment = "skybox.frag"});
 
+  ASSIGN_EXPECTED_OR_RETURN(mNoColorShaderProgram, noColor);
   ASSIGN_EXPECTED_OR_RETURN(mLitSurfaceShaderProgram, litSurface);
   ASSIGN_EXPECTED_OR_RETURN(mLitExplodedShaderProgram, litExploded);
   ASSIGN_EXPECTED_OR_RETURN(mLightShaderProgram, light);
@@ -71,13 +73,23 @@ Expected<void> RenderingEngine::init() {
   mEmissionTextureSampler = this->addSampler(SamplerOptions {});
   mEnvironmentTextureSampler = this->addSampler(SamplerOptions {});
 
-  mCameraUniformBuffer.emplace(this->createBuffer(GL_UNIFORM_BUFFER));
-  mCameraUniformBuffer.value()->allocate(sizeof(CameraUniforms));
+  mCameraUniformBuffer.emplace(this->createBuffer(GL_UNIFORM_BUFFER),
+                               this->createBuffer(GL_UNIFORM_BUFFER),
+                               this->createBuffer(GL_UNIFORM_BUFFER));
+  mCameraUniformBuffer->current()->allocate(sizeof(CameraUniforms));
 
-  mDirectionalLightsStorageBuffer.emplace(this->createBuffer(GL_SHADER_STORAGE_BUFFER));
-  mPointLightsStorageBuffer.emplace(this->createBuffer(GL_SHADER_STORAGE_BUFFER));
-  mSpotlightsStorageBuffer.emplace(this->createBuffer(GL_SHADER_STORAGE_BUFFER));
-  mInstanceBuffer.emplace(this->createBuffer(GL_SHADER_STORAGE_BUFFER));
+  mDirectionalLightsStorageBuffer.emplace(this->createBuffer(GL_SHADER_STORAGE_BUFFER),
+                                          this->createBuffer(GL_SHADER_STORAGE_BUFFER),
+                                          this->createBuffer(GL_SHADER_STORAGE_BUFFER));
+  mPointLightsStorageBuffer.emplace(this->createBuffer(GL_SHADER_STORAGE_BUFFER),
+                                    this->createBuffer(GL_SHADER_STORAGE_BUFFER),
+                                    this->createBuffer(GL_SHADER_STORAGE_BUFFER));
+  mSpotlightsStorageBuffer.emplace(this->createBuffer(GL_SHADER_STORAGE_BUFFER),
+                                   this->createBuffer(GL_SHADER_STORAGE_BUFFER),
+                                   this->createBuffer(GL_SHADER_STORAGE_BUFFER));
+  mInstanceBuffer.emplace(this->createBuffer(GL_SHADER_STORAGE_BUFFER),
+                          this->createBuffer(GL_SHADER_STORAGE_BUFFER),
+                          this->createBuffer(GL_SHADER_STORAGE_BUFFER));
 
   mInitialised = true;
   return {};
@@ -379,7 +391,7 @@ void RenderingEngine::updateInstances(const size_t first, const InstanceBuffer& 
 
   assert(mInitialised);
 
-  mInstanceBuffer.value()->write(instances, first * sizeof(InstanceData));
+  mInstanceBuffer->current()->write(instances, first * sizeof(InstanceData));
 }
 
 void RenderingEngine::submitRenderPasses(const std::span<RenderPass> renderPasses) {
@@ -389,17 +401,17 @@ void RenderingEngine::submitRenderPasses(const std::span<RenderPass> renderPasse
 
   for (auto& [viewport, dstFramebuffer, pass] : renderPasses) {
     if (auto* renderScenePass = std::get_if<RenderScenePass>(&pass)) {
-      this->waitForBuffers();
       if (renderScenePass->mode == SceneRenderMode::Full) {
         this->renderSceneFull(*renderScenePass, viewport, dstFramebuffer);
       } else {
         this->renderSceneSimple(*renderScenePass, viewport, dstFramebuffer);
       }
-      this->lockBuffers();
     } else if (const auto* postProcessingPass = std::get_if<PostProcessingPass>(&pass)) {
       this->postProcess(viewport, postProcessingPass->postProcessingShader, postProcessingPass->srcFramebuffer, dstFramebuffer);
     }
   }
+
+  this->swapBuffers();
 }
 
 void RenderingEngine::renderSceneFull(RenderScenePass& pass, const Viewport& viewport, FramebufferHandle dstFramebuffer) {
@@ -445,7 +457,7 @@ void RenderingEngine::renderSceneFull(RenderScenePass& pass, const Viewport& vie
   for (size_t drawIdx = 0; drawIdx < draws.size(); drawIdx++) {
     const Draw* currDraw = &draws[drawIdx];
 
-    mInstanceBuffer.value()->bindRange(BINDING_SSBO_INSTANCES,
+    mInstanceBuffer->current()->bindRange(BINDING_SSBO_INSTANCES,
                                        currDraw->instanceOffset * sizeof(InstanceData),
                                        currDraw->instanceCount * sizeof(InstanceData));
 
@@ -548,10 +560,11 @@ void RenderingEngine::renderSceneSimple(RenderScenePass& pass, const Viewport& v
   glViewport(viewportPositionPx.x, viewportPositionPx.y, viewportSizePx.x, viewportSizePx.y);
 
   glEnable(GL_DEPTH_TEST);
+  glDisable(GL_STENCIL_TEST);
 
   if (pass.bClearFramebuffer) {
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   }
 
   const std::span<const Draw> draws = pass.scene->draw(pass.entityCamera, *this);
@@ -567,6 +580,12 @@ void RenderingEngine::renderSceneSimple(RenderScenePass& pass, const Viewport& v
     case SceneRenderMode::Full:
       UNREACHABLE();
 
+    case SceneRenderMode::Wireframe:
+      glUseProgram(mLightShaderProgram.value()->id());
+      glUniform3f(4, 1.0f, 1.0f, 1.0f);
+      glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+      break;
+
     case SceneRenderMode::SurfaceDepth:
       glUseProgram(mSurfaceDepthShaderProgram.value()->id());
       break;
@@ -575,10 +594,8 @@ void RenderingEngine::renderSceneSimple(RenderScenePass& pass, const Viewport& v
       glUseProgram(mSurfaceNormalShaderProgram.value()->id());
       break;
 
-    case SceneRenderMode::Wireframe:
-      glUseProgram(mLightShaderProgram.value()->id());
-      glUniform3f(4, 1.0f, 1.0f, 1.0f);
-      glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    case SceneRenderMode::NoColor:
+      glUseProgram(mNoColorShaderProgram.value()->id());
       break;
 
     case SceneRenderMode::VertexNormals:
@@ -588,7 +605,7 @@ void RenderingEngine::renderSceneSimple(RenderScenePass& pass, const Viewport& v
 
   for (const Draw& currDraw : draws) {
     if (!currDraw.bSkybox) {
-      mInstanceBuffer.value()->bindRange(BINDING_SSBO_INSTANCES,
+      mInstanceBuffer->current()->bindRange(BINDING_SSBO_INSTANCES,
                                          currDraw.instanceOffset * sizeof(InstanceData),
                                          currDraw.instanceCount * sizeof(InstanceData));
       currDraw.mesh->bind();
@@ -674,31 +691,27 @@ void RenderingEngine::present(const glm::uvec2 windowSize, FramebufferHandle src
   glBindTexture(GL_TEXTURE_2D, GL_NONE);
 }
 
-void RenderingEngine::waitForBuffers() const {
+void RenderingEngine::swapBuffers() {
   ZoneScoped;
 
-  if (mBuffersFence != GL_NONE) {
-    GLenum waitResult = GL_UNSIGNALED;
-    while (waitResult != GL_ALREADY_SIGNALED && waitResult != GL_CONDITION_SATISFIED) {
-      waitResult = glClientWaitSync(mBuffersFence, GL_SYNC_FLUSH_COMMANDS_BIT, 1);
-    }
-  }
-}
+  assert(mInitialised);
 
-void RenderingEngine::lockBuffers() {
-  ZoneScoped;
-
-  glDeleteSync(mBuffersFence);
-  mBuffersFence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+  mCameraUniformBuffer->switchToNext();
+  mDirectionalLightsStorageBuffer->switchToNext();
+  mPointLightsStorageBuffer->switchToNext();
+  mSpotlightsStorageBuffer->switchToNext();
+  mInstanceBuffer->switchToNext();
 }
 
 void RenderingEngine::updateStorageAndUniformBuffers(RenderScenePass& pass, const glm::uvec2 framebufferSize) {
   ZoneScoped;
 
+  assert(mInitialised);
+
   const auto [camera, cameraTransform] = pass.scene->ecs.get<const CompCamera, const CompTransform>(pass.entityCamera);
   const CameraUniforms cameraUniformData = CameraUniforms::from(camera, cameraTransform, framebufferSize);
-  mCameraUniformBuffer.value()->write(cameraUniformData);
-  mCameraUniformBuffer.value()->bindWhole(BINDING_UBO_CAMERA);
+  mCameraUniformBuffer->current()->write(cameraUniformData);
+  mCameraUniformBuffer->current()->bindWhole(BINDING_UBO_CAMERA);
 
   const auto updateLights = [&pass]<typename CompLight>(BufferHandle storageBuffer, const uint32_t bindPoint, const auto getLightUniformData) {
     const entt::basic_view lights = pass.scene->ecs.view<const CompLight>();
@@ -720,13 +733,13 @@ void RenderingEngine::updateStorageAndUniformBuffers(RenderScenePass& pass, cons
     }
   };
 
-  updateLights.operator()<CompDirectionalLight>(mDirectionalLightsStorageBuffer.value(),
+  updateLights.operator()<CompDirectionalLight>(mDirectionalLightsStorageBuffer->current(),
                                                 BINDING_SSBO_DIRECTIONAL_LIGHTS,
                                                 [&] { return pass.scene->createDirectionalLightUniforms(); });
-  updateLights.operator()<CompPointLight>(mPointLightsStorageBuffer.value(),
+  updateLights.operator()<CompPointLight>(mPointLightsStorageBuffer->current(),
                                           BINDING_SSBO_POINT_LIGHTS,
                                           [&] { return pass.scene->createPointLightUniforms(); });
-  updateLights.operator()<CompSpotlight>(mSpotlightsStorageBuffer.value(),
+  updateLights.operator()<CompSpotlight>(mSpotlightsStorageBuffer->current(),
                                          BINDING_SSBO_SPOTLIGHTS,
                                          [&] { return pass.scene->createSpotlightUniforms(); });
 }

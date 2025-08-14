@@ -15,6 +15,7 @@ enum class SceneRenderMode : int32_t {
   Wireframe,
   SurfaceNormal,
   SurfaceDepth,
+  NoColor,
   VertexNormals,
 };
 

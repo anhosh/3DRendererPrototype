@@ -10,6 +10,7 @@
 #include <Graphics/ShaderProgramInstance.hpp>
 #include <Graphics/Texture2D.hpp>
 #include <Graphics/TextureCubeMap.hpp>
+#include <Util/MultiBuffer.hpp>
 #include <Util/Registry.hpp>
 
 #include <optional>
@@ -76,11 +77,10 @@ public:
   void postProcess(const Viewport& viewport, ShaderProgramInstanceHandle postProcessingShader,
                    FramebufferHandle srcFramebuffer, FramebufferHandle dstFramebuffer) const;
   void present(glm::uvec2 windowSize, FramebufferHandle srcFramebuffer) const;
+  void swapBuffers();
 
 private:
-  void waitForBuffers() const;
   void updateStorageAndUniformBuffers(RenderScenePass& pass, glm::uvec2 framebufferSize);
-  void lockBuffers();
 
 private:
   bool mInitialised = false;
@@ -99,6 +99,7 @@ private:
 
   GLsync mBuffersFence = GL_NONE;
 
+  std::optional<ShaderProgramHandle> mNoColorShaderProgram = std::nullopt;
   std::optional<ShaderProgramHandle> mLitSurfaceShaderProgram = std::nullopt;
   std::optional<ShaderProgramHandle> mLitExplodedShaderProgram = std::nullopt;
   std::optional<ShaderProgramHandle> mLightShaderProgram = std::nullopt;
@@ -123,11 +124,11 @@ private:
   std::optional<SamplerHandle> mEmissionTextureSampler = std::nullopt;
   std::optional<SamplerHandle> mEnvironmentTextureSampler = std::nullopt;
 
-  std::optional<BufferHandle> mCameraUniformBuffer = std::nullopt;
-  std::optional<BufferHandle> mDirectionalLightsStorageBuffer = std::nullopt;
-  std::optional<BufferHandle> mPointLightsStorageBuffer = std::nullopt;
-  std::optional<BufferHandle> mSpotlightsStorageBuffer = std::nullopt;
-  std::optional<BufferHandle> mInstanceBuffer = std::nullopt;
+  std::optional<TripleBuffer<BufferHandle>> mCameraUniformBuffer = std::nullopt;
+  std::optional<TripleBuffer<BufferHandle>> mDirectionalLightsStorageBuffer = std::nullopt;
+  std::optional<TripleBuffer<BufferHandle>> mPointLightsStorageBuffer = std::nullopt;
+  std::optional<TripleBuffer<BufferHandle>> mSpotlightsStorageBuffer = std::nullopt;
+  std::optional<TripleBuffer<BufferHandle>> mInstanceBuffer = std::nullopt;
 
   std::unordered_map<RegItemID, Texture2DHandle> mUploadedTextures;
   std::unordered_map<RegItemID, std::vector<RenderData>> mUploadedModels;

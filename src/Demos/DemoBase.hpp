@@ -13,7 +13,7 @@ public:
   virtual Expected<void> init(const std::shared_ptr<AssetManager>& assets, const std::shared_ptr<RenderingEngine>& renderer);
   virtual void processKeyboard(GLFWwindow* window) = 0;
   virtual void processMouse(glm::vec2 mousePosition) = 0;
-  virtual void update(double dt) = 0;
+  virtual void update(double dt);
   [[nodiscard]] virtual std::vector<RenderPass> render();
 
   virtual void onWindowResize(GLFWwindow* window, glm::uvec2 newSize);

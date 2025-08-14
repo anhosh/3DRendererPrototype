@@ -9,6 +9,8 @@
 #include <imgui.h>
 #include <Scene/Components/Graphics.hpp>
 
+#include <glm/gtx/compatibility.hpp>
+
 Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const std::shared_ptr<RenderingEngine>& renderer) {
   mAssetManager = assets;
   mRenderingEngine = renderer;
@@ -22,6 +24,16 @@ Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const
       },
     },
   });
+
+  for (const auto [entity, light] : mScene.ecs.view<CompDirectionalLight>().each()) {
+    mScene.ecs.emplace<CompCamera>(entity, CompCamera { .bOrthographic = true });
+    mScene.ecs.emplace<CompTransform>(entity);
+    mShadowMaps.push_back(renderer->addFramebuffer({
+      .size = glm::uvec2(1024),
+      .samples = 1,
+      .depthStencilMode = DepthStencilMode::DepthAttachment,
+    }));
+  }
 
   const ShaderProgramInstanceHandle gammaCorrectionShader = mRenderingEngine->createShaderProgramInstance(ShaderProgramType::PostProcessGammaCorrection);
   mPostProcessingShaderProgramInstances.push_back(gammaCorrectionShader);
@@ -44,9 +56,33 @@ Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const
   return {};
 }
 
+void DemoBase::update(double dt) {
+  for (auto [entity, transform, light] : mScene.ecs.view<CompTransform, CompDirectionalLight>().each()) {
+    const glm::vec3 lightDirection = glm::normalize(light.direction);
+    transform.translation = -lightDirection * 50.0f;
+    transform.rotation = glm::vec3 {
+      glm::degrees(glm::atan2(lightDirection.x, lightDirection.z)),
+      glm::degrees(glm::asin(lightDirection.y)),
+      0.0f,
+    };;
+  }
+}
+
 std::vector<RenderPass> DemoBase::render() {
   std::vector<RenderPass> passes;
-  passes.reserve(1 + mPostProcessingFramebuffers.size());
+  passes.reserve(mShadowMaps.size() +
+                  1 + // mMainSceneFramebuffer
+                  static_cast<size_t>(mbDebugVisualiseVertexNormals)
+                  + mPostProcessingFramebuffers.size());
+
+  for (size_t shadowMapIndex = 0; const auto [entity, light, camera] : mScene.ecs.view<CompDirectionalLight, CompCamera>().each()) {
+    passes.emplace_back(Viewport {}, mShadowMaps[shadowMapIndex], RenderScenePass {
+      .scene = &mScene,
+      .entityCamera = entity,
+      .mode = SceneRenderMode::NoColor,
+    });
+    ++shadowMapIndex;
+  }
 
   passes.emplace_back(Viewport {}, mMainSceneFramebuffer.value(), RenderScenePass {
     .scene = &mScene,
@@ -150,7 +186,7 @@ void DemoBase::guiActors() {
           ImGui::DragFloat3(("Rotation##" + name.name).c_str(), glm::value_ptr(transform->rotation), 0.01f);
           ImGui::DragFloat3(("Scale##" + name.name).c_str(), glm::value_ptr(transform->scale), 0.01f);
 
-          ImGui::Spacing();
+          ImGui::Separator();
         }
 
         if (CompCamera* camera = mScene.ecs.try_get<CompCamera>(entity)) {
@@ -161,7 +197,7 @@ void DemoBase::guiActors() {
           ImGui::DragFloat("Far", &camera->far, 0.01f, 10.0f, 1000.0f);
           ImGui::Checkbox("Orthographic", &camera->bOrthographic);
 
-          ImGui::Spacing();
+          ImGui::Separator();
         }
 
         if (CompDirectionalLight* directionalLight = mScene.ecs.try_get<CompDirectionalLight>(entity)) {
@@ -172,7 +208,7 @@ void DemoBase::guiActors() {
           ImGui::ColorPicker3(("Diffuse##dl" + name.name).c_str(), glm::value_ptr(directionalLight->colors.diffuse), lightColorEditFlags);
           ImGui::ColorPicker3(("Specular##dl" + name.name).c_str(), glm::value_ptr(directionalLight->colors.specular), lightColorEditFlags);
 
-          ImGui::Spacing();
+          ImGui::Separator();
         }
 
         if (CompPointLight* pointLight = mScene.ecs.try_get<CompPointLight>(entity)) {
@@ -185,7 +221,7 @@ void DemoBase::guiActors() {
           ImGui::ColorPicker3(("Diffuse##pl" + name.name).c_str(), glm::value_ptr(pointLight->colors.diffuse), lightColorEditFlags);
           ImGui::ColorPicker3(("Specular##pl" + name.name).c_str(), glm::value_ptr(pointLight->colors.specular), lightColorEditFlags);
 
-          ImGui::Spacing();
+          ImGui::Separator();
         }
 
         if (CompSpotlight* spotlight = mScene.ecs.try_get<CompSpotlight>(entity)) {
@@ -198,7 +234,7 @@ void DemoBase::guiActors() {
           ImGui::ColorPicker3(("Diffuse##sl" + name.name).c_str(), glm::value_ptr(spotlight->colors.diffuse), lightColorEditFlags);
           ImGui::ColorPicker3(("Specular##sl" + name.name).c_str(), glm::value_ptr(spotlight->colors.specular), lightColorEditFlags);
 
-          ImGui::Spacing();
+          ImGui::Separator();
         }
 
         if (mScene.ecs.all_of<CompGraphics>(entity)) {
@@ -216,9 +252,8 @@ void DemoBase::guiActors() {
           if (CompOutline* outline = mScene.ecs.try_get<CompOutline>(entity)) {
             auto& outlineColor = outline->outlineShader->uniforms["uOutlineColor"].getRef<glm::vec3>();
             ImGui::ColorPicker3(("Outline color##" + name.name).c_str(), glm::value_ptr(outlineColor));
-
-            ImGui::Spacing();
           }
+          ImGui::Separator();
         }
 
         ImGui::Unindent();

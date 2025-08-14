@@ -60,7 +60,7 @@ Expected<void> FloatingBackpackDemo::init(const std::shared_ptr<AssetManager>& a
       .diffuse = glm::vec3(1.0f),
       .specular = glm::vec3(2.0f),
     },
-    .direction = glm::vec3(0.3f, -1.0f, -0.3f),
+    .direction = glm::vec3(0.166f, -0.2f, 0.161f),
   });
 
   const entt::entity entityBackpack = mScene.ecs.create();
