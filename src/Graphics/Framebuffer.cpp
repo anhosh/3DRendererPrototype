@@ -1,3 +1,4 @@
+#include <ranges>
 #include <Graphics/Framebuffer.hpp>
 
 #include <Util/Macros/Errors.hpp>
@@ -19,11 +20,10 @@ void Framebuffer::init() {
   glCreateFramebuffers(1, &mFBO);
 
   colorAttachments.resize(mInfo.colorAttachments.size());
-  for (uint32_t i = 0; Texture2D& colorAttachment : colorAttachments) {
+  for (auto [i, colorAttachment] : colorAttachments | std::views::enumerate) {
     colorAttachment.init();
     colorAttachment.allocate(mInfo.size, mInfo.colorAttachments[i].internalFormat);
     glNamedFramebufferTexture(mFBO, GL_COLOR_ATTACHMENT0 + i, colorAttachment.id(), 0);
-    ++i;
   }
 
   switch (mInfo.depthStencilMode) {
@@ -81,12 +81,11 @@ void Framebuffer::initMultisampled() {
 
   glCreateFramebuffers(1, &mMultisampledFBO);
   mMultisampledColorAttachments.resize(mInfo.colorAttachments.size());
-  for (uint32_t i = 0; GLuint colorAttachment : mMultisampledColorAttachments) {
+  for (auto [i, colorAttachment] : mMultisampledColorAttachments | std::views::enumerate) {
     glCreateTextures(GL_TEXTURE_2D_MULTISAMPLE, 1, &colorAttachment);
     glTextureStorage2DMultisample(colorAttachment, static_cast<GLsizei>(mInfo.samples), mInfo.colorAttachments[i].internalFormat,
                                   static_cast<GLint>(mInfo.size.x), static_cast<GLint>(mInfo.size.y), GL_TRUE);
     glNamedFramebufferTexture(mMultisampledFBO, GL_COLOR_ATTACHMENT0 + i, colorAttachment, 0);
-    ++i;
   }
 
   switch (mInfo.depthStencilMode) {

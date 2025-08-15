@@ -23,16 +23,16 @@ Scene::Scene() {
 }
 
 void Scene::destroy() {
-  mCachedSortedMeshes.clear();
+  mCachedSortedOpaqueMeshes.clear();
   mCachedSortedOutlines.clear();
   mCachedDraws.clear();
 }
 
 void Scene::prepareForRendering() {
-  ZoneScopedN("Segregate meshes");
+  ZoneScoped;
   {
     ZoneScopedN("Collect");
-    mCachedSortedMeshes.clear();
+    mCachedSortedOpaqueMeshes.clear();
     mCachedSortedTransparentMeshes.clear();
     mCachedSortedOutlines.clear();
     for (const auto [entity, graphics] : ecs.view<CompGraphics>().each()) {
@@ -41,7 +41,7 @@ void Scene::prepareForRendering() {
         if (mesh.renderData().renderOptions.bTransparent) {
           mCachedSortedTransparentMeshes.push_back(mesh);
         } else {
-          mCachedSortedMeshes.push_back(mesh);
+          mCachedSortedOpaqueMeshes.push_back(mesh);
         }
         if (ecs.all_of<CompOutline>(entity)) {
           mesh.bHasOutline = true;
@@ -50,6 +50,7 @@ void Scene::prepareForRendering() {
       }
     }
   }
+  this->sortMeshes();
   this->sortOutlines();
 }
 
@@ -97,7 +98,7 @@ std::span<const Draw> Scene::draw(const entt::entity entityCamera, RenderingEngi
 
   mCachedDraws.clear();
 
-  if (mCachedSortedMeshes.empty() && mCachedSortedTransparentMeshes.empty()) {
+  if (mCachedSortedOpaqueMeshes.empty() && mCachedSortedTransparentMeshes.empty()) {
     return mCachedDraws;
   }
 
@@ -107,11 +108,11 @@ std::span<const Draw> Scene::draw(const entt::entity entityCamera, RenderingEngi
   {
     ZoneScopedN("Schedule draws");
     InstanceBuffer instancesData;
-    instancesData.instances.reserve(mCachedSortedMeshes.size() + mCachedSortedOutlines.size());
+    instancesData.instances.reserve(mCachedSortedOpaqueMeshes.size() + mCachedSortedOutlines.size());
 
     {
       ZoneScopedN("Opaque meshes");
-      this->drawMeshes(mCachedSortedMeshes, instancesData);
+      this->drawMeshes(mCachedSortedOpaqueMeshes, instancesData);
     }
     {
       ZoneScopedN("Transparent meshes");
@@ -131,7 +132,7 @@ std::span<const Draw> Scene::draw(const entt::entity entityCamera, RenderingEngi
 
     {
       ZoneScopedN("Outlines");
-      const size_t firstOutlineIndex = mCachedSortedMeshes.size();
+      const size_t firstOutlineIndex = mCachedSortedOpaqueMeshes.size();
       size_t firstInstanceIndex = 0;
       size_t instanceCount = 0;
       for (size_t meshIndex = 1; meshIndex <= mCachedSortedOutlines.size(); ++meshIndex) {
@@ -194,8 +195,8 @@ void Scene::drawMeshes(const std::span<const MeshDataReference> meshes, Instance
 
     ++instanceCount;
     if (meshIndex < meshes.size() &&
-        (meshIndex == firstInstanceIndex || (firstInstanceRD == meshes[meshIndex].renderData() &&
-                                             firstInstance.bHasOutline == meshes[meshIndex].bHasOutline)))
+        (meshIndex == firstInstanceIndex ||
+         (firstInstance.bHasOutline == meshes[meshIndex].bHasOutline && firstInstanceRD == meshes[meshIndex].renderData())))
     {
       continue;
     }
@@ -237,49 +238,48 @@ void Scene::drawMeshes(const std::span<const MeshDataReference> meshes, Instance
 }
 
 void Scene::sortMeshes() {
-  ZoneScopedN("Sort meshes");
+  ZoneScoped;
 
-  std::sort(std::execution::par_unseq, mCachedSortedMeshes.begin(), mCachedSortedMeshes.end(),
-            [&](const MeshDataReference& a, const MeshDataReference& b) {
-              ZoneScopedN("Compare meshes");
-
-              const RenderData& rdA = a.renderData();
-              const RenderData& rdB = b.renderData();
-              return rdA.shaderProgramInstance.itemID() < rdB.shaderProgramInstance.itemID() ||
-                     rdA.mesh.itemID() < rdB.mesh.itemID();
-            });
+  std::sort(std::execution::par_unseq, mCachedSortedOpaqueMeshes.begin(), mCachedSortedOpaqueMeshes.end(),
+    [&](const MeshDataReference& a, const MeshDataReference& b) {
+      ZoneScopedN("Compare");
+      const RenderData& rdA = a.renderData();
+      const RenderData& rdB = b.renderData();
+      return rdA.shaderProgramInstance.itemID() < rdB.shaderProgramInstance.itemID() ||
+             rdA.mesh.itemID() < rdB.mesh.itemID();
+    });
 }
 
 void Scene::sortTransparentMeshes(const entt::entity entityCamera) {
-  ZoneScopedN("Sort transparent meshes");
-  std::sort(std::execution::par_unseq, mCachedSortedTransparentMeshes.begin(), mCachedSortedTransparentMeshes.end(),
-            [&](const MeshDataReference& a, const MeshDataReference& b) {
-              ZoneScopedN("Compare transparent meshes");
+  ZoneScoped;
 
-              const CompTransform& cameraTransform = ecs.get<const CompTransform>(entityCamera);
-              const float distanceA = glm::distance(cameraTransform.translation, ecs.get<const CompTransform>(a.entity).translation);
-              const float distanceB = glm::distance(cameraTransform.translation, ecs.get<const CompTransform>(b.entity).translation);
-              return distanceA > distanceB; // Transparent objects further away should be rendered before those closer to the camera.
-            });
+  std::sort(std::execution::par_unseq, mCachedSortedTransparentMeshes.begin(), mCachedSortedTransparentMeshes.end(),
+    [&](const MeshDataReference& a, const MeshDataReference& b) {
+      ZoneScopedN("Compare");
+      const CompTransform& cameraTransform = ecs.get<const CompTransform>(entityCamera);
+      const float distanceA = glm::distance(cameraTransform.translation, ecs.get<const CompTransform>(a.entity).translation);
+      const float distanceB = glm::distance(cameraTransform.translation, ecs.get<const CompTransform>(b.entity).translation);
+      return distanceA > distanceB; // Transparent objects further away should be rendered before those closer to the camera.
+    });
 }
 
 void Scene::sortOutlines() {
-  ZoneScopedN("Sort outlines");
+  ZoneScoped;
 
   std::sort(std::execution::par_unseq, mCachedSortedOutlines.begin(), mCachedSortedOutlines.end(),
-            [](const MeshDataReference& a, const MeshDataReference& b) {
-              ZoneScopedN("Compare outlines");
-
-              const RenderData& rdA = a.renderData();
-              const RenderData& rdB = b.renderData();
-              return rdA.mesh.itemID() < rdB.mesh.itemID();
-            });
+    [](const MeshDataReference& a, const MeshDataReference& b) {
+      ZoneScopedN("Compare");
+      const RenderData& rdA = a.renderData();
+      const RenderData& rdB = b.renderData();
+      return rdA.mesh.itemID() < rdB.mesh.itemID();
+    });
 }
 
 void Scene::onConstructOutlineComponent(entt::registry&, const entt::entity entity) {
   const auto meshHasSameEntity = [=](const MeshDataReference& mesh) { return mesh.entity == entity; };
-  if (const auto mesh = std::ranges::find_if(mCachedSortedMeshes, meshHasSameEntity); mesh != mCachedSortedMeshes.end()) {
-    mesh->bHasOutline = true;
+  auto meshesRange = std::views::concat(mCachedSortedOpaqueMeshes, mCachedSortedTransparentMeshes);
+  if (const auto mesh = std::find_if(meshesRange.begin(), meshesRange.end(), meshHasSameEntity); mesh != meshesRange.end()) {
+    (*mesh).bHasOutline = true;
     mCachedSortedOutlines.push_back(*mesh);
     this->sortOutlines();
   }
@@ -287,8 +287,9 @@ void Scene::onConstructOutlineComponent(entt::registry&, const entt::entity enti
 
 void Scene::onDestroyOutlineComponent(entt::registry&, const entt::entity entity) {
   const auto meshHasSameEntity = [=](const MeshDataReference& mesh) { return mesh.entity == entity; };
-  if (const auto mesh = std::ranges::find_if(mCachedSortedMeshes, meshHasSameEntity); mesh != mCachedSortedMeshes.end()) {
-    mesh->bHasOutline = false;
+  auto meshesRange = std::views::concat(mCachedSortedOpaqueMeshes, mCachedSortedTransparentMeshes);
+  if (const auto mesh = std::find_if(meshesRange.begin(), meshesRange.end(), meshHasSameEntity); mesh != meshesRange.end()) {
+    (*mesh).bHasOutline = false;
   }
   auto removedOutlines = std::ranges::remove_if(mCachedSortedOutlines, meshHasSameEntity);
   mCachedSortedOutlines.erase(removedOutlines.begin(), removedOutlines.end());
@@ -296,10 +297,18 @@ void Scene::onDestroyOutlineComponent(entt::registry&, const entt::entity entity
 
 void Scene::onDestroyGraphicsComponent(entt::registry&, const entt::entity entity) {
   const auto meshHasSameEntity = [=](const MeshDataReference& mesh) { return mesh.entity == entity; };
-  auto removedMeshes = std::ranges::remove_if(mCachedSortedMeshes, meshHasSameEntity);
-  auto removedOutlines = std::ranges::remove_if(mCachedSortedOutlines, meshHasSameEntity);
-  mCachedSortedMeshes.erase(removedMeshes.begin(), removedMeshes.end());
-  mCachedSortedOutlines.erase(removedOutlines.begin(), removedOutlines.end());
+
+  if (auto removed = std::ranges::remove_if(mCachedSortedOutlines, meshHasSameEntity); !removed.empty()) {
+    mCachedSortedOutlines.erase(removed.begin(), removed.end());
+  }
+
+  if (auto removed = std::ranges::remove_if(mCachedSortedOpaqueMeshes, meshHasSameEntity); !removed.empty()) {
+    mCachedSortedOpaqueMeshes.erase(removed.begin(), removed.end());
+    return; // If an opaque mesh has the entity, then a transparent mesh can't have it.
+  }
+  if (auto removed = std::ranges::remove_if(mCachedSortedTransparentMeshes, meshHasSameEntity); !removed.empty()) {
+    mCachedSortedTransparentMeshes.erase(removed.begin(), removed.end());
+  }
 }
 
 void Scene::onUpdateDirectionalLight(entt::registry& ecs, const entt::entity entity) {

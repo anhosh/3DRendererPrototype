@@ -123,9 +123,9 @@ Expected<void> AssetManager::processMesh(Model& model, const aiMesh* mesh, const
     vertices[v].texCoord = glm::vec2(texCoord.x, texCoord.y);
   }
 
-  for (uint32_t f = 0; f < mesh->mNumFaces; ++f) {
+  for (size_t f = 0; f < mesh->mNumFaces; ++f) {
     const aiFace face = mesh->mFaces[f];
-    for (uint32_t i = 0; i < face.mNumIndices; ++i) {
+    for (size_t i = 0; i < face.mNumIndices; ++i) {
       indices.push_back(face.mIndices[i]);
     }
   }

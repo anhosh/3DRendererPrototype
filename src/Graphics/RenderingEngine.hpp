@@ -75,8 +75,7 @@ public:
   void submitRenderPasses(std::span<RenderPass> renderPasses);
   void renderSceneFull(std::span<const Draw> draws, const Viewport& viewport, FramebufferHandle dstFramebuffer, bool bClearFramebuffer = true);
   void renderSceneSimple(std::span<const Draw> draws, const Viewport& viewport, FramebufferHandle dstFramebuffer, SceneRenderMode mode, bool bClearFramebuffer = true);
-  void postProcess(const Viewport& viewport, ShaderProgramInstanceHandle postProcessingShader,
-                   FramebufferHandle srcFramebuffer, FramebufferHandle dstFramebuffer) const;
+  void postProcess(const Viewport& viewport, FramebufferHandle dstFramebuffer, FramebufferHandle srcFramebuffer, ShaderProgramInstanceHandle postProcessingShader) const;
   void present(glm::uvec2 windowSize, FramebufferHandle srcFramebuffer) const;
   void swapBuffers();
 

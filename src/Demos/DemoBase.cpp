@@ -9,6 +9,8 @@
 
 #include <imgui.h>
 
+#include <ranges>
+
 Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const std::shared_ptr<RenderingEngine>& renderer) {
   mAssetManager = assets;
   mRenderingEngine = renderer;
@@ -61,13 +63,13 @@ std::vector<RenderPass> DemoBase::render() {
                   static_cast<size_t>(mbDebugVisualiseVertexNormals)
                   + mPostProcessingFramebuffers.size());
 
-  for (size_t shadowMapIndex = 0; const auto [entity, light, camera] : mScene.ecs.view<CompDirectionalLight, CompCamera>().each()) {
+  for (const auto [shadowMapIndex, pack] : mScene.ecs.view<CompDirectionalLight, CompCamera>().each() | std::views::enumerate) {
+    const auto [entity, light, camera] = pack;
     passes.emplace_back(Viewport {}, mShadowMaps[shadowMapIndex], RenderScenePass {
       .scene = &mScene,
       .entityCamera = entity,
       .mode = SceneRenderMode::NoColor,
     });
-    ++shadowMapIndex;
   }
 
   passes.emplace_back(Viewport {}, mMainSceneFramebuffer.value(), RenderScenePass {
@@ -273,9 +275,9 @@ void DemoBase::guiPostProcessing(const AppState& state) {
 
     constexpr auto firstPostProcessingEffectIndex = static_cast<int32_t>(ShaderProgramType::PostProcessCopy);
     std::optional<int32_t> effectToDelete = std::nullopt;
-    for (size_t effectIndex = 0; effectIndex < mPostProcessingShaderProgramInstances.size(); effectIndex++) {
-      const size_t fsTypeNameIndex = static_cast<size_t>(mPostProcessingShaderProgramInstances[effectIndex]->type()) - firstPostProcessingEffectIndex;
-      ShaderProgramInstanceHandle& shaderProgramInstance = mPostProcessingShaderProgramInstances[effectIndex];
+    for (auto [effectIndex, effectShader] : mPostProcessingShaderProgramInstances | std::views::enumerate) {
+      const size_t fsTypeNameIndex = static_cast<size_t>(effectShader->type()) - firstPostProcessingEffectIndex;
+      ShaderProgramInstanceHandle& shaderProgramInstance = effectShader;
 
       static constexpr auto fsTypeNames = std::array {
         "Copy",
@@ -297,8 +299,8 @@ void DemoBase::guiPostProcessing(const AppState& state) {
       const std::string effectIndexStr = std::to_string(effectIndex);
 
       if (ImGui::BeginCombo(("##postProcessingEffect" + effectIndexStr).c_str(), fsTypeNames[fsTypeNameIndex])) {
-        for (size_t fsTypeOptionIndex = 0; fsTypeOptionIndex < fsTypeNames.size(); fsTypeOptionIndex++) {
-          if (ImGui::MenuItem(fsTypeNames[fsTypeOptionIndex])) {
+        for (auto [fsTypeOptionIndex, fsTypeName] : fsTypeNames | std::views::enumerate) {
+          if (ImGui::MenuItem(fsTypeName)) {
             const auto shaderProgramType = static_cast<ShaderProgramType>(fsTypeOptionIndex + firstPostProcessingEffectIndex);
             shaderProgramInstance.erase();
             shaderProgramInstance = mRenderingEngine->createShaderProgramInstance(shaderProgramType);

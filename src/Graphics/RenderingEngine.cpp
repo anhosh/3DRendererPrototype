@@ -21,6 +21,7 @@
 #include <tracy/TracyOpenGL.hpp>
 
 #include <ranges>
+#include <Util/Visitor.hpp>
 
 Expected<void> RenderingEngine::init() {
   ZoneScoped;
@@ -244,13 +245,13 @@ auto RenderingEngine::groupMeshesByTextures(AssetHandle<Model> model) {
   };
 
   std::unordered_map<TexturePack, std::vector<NotNull<const MeshData>>, TexturePackHash> texturesToMesh;
-  for (size_t meshRes = 0; meshRes < model->meshes.size(); ++meshRes) {
+  for (const auto [meshIndex, mesh] : model->meshes | std::views::enumerate) {
     const auto pack = TexturePack {
-      .diffuseMap = model->diffuseMaps[meshRes],
-      .specularMap = model->specularMaps[meshRes],
-      .emissionMap = model->emissionMaps[meshRes],
+      .diffuseMap = model->diffuseMaps[meshIndex],
+      .specularMap = model->specularMaps[meshIndex],
+      .emissionMap = model->emissionMaps[meshIndex],
     };
-    texturesToMesh[pack].push_back(&model->meshes[meshRes].get());
+    texturesToMesh[pack].emplace_back(&mesh.get());
   }
   return texturesToMesh;
 }
@@ -333,14 +334,13 @@ auto RenderingEngine::addTexture2Ds(const std::span<const std::optional<AssetHan
 
   std::vector<std::optional<Texture2DHandle>> handles;
   handles.reserve(bitmaps.size());
-  for (size_t i = 0; const std::optional bitmap : bitmaps) {
+  for (const std::optional bitmap : bitmaps) {
     if (bitmap.has_value()) {
       const Texture2DHandle ref = this->addTexture2D(bitmap.value());
       handles.emplace_back(ref);
     } else {
       handles.emplace_back();
     }
-    ++i;
   }
   return handles;
 }
@@ -403,25 +403,28 @@ void RenderingEngine::submitRenderPasses(const std::span<RenderPass> renderPasse
   const Scene* lastScene = nullptr;
   std::span<const Draw> draws;
   for (auto& [viewport, dstFramebuffer, pass] : renderPasses) {
-    if (auto* renderScenePass = std::get_if<RenderScenePass>(&pass)) {
-      if (lastScene != renderScenePass->scene) {
-        lastScene = renderScenePass->scene;
-        draws = renderScenePass->scene->draw(renderScenePass->entityCamera, *this);
-        this->updateLightSourceData(*renderScenePass->scene);
-      }
-      if (lastCamera != renderScenePass->entityCamera) {
-        lastCamera = renderScenePass->entityCamera;
-        this->updateCameraData(*renderScenePass->scene, renderScenePass->entityCamera, dstFramebuffer->size());
-      }
+    pass.visit(Visitor {
+      [&](RenderScenePass& renderScenePass) {
+        if (lastScene != renderScenePass.scene) {
+          lastScene = renderScenePass.scene;
+          draws = renderScenePass.scene->draw(renderScenePass.entityCamera, *this);
+          this->updateLightSourceData(*renderScenePass.scene);
+        }
+        if (lastCamera != renderScenePass.entityCamera) {
+          lastCamera = renderScenePass.entityCamera;
+          this->updateCameraData(*renderScenePass.scene, renderScenePass.entityCamera, dstFramebuffer->size());
+        }
 
-      if (renderScenePass->mode == SceneRenderMode::Full) {
-        this->renderSceneFull(draws, viewport, dstFramebuffer, renderScenePass->bClearFramebuffer);
-      } else {
-        this->renderSceneSimple(draws, viewport, dstFramebuffer, renderScenePass->mode, renderScenePass->bClearFramebuffer);
-      }
-    } else if (const auto* postProcessingPass = std::get_if<PostProcessingPass>(&pass)) {
-      this->postProcess(viewport, postProcessingPass->postProcessingShader, postProcessingPass->srcFramebuffer, dstFramebuffer);
-    }
+        if (renderScenePass.mode == SceneRenderMode::Full) {
+          this->renderSceneFull(draws, viewport, dstFramebuffer, renderScenePass.bClearFramebuffer);
+        } else {
+          this->renderSceneSimple(draws, viewport, dstFramebuffer, renderScenePass.mode, renderScenePass.bClearFramebuffer);
+        }
+      },
+      [&](const PostProcessingPass& postProcessingPass) {
+        this->postProcess(viewport, dstFramebuffer, postProcessingPass.srcFramebuffer, postProcessingPass.postProcessingShader);
+      },
+    });
   }
 
   this->swapBuffers();
@@ -464,42 +467,40 @@ void RenderingEngine::renderSceneFull(const std::span<const Draw> draws, const V
   mEnvironmentTextureSampler.value()->bind(BINDING_SAMPLER_ENVIRONMENT);
 
   const Draw* lastDraw = &draws.front();
-  for (size_t drawIdx = 0; drawIdx < draws.size(); drawIdx++) {
-    const Draw* currDraw = &draws[drawIdx];
-
+  for (const auto [drawIdx, currDraw] : draws | std::views::enumerate) {
     mInstanceBuffer->current()->bindRange(BINDING_SSBO_INSTANCES,
-                                       currDraw->instanceOffset * sizeof(InstanceData),
-                                       currDraw->instanceCount * sizeof(InstanceData));
+                                       currDraw.instanceOffset * sizeof(InstanceData),
+                                       currDraw.instanceCount * sizeof(InstanceData));
 
-    if (drawIdx == 0 || currDraw->bBackfaceCulling != lastDraw->bBackfaceCulling) [[unlikely]] {
-      if (currDraw->bBackfaceCulling) {
+    if (drawIdx == 0 || currDraw.bBackfaceCulling != lastDraw->bBackfaceCulling) [[unlikely]] {
+      if (currDraw.bBackfaceCulling) {
         glEnable(GL_CULL_FACE);
       } else {
         glDisable(GL_CULL_FACE);
       }
     }
-    if (drawIdx == 0 || currDraw->bDepthTest != lastDraw->bDepthTest) [[unlikely]] {
-      if (currDraw->bDepthTest) {
+    if (drawIdx == 0 || currDraw.bDepthTest != lastDraw->bDepthTest) [[unlikely]] {
+      if (currDraw.bDepthTest) {
         glEnable(GL_DEPTH_TEST);
       } else {
         glDisable(GL_DEPTH_TEST);
       }
     }
-    if (drawIdx == 0 || currDraw->bWriteToDepth != lastDraw->bWriteToDepth) [[unlikely]] {
-      if (currDraw->bWriteToDepth) {
+    if (drawIdx == 0 || currDraw.bWriteToDepth != lastDraw->bWriteToDepth) [[unlikely]] {
+      if (currDraw.bWriteToDepth) {
         glDepthMask(GL_TRUE);
       } else {
         glDepthMask(GL_FALSE);
       }
     }
-    if (drawIdx == 0 || currDraw->bStencilTest != lastDraw->bStencilTest) [[unlikely]] {
-      glStencilFunc(currDraw->bStencilTest ? GL_NOTEQUAL : GL_ALWAYS, 1, 0xff);
+    if (drawIdx == 0 || currDraw.bStencilTest != lastDraw->bStencilTest) [[unlikely]] {
+      glStencilFunc(currDraw.bStencilTest ? GL_NOTEQUAL : GL_ALWAYS, 1, 0xff);
     }
-    if (drawIdx == 0 || currDraw->bWriteToStencil != lastDraw->bWriteToStencil) [[unlikely]] {
-      glStencilMask(currDraw->bWriteToStencil ? 0xff : 0x00);
+    if (drawIdx == 0 || currDraw.bWriteToStencil != lastDraw->bWriteToStencil) [[unlikely]] {
+      glStencilMask(currDraw.bWriteToStencil ? 0xff : 0x00);
     }
-    if (drawIdx == 0 || currDraw->bTransparent != lastDraw->bTransparent) [[unlikely]] {
-      if (currDraw->bTransparent) {
+    if (drawIdx == 0 || currDraw.bTransparent != lastDraw->bTransparent) [[unlikely]] {
+      if (currDraw.bTransparent) {
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
       } else {
@@ -507,8 +508,8 @@ void RenderingEngine::renderSceneFull(const std::span<const Draw> draws, const V
       }
     }
 
-    const ShaderProgramInstance& currShader = currDraw->shaderProgramInstance.get();
-    if (drawIdx == 0 || currDraw->shaderProgramInstance.itemID() != lastDraw->shaderProgramInstance.itemID()) {
+    const ShaderProgramInstance& currShader = currDraw.shaderProgramInstance.get();
+    if (drawIdx == 0 || currDraw.shaderProgramInstance.itemID() != lastDraw->shaderProgramInstance.itemID()) {
       const ShaderProgramInstance& lastShader = lastDraw->shaderProgramInstance.get();
       if (drawIdx == 0 || currShader.shaderProgram() != lastShader.shaderProgram()) {
         currShader.use();
@@ -529,21 +530,21 @@ void RenderingEngine::renderSceneFull(const std::span<const Draw> draws, const V
       }
       ++slot;
     };
-    bindTexture(currDraw->diffuseMap, lastDraw->diffuseMap);
-    bindTexture(currDraw->specularMap, lastDraw->specularMap);
-    bindTexture(currDraw->emissionMap, lastDraw->emissionMap);
-    bindTexture(currDraw->environmentMap, lastDraw->environmentMap);
+    bindTexture(currDraw.diffuseMap, lastDraw->diffuseMap);
+    bindTexture(currDraw.specularMap, lastDraw->specularMap);
+    bindTexture(currDraw.emissionMap, lastDraw->emissionMap);
+    bindTexture(currDraw.environmentMap, lastDraw->environmentMap);
 
-    currDraw->mesh->bind();
+    currDraw.mesh->bind();
 
     {
       TracyGpuZone("Draw elements instanced");
-      glDrawElementsInstanced(GL_TRIANGLES, currDraw->mesh->indexCount(), GL_UNSIGNED_INT,
-                              reinterpret_cast<void*>(currDraw->mesh->indicesOffset()),
-                              static_cast<GLsizei>(currDraw->instanceCount));
+      glDrawElementsInstanced(GL_TRIANGLES, currDraw.mesh->indexCount(), GL_UNSIGNED_INT,
+                              reinterpret_cast<void*>(currDraw.mesh->indicesOffset()),
+                              static_cast<GLsizei>(currDraw.instanceCount));
     }
 
-    lastDraw = currDraw;
+    lastDraw = &currDraw;
   }
 
   dstFramebuffer->resolveMultisample();
@@ -635,8 +636,8 @@ void RenderingEngine::renderSceneSimple(const std::span<const Draw> draws, const
   }
 }
 
-void RenderingEngine::postProcess(const Viewport& viewport, ShaderProgramInstanceHandle postProcessingShader,
-                                  FramebufferHandle srcFramebuffer, FramebufferHandle dstFramebuffer) const
+void RenderingEngine::postProcess(const Viewport& viewport, FramebufferHandle dstFramebuffer, FramebufferHandle srcFramebuffer,
+                                  ShaderProgramInstanceHandle postProcessingShader) const
 {
   ZoneScoped;
   TracyGpuZone("Postprocess");

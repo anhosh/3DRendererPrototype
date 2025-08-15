@@ -60,7 +60,7 @@ private:
     [[nodiscard]] const RenderData& renderData() const;
   };
 
-  std::vector<MeshDataReference> mCachedSortedMeshes;
+  std::vector<MeshDataReference> mCachedSortedOpaqueMeshes;
   std::vector<MeshDataReference> mCachedSortedTransparentMeshes;
   std::vector<MeshDataReference> mCachedSortedOutlines;
   std::vector<Draw> mCachedDraws;

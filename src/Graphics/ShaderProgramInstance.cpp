@@ -2,6 +2,7 @@
 
 #include <Graphics/Buffers/BindPoints.hpp>
 #include <Util/Macros/Errors.hpp>
+#include <Util/Visitor.hpp>
 
 #include <ranges>
 
@@ -13,31 +14,20 @@ void ShaderProgramInstance::bindUniforms() const {
   ZoneScoped;
 
   for (const ShaderUniform& uniform : std::ranges::views::values(uniforms)) {
-    if (const bool* bool_value = uniform.getPtr<bool>()) {
-      glUniform1i(uniform.location, *bool_value ? GL_TRUE : GL_FALSE);
-    } else if (const GLint* int_value = uniform.getPtr<GLint>()) {
-      glUniform1i(uniform.location, *int_value);
-    } else if (const GLuint* uint_value = uniform.getPtr<GLuint>()) {
-      glUniform1ui(uniform.location, *uint_value);
-    } else if (const GLfloat* float_value = uniform.getPtr<GLfloat>()) {
-      glUniform1f(uniform.location, *float_value);
-    } else if (const GLdouble* double_value = uniform.getPtr<GLdouble>()) {
-      glUniform1d(uniform.location, *double_value);
-    } else if (const glm::vec2* vec2_value = uniform.getPtr<glm::vec2>()) {
-      glUniform2f(uniform.location, vec2_value->x, vec2_value->y);
-    } else if (const glm::vec3* vec3_value = uniform.getPtr<glm::vec3>()) {
-      glUniform3f(uniform.location, vec3_value->x, vec3_value->y, vec3_value->z);
-    } else if (const glm::vec4* vec4_value = uniform.getPtr<glm::vec4>()) {
-      glUniform4f(uniform.location, vec4_value->x, vec4_value->y, vec4_value->z, vec4_value->w);
-    } else if (const glm::mat2* mat2_value = uniform.getPtr<glm::mat2>()) {
-      glUniformMatrix2fv(uniform.location, 1, GL_FALSE, glm::value_ptr(*mat2_value));
-    } else if (const glm::mat3* mat3_value = uniform.getPtr<glm::mat3>()) {
-      glUniformMatrix3fv(uniform.location, 1, GL_FALSE, glm::value_ptr(*mat3_value));
-    } else if (const glm::mat4* mat4_value = uniform.getPtr<glm::mat4>()) {
-      glUniformMatrix4fv(uniform.location, 1, GL_FALSE, glm::value_ptr(*mat4_value));
-    } else {
-      PANIC("Unsupported uniform type");
-    }
+    uniform.value.visit(Visitor {
+      [&](const bool value)       { glUniform1i(uniform.location, value ? GL_TRUE : GL_FALSE); },
+      [&](const GLint value)      { glUniform1i(uniform.location, value); },
+      [&](const GLuint value)     { glUniform1ui(uniform.location, value); },
+      [&](const GLfloat value)    { glUniform1f(uniform.location, value); },
+      [&](const GLdouble value)   { glUniform1d(uniform.location, value); },
+      [&](const glm::vec2& value) { glUniform2f(uniform.location, value.x, value.y); },
+      [&](const glm::vec3& value) { glUniform3f(uniform.location, value.x, value.y, value.z); },
+      [&](const glm::vec4& value) { glUniform4f(uniform.location, value.x, value.y, value.z, value.w); },
+      [&](const glm::mat2& value) { glUniformMatrix2fv(uniform.location, 1, GL_FALSE, glm::value_ptr(value)); },
+      [&](const glm::mat3& value) { glUniformMatrix3fv(uniform.location, 1, GL_FALSE, glm::value_ptr(value)); },
+      [&](const glm::mat4& value) { glUniformMatrix4fv(uniform.location, 1, GL_FALSE, glm::value_ptr(value)); },
+      [](auto) { UNREACHABLE(); }
+    });
   }
 }
 
