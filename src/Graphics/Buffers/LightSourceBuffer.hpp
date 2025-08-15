@@ -3,7 +3,6 @@
 #include <Scene/Components/Light.hpp>
 #include <Scene/Components/Transform.hpp>
 #include <Util/IntoBytes.hpp>
-#include <Util/Memory.hpp>
 
 #include <tracy/TracyOpenGL.hpp>
 

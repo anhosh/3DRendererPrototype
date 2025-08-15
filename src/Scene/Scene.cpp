@@ -23,153 +23,29 @@ void Scene::destroy() {
   mCachedDraws.clear();
 }
 
-std::span<const Draw> Scene::draw(entt::entity entityCamera, RenderingEngine& renderingEngine) {
-  ZoneScoped;
-
-  mCachedDraws.clear();
-
-  if (ecs.view<const CompGraphics>().empty()) {
-    return mCachedDraws;
-  }
-
-  // Sort transparent objects
+void Scene::prepareForRendering() {
+  ZoneScopedN("Segregate meshes");
   {
-    ZoneScopedN("Sort transparent meshes");
-    auto firstTransparent = std::ranges::find_if(mCachedSortedMeshes, [](const MeshDataReference& mesh) {
-      return mesh.renderData().renderOptions.bTransparent;
-    });
-    std::sort(std::execution::par_unseq, firstTransparent, mCachedSortedMeshes.end(), [&](const MeshDataReference& a, const MeshDataReference& b) {
-      assert(a.renderData().renderOptions.bTransparent);
-      assert(b.renderData().renderOptions.bTransparent);
-      ZoneScopedN("Compare transparent meshes");
-
-      const CompTransform& cameraTransform = ecs.get<const CompTransform>(entityCamera);
-      const float distanceA = glm::distance(cameraTransform.translation, ecs.get<const CompTransform>(a.entity).translation);
-      const float distanceB = glm::distance(cameraTransform.translation, ecs.get<const CompTransform>(b.entity).translation);
-      return distanceA > distanceB; // Transparent objects further away should be rendered before those closer to the camera.
-    });
-  }
-
-  // Schedule instanced draws for meshes.
-  {
-    InstanceBuffer instancesData;
-    instancesData.instances.reserve(mCachedSortedMeshes.size() + mCachedSortedOutlines.size());
-    ZoneScopedN("Schedule draws");
-    size_t firstInstanceIndex = 0;
-    size_t instanceCount = 0;
-    {
-      ZoneScopedN("Meshes");
-      for (size_t meshIndex = 1; meshIndex <= mCachedSortedMeshes.size(); ++meshIndex) {
-        ZoneScopedN("Mesh");
-        MeshDataReference& firstInstance = mCachedSortedMeshes[firstInstanceIndex];
-        RenderData& firstInstanceRD = firstInstance.renderData();
-
-        ++instanceCount;
-        if (meshIndex < mCachedSortedMeshes.size() &&
-            (meshIndex == firstInstanceIndex || (firstInstanceRD == mCachedSortedMeshes[meshIndex].renderData() &&
-                                                 firstInstance.bHasOutline == mCachedSortedMeshes[meshIndex].bHasOutline)))
-        {
-          continue;
+    ZoneScopedN("Collect");
+    mCachedSortedMeshes.clear();
+    mCachedSortedTransparentMeshes.clear();
+    mCachedSortedOutlines.clear();
+    for (const auto [entity, graphics] : ecs.view<CompGraphics>().each()) {
+      for (size_t renderDataIndex = 0; renderDataIndex < graphics.renderData.size(); ++renderDataIndex) {
+        MeshDataReference mesh(&ecs, entity, renderDataIndex);
+        if (mesh.renderData().renderOptions.bTransparent) {
+          mCachedSortedTransparentMeshes.push_back(mesh);
+        } else {
+          mCachedSortedMeshes.push_back(mesh);
         }
-
-        {
-          ZoneScopedN("Transforms");
-          const auto instancesStart = instancesData.instances.end();
-          instancesData.instances.resize(instancesData.instances.size() + instanceCount);
-          const auto meshesStart = mCachedSortedMeshes.begin() + static_cast<long>(firstInstanceIndex);
-          const auto meshesEnd = meshesStart + static_cast<long>(instanceCount);
-          {
-            ZoneScopedN("Create instance data");
-            std::transform(std::execution::par_unseq, meshesStart, meshesEnd, instancesStart,
-              [&](const MeshDataReference& meshRef) {
-                const CompTransform& transform = ecs.get<const CompTransform>(meshRef.entity);
-                const glm::mat4 model  = transform.modelMatrix();
-                const glm::mat3 normal = glm::transpose(glm::inverse(model));
-                return InstanceData(model, normal);
-              });
-          }
+        if (ecs.all_of<CompOutline>(entity)) {
+          mesh.bHasOutline = true;
+          mCachedSortedOutlines.push_back(mesh);
         }
-
-        mCachedDraws.push_back(Draw {
-          .shaderProgramInstance = firstInstanceRD.shaderProgramInstance,
-          .mesh = firstInstanceRD.mesh,
-          .instanceOffset = firstInstanceIndex,
-          .instanceCount = instanceCount,
-          .diffuseMap = firstInstanceRD.diffuseMap,
-          .specularMap = firstInstanceRD.specularMap,
-          .emissionMap = firstInstanceRD.emissionMap,
-          .environmentMap = firstInstanceRD.environmentMap,
-          .bBackfaceCulling = firstInstanceRD.renderOptions.bBackfaceCulling,
-          .bWriteToStencil = mCachedSortedMeshes[firstInstanceIndex].bHasOutline,
-        });
-
-        firstInstanceIndex = meshIndex;
-        instanceCount = 0;
       }
     }
-
-    if (skybox.has_value()) {
-      ZoneScopedN("Skybox");
-      mCachedDraws.push_back(Draw {
-        .shaderProgramInstance = skybox->shader,
-        .mesh = skybox->cubeMesh,
-        .environmentMap = skybox->texture,
-        .bBackfaceCulling = false,
-        .bSkybox = true,
-      });
-    }
-
-    {
-      ZoneScopedN("Outlines");
-      const size_t firstOutlineIndex = mCachedSortedMeshes.size();
-      firstInstanceIndex = 0;
-      for (size_t meshIndex = 1; meshIndex <= mCachedSortedOutlines.size(); ++meshIndex) {
-        ZoneScopedN("Outline");
-        MeshDataReference& firstInstance = mCachedSortedOutlines[firstInstanceIndex];
-        RenderData& firstInstanceRD = firstInstance.renderData();
-
-        ++instanceCount;
-        if (meshIndex < mCachedSortedOutlines.size() &&
-            (meshIndex == firstInstanceIndex || firstInstanceRD.eqIgnoreMainShader(mCachedSortedOutlines[meshIndex].renderData())))
-        {
-          continue;
-        }
-
-        {
-          ZoneScopedN("Transforms");
-          const auto instancesStart = instancesData.instances.end();
-          instancesData.instances.resize(instancesData.instances.size() + instanceCount);
-          const auto meshesStart = mCachedSortedOutlines.begin() + static_cast<long>(firstInstanceIndex);
-          const auto meshesEnd = meshesStart + static_cast<long>(instanceCount);
-          std::transform(std::execution::par_unseq, meshesStart, meshesEnd, instancesStart,
-            [&](const MeshDataReference& meshRef) {
-              CompTransform outlineTransform = ecs.get<const CompTransform>(meshRef.entity);
-              outlineTransform.scale *= 1.1f;
-              const glm::mat4 model  = outlineTransform.modelMatrix();
-              const glm::mat3 normal = glm::transpose(glm::inverse(model));
-              return InstanceData(model, normal);
-            });
-        }
-
-        const CompOutline& outline = firstInstance.ecs->get<CompOutline>(firstInstance.entity);
-        mCachedDraws.push_back(Draw {
-          .shaderProgramInstance = outline.outlineShader,
-          .mesh = firstInstanceRD.mesh,
-          .instanceOffset = firstOutlineIndex + firstInstanceIndex,
-          .instanceCount = instanceCount,
-          .bBackfaceCulling = true,
-          .bStencilTest = true,
-          .bDepthTest = true,
-        });
-
-        firstInstanceIndex = meshIndex;
-        instanceCount = 0;
-      }
-    }
-    renderingEngine.updateInstances(0, instancesData);
   }
-
-  return mCachedDraws;
+  this->sortOutlines();
 }
 
 DirectionalLightSourceBuffer Scene::createDirectionalLightUniforms() const {
@@ -211,12 +87,193 @@ SpotlightSourceBuffer Scene::createSpotlightUniforms() const {
   return buffer;
 }
 
-void Scene::onOutlineComponentAdded(entt::registry&, const entt::entity entity) {
-  const auto mesh = std::ranges::find_if(mCachedSortedMeshes, [=](const MeshDataReference& mesh) {
-    return mesh.entity == entity;
-  });
-  if (mesh != mCachedSortedMeshes.end())
+std::span<const Draw> Scene::draw(const entt::entity entityCamera, RenderingEngine& renderingEngine) {
+  ZoneScoped;
+
+  mCachedDraws.clear();
+
+  if (mCachedSortedMeshes.empty() && mCachedSortedTransparentMeshes.empty()) {
+    return mCachedDraws;
+  }
+
+  this->sortTransparentMeshes(entityCamera);
+
+  // Schedule instanced draws for meshes.
   {
+    ZoneScopedN("Schedule draws");
+    InstanceBuffer instancesData;
+    instancesData.instances.reserve(mCachedSortedMeshes.size() + mCachedSortedOutlines.size());
+
+    {
+      ZoneScopedN("Opaque meshes");
+      this->drawMeshes(mCachedSortedMeshes, instancesData);
+    }
+    {
+      ZoneScopedN("Transparent meshes");
+      this->drawMeshes(mCachedSortedTransparentMeshes, instancesData);
+    }
+
+    if (skybox.has_value()) {
+      ZoneScopedN("Skybox");
+      mCachedDraws.push_back(Draw {
+        .shaderProgramInstance = skybox->shader,
+        .mesh = skybox->cubeMesh,
+        .environmentMap = skybox->texture,
+        .bBackfaceCulling = false,
+        .bSkybox = true,
+      });
+    }
+
+    {
+      ZoneScopedN("Outlines");
+      const size_t firstOutlineIndex = mCachedSortedMeshes.size();
+      size_t firstInstanceIndex = 0;
+      size_t instanceCount = 0;
+      for (size_t meshIndex = 1; meshIndex <= mCachedSortedOutlines.size(); ++meshIndex) {
+        ZoneScopedN("Outline");
+        MeshDataReference& firstInstance = mCachedSortedOutlines[firstInstanceIndex];
+        RenderData& firstInstanceRD = firstInstance.renderData();
+
+        ++instanceCount;
+        if (meshIndex < mCachedSortedOutlines.size() &&
+            (meshIndex == firstInstanceIndex || firstInstanceRD.eqIgnoreMainShader(mCachedSortedOutlines[meshIndex].renderData())))
+        {
+          continue;
+        }
+
+        {
+          ZoneScopedN("Transforms");
+          const auto instancesStart = instancesData.instances.end();
+          instancesData.instances.resize(instancesData.instances.size() + instanceCount);
+          const auto meshesStart = mCachedSortedOutlines.begin() + static_cast<long>(firstInstanceIndex);
+          const auto meshesEnd = meshesStart + static_cast<long>(instanceCount);
+          std::transform(std::execution::par_unseq, meshesStart, meshesEnd, instancesStart,
+            [&](const MeshDataReference& meshRef) {
+              CompTransform outlineTransform = ecs.get<const CompTransform>(meshRef.entity);
+              outlineTransform.scale *= 1.1f;
+              const glm::mat4 model  = outlineTransform.modelMatrix();
+              const glm::mat3 normal = glm::transpose(glm::inverse(model));
+              return InstanceData(model, normal);
+            });
+        }
+
+        const CompOutline& outline = firstInstance.ecs->get<CompOutline>(firstInstance.entity);
+        mCachedDraws.push_back(Draw {
+          .shaderProgramInstance = outline.outlineShader,
+          .mesh = firstInstanceRD.mesh,
+          .instanceOffset = firstOutlineIndex + firstInstanceIndex,
+          .instanceCount = instanceCount,
+          .bBackfaceCulling = true,
+          .bStencilTest = true,
+        });
+
+        firstInstanceIndex = meshIndex;
+        instanceCount = 0;
+      }
+    }
+    renderingEngine.updateInstances(0, instancesData);
+  }
+
+  return mCachedDraws;
+}
+
+void Scene::drawMeshes(const std::span<const MeshDataReference> meshes, InstanceBuffer& instanceBuffer) {
+  ZoneScoped;
+
+  size_t firstInstanceIndex = 0;
+  size_t instanceCount = 0;
+  for (size_t meshIndex = 1; meshIndex <= meshes.size(); ++meshIndex) {
+    ZoneScopedN("Mesh");
+    const MeshDataReference& firstInstance = meshes[firstInstanceIndex];
+    const RenderData& firstInstanceRD = firstInstance.renderData();
+
+    ++instanceCount;
+    if (meshIndex < meshes.size() &&
+        (meshIndex == firstInstanceIndex || (firstInstanceRD == meshes[meshIndex].renderData() &&
+                                             firstInstance.bHasOutline == meshes[meshIndex].bHasOutline)))
+    {
+      continue;
+    }
+
+    {
+      ZoneScopedN("Create instance data");
+      const auto instancesStart = instanceBuffer.instances.end();
+      instanceBuffer.instances.resize(instanceBuffer.instances.size() + instanceCount);
+      const auto meshesStart = meshes.begin() + static_cast<long>(firstInstanceIndex);
+      const auto meshesEnd = meshesStart + static_cast<long>(instanceCount);
+      {
+        ZoneScopedN("Transforms");
+        std::transform(std::execution::par_unseq, meshesStart, meshesEnd, instancesStart,
+          [&](const MeshDataReference& meshRef) {
+            const CompTransform& transform = ecs.get<const CompTransform>(meshRef.entity);
+            const glm::mat4 model  = transform.modelMatrix();
+            const glm::mat3 normal = glm::transpose(glm::inverse(model));
+            return InstanceData(model, normal);
+          });
+      }
+    }
+
+    mCachedDraws.push_back(Draw {
+      .shaderProgramInstance = firstInstanceRD.shaderProgramInstance,
+      .mesh = firstInstanceRD.mesh,
+      .instanceOffset = firstInstanceIndex,
+      .instanceCount = instanceCount,
+      .diffuseMap = firstInstanceRD.diffuseMap,
+      .specularMap = firstInstanceRD.specularMap,
+      .emissionMap = firstInstanceRD.emissionMap,
+      .environmentMap = firstInstanceRD.environmentMap,
+      .bBackfaceCulling = firstInstanceRD.renderOptions.bBackfaceCulling,
+      .bWriteToStencil = meshes[firstInstanceIndex].bHasOutline,
+    });
+
+    firstInstanceIndex = meshIndex;
+    instanceCount = 0;
+  }
+}
+
+void Scene::sortMeshes() {
+  ZoneScopedN("Sort meshes");
+
+  std::sort(std::execution::par_unseq, mCachedSortedMeshes.begin(), mCachedSortedMeshes.end(),
+            [&](const MeshDataReference& a, const MeshDataReference& b) {
+              ZoneScopedN("Compare meshes");
+
+              const RenderData& rdA = a.renderData();
+              const RenderData& rdB = b.renderData();
+              return rdA.shaderProgramInstance.itemID() < rdB.shaderProgramInstance.itemID() ||
+                     rdA.mesh.itemID() < rdB.mesh.itemID();
+            });
+}
+
+void Scene::sortTransparentMeshes(const entt::entity entityCamera) {
+  ZoneScopedN("Sort transparent meshes");
+  std::sort(std::execution::par_unseq, mCachedSortedTransparentMeshes.begin(), mCachedSortedTransparentMeshes.end(),
+            [&](const MeshDataReference& a, const MeshDataReference& b) {
+              ZoneScopedN("Compare transparent meshes");
+
+              const CompTransform& cameraTransform = ecs.get<const CompTransform>(entityCamera);
+              const float distanceA = glm::distance(cameraTransform.translation, ecs.get<const CompTransform>(a.entity).translation);
+              const float distanceB = glm::distance(cameraTransform.translation, ecs.get<const CompTransform>(b.entity).translation);
+              return distanceA > distanceB; // Transparent objects further away should be rendered before those closer to the camera.
+            });
+}
+
+void Scene::sortOutlines() {
+  ZoneScopedN("Sort outlines");
+
+  std::sort(std::execution::par_unseq, mCachedSortedOutlines.begin(), mCachedSortedOutlines.end(),
+            [](const MeshDataReference& a, const MeshDataReference& b) {
+              ZoneScopedN("Compare outlines");
+
+              const RenderData& rdA = a.renderData();
+              const RenderData& rdB = b.renderData();
+              return rdA.mesh.itemID() < rdB.mesh.itemID();
+            });
+}
+
+void Scene::onOutlineComponentAdded(entt::registry&, const entt::entity entity) {
+  const auto meshHasSameEntity = [=](const MeshDataReference& mesh) { return mesh.entity == entity; };
+  if (const auto mesh = std::ranges::find_if(mCachedSortedMeshes, meshHasSameEntity); mesh != mCachedSortedMeshes.end()) {
     mesh->bHasOutline = true;
     mCachedSortedOutlines.push_back(*mesh);
     this->sortOutlines();
@@ -224,74 +281,20 @@ void Scene::onOutlineComponentAdded(entt::registry&, const entt::entity entity) 
 }
 
 void Scene::onOutlineComponentDestroyed(entt::registry&, const entt::entity entity) {
-  const auto mesh = std::ranges::find_if(mCachedSortedMeshes, [=](const MeshDataReference& mesh) {
-    return mesh.entity == entity;
-  });
-  if (mesh != mCachedSortedMeshes.end()) {
+  const auto meshHasSameEntity = [=](const MeshDataReference& mesh) { return mesh.entity == entity; };
+  if (const auto mesh = std::ranges::find_if(mCachedSortedMeshes, meshHasSameEntity); mesh != mCachedSortedMeshes.end()) {
     mesh->bHasOutline = false;
   }
-  auto removedOutlines = std::ranges::remove_if(mCachedSortedOutlines, [=](const MeshDataReference& mesh) {
-    return mesh.entity == entity;
-  });
+  auto removedOutlines = std::ranges::remove_if(mCachedSortedOutlines, meshHasSameEntity);
   mCachedSortedOutlines.erase(removedOutlines.begin(), removedOutlines.end());
 }
 
 void Scene::onGraphicsComponentDestroyed(entt::registry&, const entt::entity entity) {
-  auto removedMeshes = std::ranges::remove_if(mCachedSortedMeshes, [=](const MeshDataReference& mesh) {
-    return mesh.entity == entity;
-  });
-  auto removedOutlines = std::ranges::remove_if(mCachedSortedOutlines, [=](const MeshDataReference& mesh) {
-    return mesh.entity == entity;
-  });
+  const auto meshHasSameEntity = [=](const MeshDataReference& mesh) { return mesh.entity == entity; };
+  auto removedMeshes = std::ranges::remove_if(mCachedSortedMeshes, meshHasSameEntity);
+  auto removedOutlines = std::ranges::remove_if(mCachedSortedOutlines, meshHasSameEntity);
   mCachedSortedMeshes.erase(removedMeshes.begin(), removedMeshes.end());
   mCachedSortedOutlines.erase(removedOutlines.begin(), removedOutlines.end());
-}
-
-void Scene::sortMeshes() {
-  ZoneScopedN("Sort meshes");
-  std::sort(std::execution::par_unseq, mCachedSortedMeshes.begin(), mCachedSortedMeshes.end(), [&](const MeshDataReference& a, const MeshDataReference& b) {
-    ZoneScopedN("Compare meshes");
-    const RenderData& rdA = a.renderData();
-    const RenderData& rdB = b.renderData();
-
-    if (rdA.renderOptions.bTransparent != rdB.renderOptions.bTransparent) {
-      return !rdA.renderOptions.bTransparent; // Opaque objects should be rendered before transparent objects.
-    }
-
-    return rdA.shaderProgramInstance.itemID() < rdB.shaderProgramInstance.itemID() ||
-           rdA.mesh.itemID() < rdB.mesh.itemID();
-  });
-}
-
-void Scene::sortOutlines() {
-  ZoneScopedN("Sort outlines");
-  std::sort(std::execution::par_unseq, mCachedSortedOutlines.begin(), mCachedSortedOutlines.end(), [](const MeshDataReference& a, const MeshDataReference& b) {
-    ZoneScopedN("Compare outlines");
-    const RenderData& rdA = a.renderData();
-    const RenderData& rdB = b.renderData();
-
-    return rdA.mesh.itemID() < rdB.mesh.itemID();
-  });
-}
-
-void Scene::prepareForRendering() {
-  ZoneScopedN("Segregate meshes");
-  {
-    ZoneScopedN("Collect");
-    mCachedSortedMeshes.clear();
-    mCachedSortedOutlines.clear();
-    for (const auto [entity, graphics] : ecs.view<CompGraphics>().each()) {
-      for (size_t renderDataIndex = 0; renderDataIndex < graphics.renderData.size(); ++renderDataIndex) {
-        MeshDataReference& mesh = mCachedSortedMeshes.emplace_back(&ecs, entity, renderDataIndex);
-        if (ecs.all_of<CompOutline>(entity)) {
-          mesh.bHasOutline = true;
-          mCachedSortedOutlines.push_back(mesh);
-        }
-      }
-    }
-  }
-  this->sortOutlines();
-  this->sortOutlines();
 }
 
 RenderData& Scene::MeshDataReference::renderData() {
@@ -301,4 +304,3 @@ RenderData& Scene::MeshDataReference::renderData() {
 const RenderData& Scene::MeshDataReference::renderData() const {
   return ecs->get<CompGraphics>(entity).renderData[renderDataIndex];
 }
-

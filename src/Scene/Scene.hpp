@@ -11,6 +11,7 @@
 #include <span>
 #include <vector>
 
+struct InstanceBuffer;
 struct RenderData;
 class RenderingEngine;
 
@@ -19,26 +20,31 @@ public:
   Scene();
   ~Scene() { this->destroy(); }
 
-  void prepareForRendering();
   void destroy();
+  void prepareForRendering();
 
-  [[nodiscard]] std::span<const Draw> draw(entt::entity entityCamera, RenderingEngine& renderingEngine);
   [[nodiscard]] DirectionalLightSourceBuffer createDirectionalLightUniforms() const;
   [[nodiscard]] PointLightSourceBuffer createPointLightUniforms() const;
   [[nodiscard]] SpotlightSourceBuffer createSpotlightUniforms() const;
 
+  [[nodiscard]] std::span<const Draw> draw(entt::entity entityCamera, RenderingEngine& renderingEngine);
+
 public:
   entt::registry ecs;
-
   std::optional<Skybox> skybox = std::nullopt;
 
 private:
+  struct MeshDataReference;
+
+  void drawMeshes(std::span<const MeshDataReference> meshes, InstanceBuffer& instanceBuffer);
+
+  void sortMeshes();
+  void sortTransparentMeshes(entt::entity entityCamera);
+  void sortOutlines();
+
   void onOutlineComponentAdded(entt::registry& registry, entt::entity entity);
   void onOutlineComponentDestroyed(entt::registry& registry, entt::entity entity);
   void onGraphicsComponentDestroyed(entt::registry& registry, entt::entity entity);
-
-  void sortMeshes();
-  void sortOutlines();
 
 private:
   struct MeshDataReference {
@@ -52,6 +58,7 @@ private:
   };
 
   std::vector<MeshDataReference> mCachedSortedMeshes;
+  std::vector<MeshDataReference> mCachedSortedTransparentMeshes;
   std::vector<MeshDataReference> mCachedSortedOutlines;
   std::vector<Draw> mCachedDraws;
 };

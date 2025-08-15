@@ -1,11 +1,12 @@
 #pragma once
 
+#include <Util/Macros/Errors.hpp>
 #include <Util/Registry.hpp>
+
+#include <tracy/TracyOpenGL.hpp>
 
 #include <concepts>
 #include <vector>
-#include <tracy/TracyOpenGL.hpp>
-#include <Util/Macros/Errors.hpp>
 
 class Buffer {
 public:
