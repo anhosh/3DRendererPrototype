@@ -18,9 +18,12 @@ out VS_OUT {
 } vsOut;
 
 void main() {
-  vec4 vertexPosWorld = uInstances.data[gl_InstanceID].model * vec4(inPosition, 1);
+  InstanceData currentInstance = uInstances.data[gl_InstanceID];
+  vec4 vertexPosWorld = currentInstance.model * vec4(inPosition, 1);
+
   gl_Position = vertexPosWorld;
+
   vsOut.position = vertexPosWorld.xyz;
-  vsOut.normal = normalize(uInstances.data[gl_InstanceID].normal * inNormal);
+  vsOut.normal = normalize(currentInstance.normal * inNormal);
   vsOut.texCoord = inTexCoord;
 }

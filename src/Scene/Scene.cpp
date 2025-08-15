@@ -5,6 +5,8 @@
 #include <Scene/Components/Graphics.hpp>
 #include <Scene/Components/Outline.hpp>
 
+#include <glm/gtx/compatibility.hpp>
+
 #include <algorithm>
 #include <execution>
 #include <ranges>
@@ -12,9 +14,12 @@
 namespace views = std::ranges::views;
 
 Scene::Scene() {
-  ecs.on_construct<CompOutline>().connect<&Scene::onOutlineComponentAdded>(this);
-  ecs.on_destroy<CompOutline>().connect<&Scene::onOutlineComponentDestroyed>(this);
-  ecs.on_destroy<CompGraphics>().connect<&Scene::onGraphicsComponentDestroyed>(this);
+  ecs.on_construct<CompOutline>().connect<&Scene::onConstructOutlineComponent>(this);
+  ecs.on_destroy<CompOutline>().connect<&Scene::onDestroyOutlineComponent>(this);
+  ecs.on_destroy<CompGraphics>().connect<&Scene::onDestroyGraphicsComponent>(this);
+  ecs.on_update<CompDirectionalLight>().connect<&Scene::onUpdateDirectionalLight>();
+  ecs.on_update<CompPointLight>().connect<&Scene::onUpdatePointLight>();
+  ecs.on_update<CompSpotlight>().connect<&Scene::onUpdateSpotlight>();
 }
 
 void Scene::destroy() {
@@ -271,7 +276,7 @@ void Scene::sortOutlines() {
             });
 }
 
-void Scene::onOutlineComponentAdded(entt::registry&, const entt::entity entity) {
+void Scene::onConstructOutlineComponent(entt::registry&, const entt::entity entity) {
   const auto meshHasSameEntity = [=](const MeshDataReference& mesh) { return mesh.entity == entity; };
   if (const auto mesh = std::ranges::find_if(mCachedSortedMeshes, meshHasSameEntity); mesh != mCachedSortedMeshes.end()) {
     mesh->bHasOutline = true;
@@ -280,7 +285,7 @@ void Scene::onOutlineComponentAdded(entt::registry&, const entt::entity entity) 
   }
 }
 
-void Scene::onOutlineComponentDestroyed(entt::registry&, const entt::entity entity) {
+void Scene::onDestroyOutlineComponent(entt::registry&, const entt::entity entity) {
   const auto meshHasSameEntity = [=](const MeshDataReference& mesh) { return mesh.entity == entity; };
   if (const auto mesh = std::ranges::find_if(mCachedSortedMeshes, meshHasSameEntity); mesh != mCachedSortedMeshes.end()) {
     mesh->bHasOutline = false;
@@ -289,12 +294,52 @@ void Scene::onOutlineComponentDestroyed(entt::registry&, const entt::entity enti
   mCachedSortedOutlines.erase(removedOutlines.begin(), removedOutlines.end());
 }
 
-void Scene::onGraphicsComponentDestroyed(entt::registry&, const entt::entity entity) {
+void Scene::onDestroyGraphicsComponent(entt::registry&, const entt::entity entity) {
   const auto meshHasSameEntity = [=](const MeshDataReference& mesh) { return mesh.entity == entity; };
   auto removedMeshes = std::ranges::remove_if(mCachedSortedMeshes, meshHasSameEntity);
   auto removedOutlines = std::ranges::remove_if(mCachedSortedOutlines, meshHasSameEntity);
   mCachedSortedMeshes.erase(removedMeshes.begin(), removedMeshes.end());
   mCachedSortedOutlines.erase(removedOutlines.begin(), removedOutlines.end());
+}
+
+void Scene::onUpdateDirectionalLight(entt::registry& ecs, const entt::entity entity) {
+  const auto& light = ecs.get<const CompDirectionalLight>(entity);
+  const glm::vec3 lightDirection = glm::normalize(light.direction);
+  ecs.emplace_or_replace<CompTransform>(entity, CompTransform {
+    .translation = -lightDirection * 50.0f,
+    .rotation = glm::vec3 {
+      glm::degrees(glm::atan2(lightDirection.z, lightDirection.x)),
+      glm::degrees(glm::asin(lightDirection.y)),
+      0.0f,
+    },
+  });
+  if (CompGraphics* graphics = ecs.try_get<CompGraphics>(entity)) {
+    for (RenderData& renderData : graphics->renderData) {
+      if (renderData.shaderProgramInstance->type() == ShaderProgramType::Light) {
+        renderData.shaderProgramInstance->uniforms["uLightColor"] = light.colors.diffuse;
+      }
+    }
+  }
+}
+
+void Scene::onUpdatePointLight(entt::registry& ecs, const entt::entity entity) {
+  if (auto [graphics, light] = ecs.try_get<CompGraphics, const CompPointLight>(entity); graphics != nullptr) {
+    for (RenderData& renderData : graphics->renderData) {
+      if (renderData.shaderProgramInstance->type() == ShaderProgramType::Light) {
+        renderData.shaderProgramInstance->uniforms["uLightColor"] = NotNull(light)->colors.diffuse;
+      }
+    }
+  }
+}
+
+void Scene::onUpdateSpotlight(entt::registry& ecs, const entt::entity entity) {
+  if (auto [graphics, light] = ecs.try_get<CompGraphics, const CompSpotlight>(entity); graphics != nullptr) {
+    for (RenderData& renderData : graphics->renderData) {
+      if (renderData.shaderProgramInstance->type() == ShaderProgramType::Light) {
+        renderData.shaderProgramInstance->uniforms["uLightColor"] = NotNull(light)->colors.diffuse;
+      }
+    }
+  }
 }
 
 RenderData& Scene::MeshDataReference::renderData() {

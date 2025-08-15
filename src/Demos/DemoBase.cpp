@@ -3,13 +3,11 @@
 #include <AppState.hpp>
 #include <Graphics/RenderPass.hpp>
 #include <Scene/Components/Camera.hpp>
+#include <Scene/Components/Graphics.hpp>
 #include <Scene/Components/Name.hpp>
 #include <Scene/Components/Outline.hpp>
 
 #include <imgui.h>
-#include <Scene/Components/Graphics.hpp>
-
-#include <glm/gtx/compatibility.hpp>
 
 Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const std::shared_ptr<RenderingEngine>& renderer) {
   mAssetManager = assets;
@@ -54,25 +52,6 @@ Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const
   mScene.prepareForRendering();
 
   return {};
-}
-
-void DemoBase::update(double dt) {
-  for (auto [entity, transform, light] : mScene.ecs.view<CompTransform, CompDirectionalLight>().each()) {
-    const glm::vec3 lightDirection = glm::normalize(light.direction);
-    transform.translation = -lightDirection * 50.0f;
-    transform.rotation = glm::vec3 {
-      glm::degrees(glm::atan2(lightDirection.z, lightDirection.x)),
-      glm::degrees(glm::asin(lightDirection.y)),
-      0.0f,
-    };
-    if (CompGraphics* graphics = mScene.ecs.try_get<CompGraphics>(entity)) {
-      for (RenderData& renderData : graphics->renderData) {
-        if (renderData.shaderProgramInstance->type() == ShaderProgramType::Light) {
-          renderData.shaderProgramInstance->uniforms["uLightColor"] = light.colors.diffuse;
-        }
-      }
-    }
-  }
 }
 
 std::vector<RenderPass> DemoBase::render() {
@@ -210,10 +189,15 @@ void DemoBase::guiActors() {
         if (CompDirectionalLight* directionalLight = mScene.ecs.try_get<CompDirectionalLight>(entity)) {
           ImGui::Text("Directional light");
 
-          ImGui::DragFloat3(("Direction##dl" + name.name).c_str(), glm::value_ptr(directionalLight->direction), 0.001f, -1.0f, 1.0f);
-          ImGui::ColorPicker3(("Ambient##dl" + name.name).c_str(), glm::value_ptr(directionalLight->colors.ambient), lightColorEditFlags);
-          ImGui::ColorPicker3(("Diffuse##dl" + name.name).c_str(), glm::value_ptr(directionalLight->colors.diffuse), lightColorEditFlags);
-          ImGui::ColorPicker3(("Specular##dl" + name.name).c_str(), glm::value_ptr(directionalLight->colors.specular), lightColorEditFlags);
+          bool bChanged = false;
+          bChanged |= ImGui::DragFloat3(("Direction##dl" + name.name).c_str(), glm::value_ptr(directionalLight->direction), 0.001f, -1.0f, 1.0f);
+          bChanged |= ImGui::ColorPicker3(("Ambient##dl" + name.name).c_str(), glm::value_ptr(directionalLight->colors.ambient), lightColorEditFlags);
+          bChanged |= ImGui::ColorPicker3(("Diffuse##dl" + name.name).c_str(), glm::value_ptr(directionalLight->colors.diffuse), lightColorEditFlags);
+          bChanged |= ImGui::ColorPicker3(("Specular##dl" + name.name).c_str(), glm::value_ptr(directionalLight->colors.specular), lightColorEditFlags);
+
+          if (bChanged) {
+            mScene.ecs.patch<CompDirectionalLight>(entity);
+          }
 
           ImGui::Separator();
         }
@@ -221,12 +205,17 @@ void DemoBase::guiActors() {
         if (CompPointLight* pointLight = mScene.ecs.try_get<CompPointLight>(entity)) {
           ImGui::Text("Point light");
 
-          ImGui::DragFloat("Constant", &pointLight->constant, 0.1f, 1.0f, 100.0f);
-          ImGui::DragFloat("Linear", &pointLight->linear, 0.01f, 0.01f, 10.0f);
-          ImGui::DragFloat("Quadratic", &pointLight->quadratic, 0.001f, 0.01f, 1.0f);
-          ImGui::ColorPicker3(("Ambient##pl" + name.name).c_str(), glm::value_ptr(pointLight->colors.ambient), lightColorEditFlags);
-          ImGui::ColorPicker3(("Diffuse##pl" + name.name).c_str(), glm::value_ptr(pointLight->colors.diffuse), lightColorEditFlags);
-          ImGui::ColorPicker3(("Specular##pl" + name.name).c_str(), glm::value_ptr(pointLight->colors.specular), lightColorEditFlags);
+          bool bChanged = false;
+          bChanged |= ImGui::DragFloat("Constant", &pointLight->constant, 0.1f, 1.0f, 100.0f);
+          bChanged |= ImGui::DragFloat("Linear", &pointLight->linear, 0.01f, 0.01f, 10.0f);
+          bChanged |= ImGui::DragFloat("Quadratic", &pointLight->quadratic, 0.001f, 0.01f, 1.0f);
+          bChanged |= ImGui::ColorPicker3(("Ambient##pl" + name.name).c_str(), glm::value_ptr(pointLight->colors.ambient), lightColorEditFlags);
+          bChanged |= ImGui::ColorPicker3(("Diffuse##pl" + name.name).c_str(), glm::value_ptr(pointLight->colors.diffuse), lightColorEditFlags);
+          bChanged |= ImGui::ColorPicker3(("Specular##pl" + name.name).c_str(), glm::value_ptr(pointLight->colors.specular), lightColorEditFlags);
+
+          if (bChanged) {
+            mScene.ecs.patch<CompPointLight>(entity);
+          }
 
           ImGui::Separator();
         }
@@ -234,12 +223,17 @@ void DemoBase::guiActors() {
         if (CompSpotlight* spotlight = mScene.ecs.try_get<CompSpotlight>(entity)) {
           ImGui::Text("Spotlight");
 
-          ImGui::DragFloat3(("Direction##sl" + name.name).c_str(), glm::value_ptr(spotlight->direction), 0.001f, -1.0f, 1.0f);
-          ImGui::DragFloat(("Cut off##sl" + name.name).c_str(), &spotlight->cutOff, 0.01f, 1.0f, spotlight->outerCutOff);
-          ImGui::DragFloat(("Outer cut off##sl" + name.name).c_str(), &spotlight->outerCutOff, 0.01f, spotlight->cutOff, 120.0f);
-          ImGui::ColorPicker3(("Ambient##sl" + name.name).c_str(), glm::value_ptr(spotlight->colors.ambient), lightColorEditFlags);
-          ImGui::ColorPicker3(("Diffuse##sl" + name.name).c_str(), glm::value_ptr(spotlight->colors.diffuse), lightColorEditFlags);
-          ImGui::ColorPicker3(("Specular##sl" + name.name).c_str(), glm::value_ptr(spotlight->colors.specular), lightColorEditFlags);
+          bool bChanged = false;
+          bChanged |= ImGui::DragFloat3(("Direction##sl" + name.name).c_str(), glm::value_ptr(spotlight->direction), 0.001f, -1.0f, 1.0f);
+          bChanged |= ImGui::DragFloat(("Cut off##sl" + name.name).c_str(), &spotlight->cutOff, 0.01f, 1.0f, spotlight->outerCutOff);
+          bChanged |= ImGui::DragFloat(("Outer cut off##sl" + name.name).c_str(), &spotlight->outerCutOff, 0.01f, spotlight->cutOff, 120.0f);
+          bChanged |= ImGui::ColorPicker3(("Ambient##sl" + name.name).c_str(), glm::value_ptr(spotlight->colors.ambient), lightColorEditFlags);
+          bChanged |= ImGui::ColorPicker3(("Diffuse##sl" + name.name).c_str(), glm::value_ptr(spotlight->colors.diffuse), lightColorEditFlags);
+          bChanged |= ImGui::ColorPicker3(("Specular##sl" + name.name).c_str(), glm::value_ptr(spotlight->colors.specular), lightColorEditFlags);
+
+          if (bChanged) {
+            mScene.ecs.patch<CompSpotlight>(entity);
+          }
 
           ImGui::Separator();
         }

@@ -35,7 +35,6 @@ struct LightSourceBuffer {
 
   void writeToBuffer(const std::span<uint8_t> buffer, const size_t offset = 0) const {
     ZoneScoped;
-    TracyGpuZone("LightSourceBuffer::writeToBuffer");
 
     const std::array lengthBytes = asBytes(glm::uvec4(this->sources.size(), 0, 0, 0));
     std::ranges::copy(lengthBytes, buffer.subspan(offset).data());

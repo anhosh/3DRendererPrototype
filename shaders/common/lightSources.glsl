@@ -10,6 +10,7 @@ struct LightColors {
 struct DirectionalLight {
   LightColors colors;
   vec3 direction;
+  mat4 view;
 };
 
 struct PointLight {
@@ -45,5 +46,7 @@ readonly buffer SpotlightSources {
   uint count;
   Spotlight[] sources;
 } uSpotlights;
+
+uniform sampler2D directionalLightDepthMap;
 
 #endif // LIGHT_SOURCE_UNIFORMS_GLSL
