@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Assets/AssetHandle.hpp>
+#include <Graphics/Textures/TextureBase.hpp>
 #include <Util/Registry.hpp>
 
 class Bitmap;
@@ -15,22 +16,12 @@ struct TextureCubeMapBitmaps {
   bool bSRGB = false;
 };
 
-class TextureCubeMap {
+class TextureCubeMap : public TextureBase {
 public:
   TextureCubeMap();
   explicit TextureCubeMap(const TextureCubeMapBitmaps& bitmaps, GLint internalFormat);
 
-  void init();
-  void generate(const TextureCubeMapBitmaps& bitmaps, GLint internalFormat) const;
-  void destroy();
-
-  void bind(GLuint slot) const;
-  void unbind(GLuint slot) const;
-
-  [[nodiscard]] GLuint id() const { return mID; }
-
-private:
-  GLuint mID = 0;
+  void generate(const TextureCubeMapBitmaps& bitmaps, GLint internalFormat);
 };
 
 using TextureCubeMapHandle = Registry<TextureCubeMap>::Handle;

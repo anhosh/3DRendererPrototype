@@ -42,9 +42,14 @@ private:
   void sortTransparentMeshes(entt::entity entityCamera);
   void sortOutlines();
 
-  void onConstructOutlineComponent(entt::registry& registry, entt::entity entity);
-  void onDestroyOutlineComponent(entt::registry& registry, entt::entity entity);
-  void onDestroyGraphicsComponent(entt::registry& registry, entt::entity entity);
+  void onConstructOutline(entt::registry& registry, entt::entity entity);
+  static void onConstructDirectionalLight(entt::registry& registry, entt::entity entity);
+  static void onConstructPointLight(entt::registry& registry, entt::entity entity);
+  static void onConstructSpotlight(entt::registry& registry, entt::entity entity);
+
+  void onDestroyOutline(entt::registry& registry, entt::entity entity);
+  void onDestroyGraphics(entt::registry& registry, entt::entity entity);
+
   static void onUpdateDirectionalLight(entt::registry& ecs, entt::entity entity);
   static void onUpdatePointLight(entt::registry& ecs, entt::entity entity);
   static void onUpdateSpotlight(entt::registry& ecs, entt::entity entity);

@@ -14,7 +14,7 @@ public:
   virtual void processKeyboard(GLFWwindow* window) {}
   virtual void processMouse(glm::vec2 mousePosition) {}
   virtual void update(double dt) {}
-  [[nodiscard]] virtual std::vector<RenderPass> render();
+  [[nodiscard]] virtual CommandBuffer render();
 
   virtual void onWindowResize(GLFWwindow* window, glm::uvec2 newSize);
 
@@ -37,9 +37,11 @@ protected:
 
   std::vector<ShaderProgramInstanceHandle> mPostProcessingShaderProgramInstances;
 
-  std::optional<FramebufferHandle> mMainSceneFramebuffer;
-  std::vector<FramebufferHandle> mShadowMaps;
+  FramebufferHandle mMainSceneFramebuffer = FramebufferHandle::null();
+  std::vector<FramebufferHandle> mDirectionalShadowFramebuffers;
   std::vector<FramebufferHandle> mPostProcessingFramebuffers;
+
+  Texture2DArrayHandle mDirectionalLightShadowMaps = Texture2DArrayHandle::null();
 
   SceneRenderMode mSceneRenderMode = SceneRenderMode::Full;
   bool mbDebugVisualiseVertexNormals = false;

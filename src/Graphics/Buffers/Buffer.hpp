@@ -3,10 +3,13 @@
 #include <Util/Macros/Errors.hpp>
 #include <Util/Registry.hpp>
 
-#include <tracy/TracyOpenGL.hpp>
-
 #include <concepts>
-#include <vector>
+
+template <typename BufferData>
+concept BufferObject = requires (BufferData t, std::span<uint8_t> buffer, size_t offset) {
+  { t.size() } -> std::same_as<size_t>;
+  { t.writeToBuffer(buffer, offset) } -> std::same_as<void>;
+};
 
 class Buffer {
 public:
@@ -20,16 +23,10 @@ public:
   void bindWhole(uint32_t bindPoint) const;
   void bindRange(uint32_t bindPoint, size_t offset, size_t size) const;
 
-  template <typename BufferData> requires
-    requires (BufferData t, std::span<uint8_t> buffer, size_t offset) {
-      { t.size() } -> std::same_as<size_t>;
-      { t.writeToBuffer(buffer, offset) } -> std::same_as<void>;
-    }
-  void write(const BufferData& data, const size_t offset = 0) {
+  void write(const BufferObject auto& data, const size_t offset = 0) {
     ZoneScoped;
 
-    const size_t requiredSize = data.size();
-    if (mMapped.size_bytes() < offset + requiredSize) {
+    if (const size_t requiredSize = data.size(); mMapped.size_bytes() < offset + requiredSize) {
       this->reallocate(offset + requiredSize);
     }
 

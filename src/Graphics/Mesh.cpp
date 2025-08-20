@@ -1,7 +1,8 @@
 #include <Graphics/Mesh.hpp>
 
-#include <cassert>
 #include <Util/Memory.hpp>
+
+#include <cassert>
 
 Mesh::Mesh() {
   ZoneScoped;
@@ -34,13 +35,13 @@ void Mesh::generateMesh(const MeshData& mesh) {
 
   assert(mesh.indices.size() % 3 == 0);
 
-  const size_t verticesSize = mesh.vertices.size() * sizeof(Vertex);
-  const size_t indicesSize = mesh.indices.size() * sizeof(uint32_t);
+  const auto verticesSize = static_cast<GLsizei>(mesh.vertices.size() * sizeof(Vertex));
+  const auto indicesSize = static_cast<GLsizei>(mesh.vertices.size() * sizeof(Vertex));
 
-  GLint alignment = GL_NONE;
+  GLsizei alignment = GL_NONE;
   glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &alignment);
-  const size_t verticesSizeAligned = align(verticesSize, alignment);
-  const size_t indicesSizeAligned = align(indicesSize, alignment);
+  const GLsizei verticesSizeAligned = align(verticesSize, alignment);
+  const GLsizei indicesSizeAligned = align(indicesSize, alignment);
 
   constexpr size_t vertexOffset = 0;
   mIndicesOffset = verticesSizeAligned;

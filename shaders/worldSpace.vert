@@ -21,7 +21,7 @@ void main() {
   InstanceData currentInstance = uInstances.data[gl_InstanceID];
   vec4 vertexPosWorld = currentInstance.model * vec4(inPosition, 1);
 
-  gl_Position = vertexPosWorld;
+  gl_Position = vertexPosWorld; // world space
 
   vsOut.position = vertexPosWorld.xyz;
   vsOut.normal = normalize(currentInstance.normal * inNormal);

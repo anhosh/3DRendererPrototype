@@ -75,6 +75,13 @@ Expected<void> SpaceDemo::init(const std::shared_ptr<AssetManager>& assets, cons
   mScene.ecs.emplace<CompTransform>(entityPlanet);
   mScene.ecs.emplace<CompGraphics>(entityPlanet, planetMeshes);
 
+  const entt::entity entityPlanet2 = mScene.ecs.create();
+  mScene.ecs.emplace<CompName>(entityPlanet2, "Planet Mars 2");
+  mScene.ecs.emplace<CompTransform>(entityPlanet2, CompTransform {
+    .translation = glm::vec3(0.0f, -7.0f, 0.0f),
+  });
+  mScene.ecs.emplace<CompGraphics>(entityPlanet2, planetMeshes);
+
   std::random_device rd;
   std::mt19937 gen(rd());
   constexpr float offset = 25.0f;

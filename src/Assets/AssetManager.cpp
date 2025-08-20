@@ -26,6 +26,10 @@ AssetHandle<MeshData> AssetManager::addMesh(MeshData&& mesh) {
   return mMeshes.add(std::forward<MeshData>(mesh));
 }
 
+AssetHandle<Bitmap> AssetManager::addBitmap(Bitmap&& bitmap) {
+  return mBitmaps.add(std::move(bitmap));
+}
+
 Expected<AssetHandle<Bitmap>> AssetManager::loadBitmap(const std::filesystem::path& filePath, const bool bFlipVertically) {
   ZoneScoped;
 
@@ -37,7 +41,7 @@ Expected<AssetHandle<Bitmap>> AssetManager::loadBitmap(const std::filesystem::pa
 
   Bitmap bitmap;
   ASSIGN_EXPECTED_OR_RETURN(bitmap, Bitmap::fromFile(fullPath, bFlipVertically));
-  const AssetHandle<Bitmap> handle = mBitmaps.add(std::move(bitmap));
+  const AssetHandle<Bitmap> handle = this->addBitmap(std::move(bitmap));
   mLoadedBitmaps.emplace(fullPath, handle);
   return handle;
 }
@@ -135,9 +139,9 @@ Expected<void> AssetManager::processMesh(Model& model, const aiMesh* mesh, const
   const size_t meshIndex = model.meshes.size() - 1;
   if (mesh->mMaterialIndex < scene->mNumMaterials) {
     const aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
-    model.diffuseMaps.emplace_back();
-    model.specularMaps.emplace_back();
-    model.emissionMaps.emplace_back();
+    model.diffuseMaps.emplace_back(AssetHandle<Bitmap>::null());
+    model.specularMaps.emplace_back(AssetHandle<Bitmap>::null());
+    model.emissionMaps.emplace_back(AssetHandle<Bitmap>::null());
     ASSIGN_EXPECTED_OR_IGNORE(model.diffuseMaps[meshIndex], processTexture(material, aiTextureType_DIFFUSE));
     ASSIGN_EXPECTED_OR_IGNORE(model.specularMaps[meshIndex], processTexture(material, aiTextureType_SPECULAR));
     ASSIGN_EXPECTED_OR_IGNORE(model.emissionMaps[meshIndex], processTexture(material, aiTextureType_EMISSIVE));

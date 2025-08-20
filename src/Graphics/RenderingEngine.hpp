@@ -1,7 +1,9 @@
 #pragma once
 
 #include <Assets/AssetManager.hpp>
-#include <Graphics/Buffer.hpp>
+#include <Graphics/Buffers/Buffer.hpp>
+#include <Graphics/Buffers/MultiBuffer.hpp>
+#include <Graphics/Command.hpp>
 #include <Graphics/Draw.hpp>
 #include <Graphics/Framebuffer.hpp>
 #include <Graphics/Mesh.hpp>
@@ -9,14 +11,12 @@
 #include <Graphics/RenderPass.hpp>
 #include <Graphics/Sampler.hpp>
 #include <Graphics/ShaderProgramInstance.hpp>
-#include <Graphics/Texture2D.hpp>
-#include <Graphics/TextureCubeMap.hpp>
-#include <Util/MultiBuffer.hpp>
+#include <Graphics/Textures/Texture2D.hpp>
+#include <Graphics/Textures/Texture2DArray.hpp>
+#include <Graphics/Textures/TextureCubeMap.hpp>
 #include <Util/Registry.hpp>
 
-#include <optional>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 struct CompCamera;
@@ -30,7 +30,7 @@ class RenderingEngine {
 public:
   ~RenderingEngine() { this->destroy(); }
 
-  Expected<void> init();
+  Expected<void> init(AssetManager& assets);
   void destroy();
 
   Expected<ShaderProgramHandle> createShaderProgram(const ShaderProgramPaths& shaderPaths);
@@ -41,9 +41,9 @@ public:
 
 private:
   struct TexturePack {
-    std::optional<AssetHandle<Bitmap>> diffuseMap = std::nullopt;
-    std::optional<AssetHandle<Bitmap>> specularMap = std::nullopt;
-    std::optional<AssetHandle<Bitmap>> emissionMap = std::nullopt;
+    AssetHandle<Bitmap> diffuseMap = AssetHandle<Bitmap>::null();
+    AssetHandle<Bitmap> specularMap = AssetHandle<Bitmap>::null();
+    AssetHandle<Bitmap> emissionMap = AssetHandle<Bitmap>::null();
 
     auto operator<=>(const TexturePack&) const = default;
   };
@@ -62,18 +62,27 @@ public:
 
   SamplerHandle addSampler(const SamplerOptions& options);
 
-  std::vector<std::optional<Texture2DHandle>> addTexture2Ds(std::span<const std::optional<AssetHandle<Bitmap>>> bitmaps);
+  Texture2DHandle createEmptyTexture2D();
+  Texture2DArrayHandle createEmptyTexture2DArray();
+  TextureCubeMapHandle createEmptyTextureCubeMap();
+
+  std::vector<Texture2DHandle> addTexture2Ds(std::span<const AssetHandle<Bitmap>> bitmaps);
   Texture2DHandle addTexture2D(AssetHandle<Bitmap> bitmap);
+  Texture2DArrayHandle addTexture2DArray(std::span<const AssetHandle<Bitmap>> bitmaps);
   TextureCubeMapHandle addTextureCubeMap(const TextureCubeMapBitmaps& bitmaps);
 
+private:
+  static GLint textureInternalFormat(bool bSRGB, uint32_t channels);
+
+public:
   FramebufferHandle addFramebuffer(const FramebufferCreateInfo& info);
 
   BufferHandle createBuffer(GLenum type);
 
   void updateInstances(size_t first, const InstanceBuffer& instances);
 
-  void submitRenderPasses(std::span<RenderPass> renderPasses);
-  void renderSceneFull(std::span<const Draw> draws, const Viewport& viewport, FramebufferHandle dstFramebuffer, bool bClearFramebuffer = true);
+  void submitCommands(CommandBuffer&& commandBuffer);
+  void renderSceneFull(std::span<const Draw> draws, const Viewport& viewport, FramebufferHandle dstFramebuffer, const ShadowMaps& shadowMaps, bool bClearFramebuffer = true);
   void renderSceneSimple(std::span<const Draw> draws, const Viewport& viewport, FramebufferHandle dstFramebuffer, SceneRenderMode mode, bool bClearFramebuffer = true);
   void postProcess(const Viewport& viewport, FramebufferHandle dstFramebuffer, FramebufferHandle srcFramebuffer, ShaderProgramInstanceHandle postProcessingShader) const;
   void present(glm::uvec2 windowSize, FramebufferHandle srcFramebuffer) const;
@@ -91,6 +100,7 @@ private:
   Registry<Mesh> mMeshes;
   Registry<Sampler> mSamplers;
   Registry<Texture2D> mTexture2Ds;
+  Registry<Texture2DArray> mTexture2DArrays;
   Registry<TextureCubeMap> mTextureCubeMaps;
   Registry<Framebuffer> mFramebuffers;
   Registry<Buffer> mBuffers;
@@ -100,39 +110,46 @@ private:
 
   GLsync mBuffersFence = GL_NONE;
 
-  std::optional<ShaderProgramHandle> mNoColorShaderProgram = std::nullopt;
-  std::optional<ShaderProgramHandle> mLitSurfaceShaderProgram = std::nullopt;
-  std::optional<ShaderProgramHandle> mLitExplodedShaderProgram = std::nullopt;
-  std::optional<ShaderProgramHandle> mLightShaderProgram = std::nullopt;
-  std::optional<ShaderProgramHandle> mOutlineShaderProgram = std::nullopt;
-  std::optional<ShaderProgramHandle> mReflectiveSurfaceShaderProgram = std::nullopt;
-  std::optional<ShaderProgramHandle> mRefractiveSurfaceShaderProgram = std::nullopt;
-  std::optional<ShaderProgramHandle> mSurfaceDepthShaderProgram = std::nullopt;
-  std::optional<ShaderProgramHandle> mSurfaceNormalShaderProgram = std::nullopt;
-  std::optional<ShaderProgramHandle> mVertexNormalShaderProgram = std::nullopt;
-  std::optional<ShaderProgramHandle> mPostProcessCopyShaderProgram = std::nullopt;
-  std::optional<ShaderProgramHandle> mPostProcessFlipHorizontallyShaderProgram = std::nullopt;
-  std::optional<ShaderProgramHandle> mPostProcessFlipVerticallyShaderProgram = std::nullopt;
-  std::optional<ShaderProgramHandle> mPostProcessGammaCorrectionShaderProgram = std::nullopt;
-  std::optional<ShaderProgramHandle> mPostProcessGrayscaleShaderProgram = std::nullopt;
-  std::optional<ShaderProgramHandle> mPostProcessInvertShaderProgram = std::nullopt;
-  std::optional<ShaderProgramHandle> mPostProcessKernel3x3ShaderProgram = std::nullopt;
-  std::optional<ShaderProgramHandle> mSkyboxShaderProgram = std::nullopt;
+  ShaderProgramHandle mNoColorShaderProgram = ShaderProgramHandle::null();
+  ShaderProgramHandle mLitSurfaceShaderProgram = ShaderProgramHandle::null();
+  ShaderProgramHandle mLitExplodedShaderProgram = ShaderProgramHandle::null();
+  ShaderProgramHandle mLightShaderProgram = ShaderProgramHandle::null();
+  ShaderProgramHandle mOutlineShaderProgram = ShaderProgramHandle::null();
+  ShaderProgramHandle mReflectiveSurfaceShaderProgram = ShaderProgramHandle::null();
+  ShaderProgramHandle mRefractiveSurfaceShaderProgram = ShaderProgramHandle::null();
+  ShaderProgramHandle mSurfaceDepthShaderProgram = ShaderProgramHandle::null();
+  ShaderProgramHandle mSurfaceNormalShaderProgram = ShaderProgramHandle::null();
+  ShaderProgramHandle mVertexNormalShaderProgram = ShaderProgramHandle::null();
+  ShaderProgramHandle mPostProcessCopyShaderProgram = ShaderProgramHandle::null();
+  ShaderProgramHandle mPostProcessFlipHorizontallyShaderProgram = ShaderProgramHandle::null();
+  ShaderProgramHandle mPostProcessFlipVerticallyShaderProgram = ShaderProgramHandle::null();
+  ShaderProgramHandle mPostProcessGammaCorrectionShaderProgram = ShaderProgramHandle::null();
+  ShaderProgramHandle mPostProcessGrayscaleShaderProgram = ShaderProgramHandle::null();
+  ShaderProgramHandle mPostProcessInvertShaderProgram = ShaderProgramHandle::null();
+  ShaderProgramHandle mPostProcessKernel3x3ShaderProgram = ShaderProgramHandle::null();
+  ShaderProgramHandle mSkyboxShaderProgram = ShaderProgramHandle::null();
 
-  std::optional<SamplerHandle> mColorAttachmentSampler = std::nullopt;
-  std::optional<SamplerHandle> mDiffuseTextureSampler = std::nullopt;
-  std::optional<SamplerHandle> mSpecularTextureSampler = std::nullopt;
-  std::optional<SamplerHandle> mEmissionTextureSampler = std::nullopt;
-  std::optional<SamplerHandle> mEnvironmentTextureSampler = std::nullopt;
+  SamplerHandle mDiffuseTextureSampler = SamplerHandle::null();
+  SamplerHandle mSpecularTextureSampler = SamplerHandle::null();
+  SamplerHandle mEmissionTextureSampler = SamplerHandle::null();
+  SamplerHandle mEnvironmentTextureSampler = SamplerHandle::null();
+  SamplerHandle mDirectionalShadowMapsSampler = SamplerHandle::null();
+  SamplerHandle mPointShadowMapsSampler = SamplerHandle::null();
+  SamplerHandle mSpotlightShadowMapsSampler = SamplerHandle::null();
+  SamplerHandle mColorAttachmentSampler = SamplerHandle::null();
 
-  std::optional<TripleBuffer<BufferHandle>> mCameraUniformBuffer = std::nullopt;
-  std::optional<TripleBuffer<BufferHandle>> mDirectionalLightsStorageBuffer = std::nullopt;
-  std::optional<TripleBuffer<BufferHandle>> mPointLightsStorageBuffer = std::nullopt;
-  std::optional<TripleBuffer<BufferHandle>> mSpotlightsStorageBuffer = std::nullopt;
-  std::optional<TripleBuffer<BufferHandle>> mInstanceBuffer = std::nullopt;
+  Texture2DHandle mWhiteTexture = Texture2DHandle::null();
+  Texture2DHandle mBlackTexture = Texture2DHandle::null();
+  Texture2DHandle mFlatNormalMap = Texture2DHandle::null();
+  Texture2DArrayHandle mEmptyDepthMaps = Texture2DArrayHandle::null();
+  TextureCubeMapHandle mBlackCubeMap = TextureCubeMapHandle::null();
+
+  MultiBuffer mCameraUniformBuffer;
+  MultiBuffer mDirectionalLightsStorageBuffer;
+  MultiBuffer mPointLightsStorageBuffer;
+  MultiBuffer mSpotlightsStorageBuffer;
+  MultiBuffer mInstanceBuffer;
 
   std::unordered_map<RegItemID, Texture2DHandle> mUploadedTextures;
   std::unordered_map<RegItemID, std::vector<RenderData>> mUploadedModels;
-
-  std::unordered_set<GLuint> mBoundTextureSlots;
 };

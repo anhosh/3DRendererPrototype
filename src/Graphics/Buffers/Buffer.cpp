@@ -1,4 +1,6 @@
-#include <Graphics/Buffer.hpp>
+#include <Graphics/Buffers/Buffer.hpp>
+
+#include <tracy/TracyOpenGL.hpp>
 
 Buffer::Buffer(const GLenum target) : mBindTarget(target) {
   ZoneScoped;

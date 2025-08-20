@@ -26,7 +26,6 @@ void ShaderProgramInstance::bindUniforms() const {
       [&](const glm::mat2& value) { glUniformMatrix2fv(uniform.location, 1, GL_FALSE, glm::value_ptr(value)); },
       [&](const glm::mat3& value) { glUniformMatrix3fv(uniform.location, 1, GL_FALSE, glm::value_ptr(value)); },
       [&](const glm::mat4& value) { glUniformMatrix4fv(uniform.location, 1, GL_FALSE, glm::value_ptr(value)); },
-      [](auto) { UNREACHABLE(); }
     });
   }
 }
@@ -68,6 +67,10 @@ ShaderProgramInstance ShaderProgramInstance::create<ShaderProgramType::LitSurfac
   instance.setUniform("uMaterial.specular", BINDING_SAMPLER_SPECULAR);
   instance.setUniform("uMaterial.emission", BINDING_SAMPLER_EMISSION);
   instance.setUniform("uMaterial.shininess", 128.0f);
+
+  instance.setUniform("uDirectionalLightShadowMaps", BINDING_SAMPLER_DIRECTIONAL_SHADOWS);
+  instance.setUniform("uPointLightShadowMaps", BINDING_SAMPLER_POINT_SHADOWS);
+  instance.setUniform("uSpotlightShadowMaps", BINDING_SAMPLER_SPOTLIGHT_SHADOWS);
 
   return instance;
 }
@@ -126,8 +129,8 @@ ShaderProgramInstance ShaderProgramInstance::create<ShaderProgramType::PostProce
   instance.setUniform("uScreenTexture", BINDING_SAMPLER_SCREEN);
   instance.setUniform("uOffset", 1.0f / 3000.0f);
   instance.setUniform("uKernel", glm::mat3(1.0f, 2.0f, 1.0f,
-                                                      2.0f, 4.0f, 2.0f,
-                                                      1.0f, 2.0f, 1.0f) / 16.0f);
+                                           2.0f, 4.0f, 2.0f,
+                                           1.0f, 2.0f, 1.0f) / 16.0f);
 
   return instance;
 }
@@ -141,8 +144,8 @@ ShaderProgramInstance ShaderProgramInstance::create<ShaderProgramType::PostProce
   instance.setUniform("uScreenTexture", BINDING_SAMPLER_SCREEN);
   instance.setUniform("uOffset", 1.0f / 3000.0f);
   instance.setUniform("uKernel", glm::mat3(1.0f,  1.0f, 1.0f,
-                                                      1.0f, -8.0f, 1.0f,
-                                                      1.0f,  1.0f, 1.0f));
+                                           1.0f, -8.0f, 1.0f,
+                                           1.0f,  1.0f, 1.0f));
 
   return instance;
 }
@@ -156,8 +159,8 @@ ShaderProgramInstance ShaderProgramInstance::create<ShaderProgramType::PostProce
   instance.setUniform("uScreenTexture", BINDING_SAMPLER_SCREEN);
   instance.setUniform("uOffset", 1.0f / 3000.0f);
   instance.setUniform("uKernel", glm::mat3(-2.0f, -1.0f, 1.0f,
-                                                      -1.0f,  1.0f, 1.0f,
-                                                       0.0f,  1.0f, 2.0f));
+                                           -1.0f,  1.0f, 1.0f,
+                                            0.0f,  1.0f, 2.0f));
 
   return instance;
 }
@@ -227,8 +230,8 @@ ShaderProgramInstance ShaderProgramInstance::create<ShaderProgramType::PostProce
   instance.setUniform("uScreenTexture", BINDING_SAMPLER_SCREEN);
   instance.setUniform("uOffset", 1.0f / 3000.0f);
   instance.setUniform("uKernel", glm::mat3(-1.0f, -1.0f, -1.0f,
-                                                      -1.0f,  9.0f, -1.0f,
-                                                      -1.0f, -1.0f, -1.0f));
+                                           -1.0f,  9.0f, -1.0f,
+                                           -1.0f, -1.0f, -1.0f));
 
   return instance;
 }
@@ -242,8 +245,8 @@ ShaderProgramInstance ShaderProgramInstance::create<ShaderProgramType::PostProce
   instance.setUniform("uScreenTexture", BINDING_SAMPLER_SCREEN);
   instance.setUniform("uOffset", 1.0f / 3000.0f);
   instance.setUniform("uKernel", glm::mat3(-1.0f, -2.0f, -1.0f,
-                                                       0.0f,  0.0f,  0.0f,
-                                                       1.0f,  2.0f,  1.0f));
+                                            0.0f,  0.0f,  0.0f,
+                                            1.0f,  2.0f,  1.0f));
 
   return instance;
 }
@@ -257,8 +260,8 @@ ShaderProgramInstance ShaderProgramInstance::create<ShaderProgramType::PostProce
   instance.setUniform("uScreenTexture", BINDING_SAMPLER_SCREEN);
   instance.setUniform("uOffset", 1.0f / 3000.0f);
   instance.setUniform("uKernel", glm::mat3(1.0f, 0.0f, -1.0f,
-                                                      2.0f, 0.0f, -2.0f,
-                                                      1.0f, 0.0f, -1.0f));
+                                           2.0f, 0.0f, -2.0f,
+                                           1.0f, 0.0f, -1.0f));
 
   return instance;
 }
@@ -272,8 +275,8 @@ ShaderProgramInstance ShaderProgramInstance::create<ShaderProgramType::PostProce
   instance.setUniform("uScreenTexture", BINDING_SAMPLER_SCREEN);
   instance.setUniform("uOffset", 1.0f / 3000.0f);
   instance.setUniform("uKernel", glm::mat3(-1.0f, 0.0f, 1.0f,
-                                                      -2.0f, 0.0f, 2.0f,
-                                                      -1.0f, 0.0f, 1.0f));
+                                           -2.0f, 0.0f, 2.0f,
+                                           -1.0f, 0.0f, 1.0f));
 
   return instance;
 }
@@ -287,8 +290,8 @@ ShaderProgramInstance ShaderProgramInstance::create<ShaderProgramType::PostProce
   instance.setUniform("uScreenTexture", BINDING_SAMPLER_SCREEN);
   instance.setUniform("uOffset", 1.0f / 3000.0f);
   instance.setUniform("uKernel", glm::mat3( 1.0f,  2.0f,  1.0f,
-                                                       0.0f,  0.0f,  0.0f,
-                                                      -1.0f, -2.0f, -1.0f));
+                                            0.0f,  0.0f,  0.0f,
+                                           -1.0f, -2.0f, -1.0f));
 
   return instance;
 }

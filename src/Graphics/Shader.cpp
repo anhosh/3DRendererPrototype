@@ -1,7 +1,7 @@
 #include <Graphics/Shader.hpp>
 
-#include <Graphics/Buffer.hpp>
 #include <Graphics/Buffers/BindPoints.hpp>
+#include <Graphics/Buffers/Buffer.hpp>
 #include <Util/Macros/Errors.hpp>
 #include <Util/Paths.hpp>
 

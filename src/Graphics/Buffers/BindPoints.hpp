@@ -12,3 +12,6 @@ inline constexpr int32_t BINDING_SAMPLER_DIFFUSE = 0;
 inline constexpr int32_t BINDING_SAMPLER_SPECULAR = 1;
 inline constexpr int32_t BINDING_SAMPLER_EMISSION = 2;
 inline constexpr int32_t BINDING_SAMPLER_ENVIRONMENT = 3;
+inline constexpr int32_t BINDING_SAMPLER_DIRECTIONAL_SHADOWS = 4;
+inline constexpr int32_t BINDING_SAMPLER_POINT_SHADOWS = 5;
+inline constexpr int32_t BINDING_SAMPLER_SPOTLIGHT_SHADOWS = 6;

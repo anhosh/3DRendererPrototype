@@ -8,6 +8,11 @@ struct SamplerOptions {
   GLint wrapR = GL_CLAMP_TO_EDGE;
   GLint minFilter = GL_LINEAR_MIPMAP_LINEAR;
   GLint magFilter = GL_LINEAR;
+  glm::vec4 borderColor = glm::vec4(0.0f);
+  GLint minLOD = -1000;
+  GLint maxLOD = 1000;
+  GLint compareMode = GL_NONE;
+  GLint compareFunc = GL_ALWAYS;
 };
 
 class Sampler {

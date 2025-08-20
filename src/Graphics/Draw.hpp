@@ -2,10 +2,8 @@
 
 #include <Graphics/Mesh.hpp>
 #include <Graphics/ShaderProgramInstance.hpp>
-#include <Graphics/Texture2D.hpp>
-#include <Graphics/TextureCubeMap.hpp>
-
-#include <optional>
+#include <Graphics/Textures/Texture2D.hpp>
+#include <Graphics/Textures/TextureCubeMap.hpp>
 
 struct Draw {
   ShaderProgramInstanceHandle shaderProgramInstance;
@@ -14,10 +12,10 @@ struct Draw {
   size_t instanceOffset = 0;
   size_t instanceCount = 1;
 
-  std::optional<Texture2DHandle> diffuseMap = std::nullopt;
-  std::optional<Texture2DHandle> specularMap = std::nullopt;
-  std::optional<Texture2DHandle> emissionMap = std::nullopt;
-  std::optional<TextureCubeMapHandle> environmentMap = std::nullopt;
+  Texture2DHandle diffuseMap = Texture2DHandle::null();
+  Texture2DHandle specularMap = Texture2DHandle::null();
+  Texture2DHandle emissionMap = Texture2DHandle::null();
+  TextureCubeMapHandle environmentMap = TextureCubeMapHandle::null();
 
   bool bBackfaceCulling = true;
   bool bWriteToStencil = false;

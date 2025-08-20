@@ -14,9 +14,14 @@
 namespace views = std::ranges::views;
 
 Scene::Scene() {
-  ecs.on_construct<CompOutline>().connect<&Scene::onConstructOutlineComponent>(this);
-  ecs.on_destroy<CompOutline>().connect<&Scene::onDestroyOutlineComponent>(this);
-  ecs.on_destroy<CompGraphics>().connect<&Scene::onDestroyGraphicsComponent>(this);
+  ecs.on_construct<CompOutline>().connect<&Scene::onConstructOutline>(this);
+  ecs.on_construct<CompDirectionalLight>().connect<&Scene::onConstructDirectionalLight>();
+  ecs.on_construct<CompPointLight>().connect<&Scene::onConstructPointLight>();
+  ecs.on_construct<CompSpotlight>().connect<&Scene::onConstructSpotlight>();
+
+  ecs.on_destroy<CompOutline>().connect<&Scene::onDestroyOutline>(this);
+  ecs.on_destroy<CompGraphics>().connect<&Scene::onDestroyGraphics>(this);
+
   ecs.on_update<CompDirectionalLight>().connect<&Scene::onUpdateDirectionalLight>();
   ecs.on_update<CompPointLight>().connect<&Scene::onUpdatePointLight>();
   ecs.on_update<CompSpotlight>().connect<&Scene::onUpdateSpotlight>();
@@ -57,12 +62,12 @@ void Scene::prepareForRendering() {
 DirectionalLightSourceBuffer Scene::createDirectionalLightUniforms() const {
   ZoneScoped;
 
-  const entt::basic_view directionalLights = ecs.view<const CompDirectionalLight>();
+  const entt::basic_view directionalLights = ecs.view<const CompDirectionalLight, const CompCamera, const CompTransform>();
 
   DirectionalLightSourceBuffer buffer;
-  buffer.sources.reserve(directionalLights.size());
-  for (const auto& [entity, directionalLight]: directionalLights.each()) {
-    buffer.sources.push_back(DirectionalLightUniforms::from(directionalLight));
+  buffer.sources.reserve(std::distance(directionalLights.begin(), directionalLights.end()));
+  for (const auto& [entity, light, camera, transform]: directionalLights.each()) {
+    buffer.sources.push_back(DirectionalLightShaderData::from(light, camera, transform));
   }
   return buffer;
 }
@@ -74,8 +79,8 @@ PointLightSourceBuffer Scene::createPointLightUniforms() const {
 
   PointLightSourceBuffer buffer;
   buffer.sources.reserve(static_cast<size_t>(std::distance(pointLights.begin(), pointLights.end())));
-  for (const auto& [entity, directionalLight, transform]: pointLights.each()) {
-    buffer.sources.push_back(PointLightUniforms::from(directionalLight, transform));
+  for (const auto& [entity, light, transform]: pointLights.each()) {
+    buffer.sources.push_back(PointLightShaderData::from(light, transform));
   }
   return buffer;
 }
@@ -87,8 +92,8 @@ SpotlightSourceBuffer Scene::createSpotlightUniforms() const {
 
   SpotlightSourceBuffer buffer;
   buffer.sources.reserve(static_cast<size_t>(std::distance(spotlights.begin(), spotlights.end())));
-  for (const auto& [entity, directionalLight, transform]: spotlights.each()) {
-    buffer.sources.push_back(SpotlightUniforms::from(directionalLight, transform));
+  for (const auto& [entity, light, transform]: spotlights.each()) {
+    buffer.sources.push_back(SpotlightShaderData::from(light, transform));
   }
   return buffer;
 }
@@ -275,7 +280,7 @@ void Scene::sortOutlines() {
     });
 }
 
-void Scene::onConstructOutlineComponent(entt::registry&, const entt::entity entity) {
+void Scene::onConstructOutline(entt::registry&, const entt::entity entity) {
   const auto meshHasSameEntity = [=](const MeshDataReference& mesh) { return mesh.entity == entity; };
   auto meshesRange = std::views::concat(mCachedSortedOpaqueMeshes, mCachedSortedTransparentMeshes);
   if (const auto mesh = std::find_if(meshesRange.begin(), meshesRange.end(), meshHasSameEntity); mesh != meshesRange.end()) {
@@ -285,7 +290,21 @@ void Scene::onConstructOutlineComponent(entt::registry&, const entt::entity enti
   }
 }
 
-void Scene::onDestroyOutlineComponent(entt::registry&, const entt::entity entity) {
+void Scene::onConstructDirectionalLight(entt::registry& registry, const entt::entity entity) {
+  registry.emplace<CompCamera>(entity, CompCamera { .bOrthographic = true });
+  Scene::onUpdateDirectionalLight(registry, entity);
+}
+
+void Scene::onConstructPointLight(entt::registry& registry, const entt::entity entity) {
+  Scene::onUpdatePointLight(registry, entity);
+}
+
+void Scene::onConstructSpotlight(entt::registry& registry, const entt::entity entity) {
+  registry.emplace<CompCamera>(entity, CompCamera { .bOrthographic = true });
+  Scene::onUpdateSpotlight(registry, entity);
+}
+
+void Scene::onDestroyOutline(entt::registry&, const entt::entity entity) {
   const auto meshHasSameEntity = [=](const MeshDataReference& mesh) { return mesh.entity == entity; };
   auto meshesRange = std::views::concat(mCachedSortedOpaqueMeshes, mCachedSortedTransparentMeshes);
   if (const auto mesh = std::find_if(meshesRange.begin(), meshesRange.end(), meshHasSameEntity); mesh != meshesRange.end()) {
@@ -295,7 +314,7 @@ void Scene::onDestroyOutlineComponent(entt::registry&, const entt::entity entity
   mCachedSortedOutlines.erase(removedOutlines.begin(), removedOutlines.end());
 }
 
-void Scene::onDestroyGraphicsComponent(entt::registry&, const entt::entity entity) {
+void Scene::onDestroyGraphics(entt::registry&, const entt::entity entity) {
   const auto meshHasSameEntity = [=](const MeshDataReference& mesh) { return mesh.entity == entity; };
 
   if (auto removed = std::ranges::remove_if(mCachedSortedOutlines, meshHasSameEntity); !removed.empty()) {

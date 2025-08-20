@@ -12,38 +12,39 @@
 #include <Graphics/Buffers/InstanceBuffer.hpp>
 #include <Graphics/Viewport.hpp>
 #include <Scene/Components/Camera.hpp>
-#include <Scene/Components/Graphics.hpp>
 #include <Scene/Scene.hpp>
 #include <Util/Macros/Errors.hpp>
+#include <Util/Visitor.hpp>
 
 #include <glm/gtc/type_ptr.hpp>
 
 #include <tracy/TracyOpenGL.hpp>
 
 #include <ranges>
-#include <Util/Visitor.hpp>
+#include <unordered_set>
 
-Expected<void> RenderingEngine::init() {
+Expected<void> RenderingEngine::init(AssetManager& assets) {
   ZoneScoped;
 
-  Expected noColor           = this->createShaderProgram({.vertex = "positionOnly.vert",  .fragment = "noColor.frag"});
-  Expected litSurface        = this->createShaderProgram({.vertex = "clipSpace.vert",  .fragment = "litSurface.frag"});
-  Expected litExploded       = this->createShaderProgram({.vertex = "worldSpace.vert", .geometry = "explode.geom", .fragment = "litSurface.frag"});
-  Expected light             = this->createShaderProgram({.vertex = "clipSpace.vert",  .fragment = "light.frag"});
-  Expected surfaceDepth      = this->createShaderProgram({.vertex = "clipSpace.vert",  .fragment = "surfaceDepth.frag"});
-  Expected surfaceNormal     = this->createShaderProgram({.vertex = "clipSpace.vert",  .fragment = "surfaceNormal.frag"});
-  Expected vertexNormal      = this->createShaderProgram({.vertex = "worldSpace.vert", .geometry = "vertexNormals.geom", .fragment = "vector.frag"});
-  Expected outline           = this->createShaderProgram({.vertex = "clipSpace.vert",  .fragment = "outline.frag"});
-  Expected reflectiveSurface = this->createShaderProgram({.vertex = "clipSpace.vert",  .fragment = "reflectiveSurface.frag"});
-  Expected refractiveSurface = this->createShaderProgram({.vertex = "clipSpace.vert",  .fragment = "refractiveSurface.frag"});
-  Expected copy              = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/copy.frag"});
-  Expected flipHorizontally  = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/flipHorizontally.frag"});
-  Expected flipVertically    = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/flipVertically.frag"});
-  Expected gammaCorrection   = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/gammaCorrection.frag"});
-  Expected grayscale         = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/grayscale.frag"});
-  Expected invert            = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/invert.frag"});
-  Expected kernel3x3         = this->createShaderProgram({.vertex = "screenQuad.vert", .fragment = "postProcessing/kernel3x3.frag"});
-  Expected skybox            = this->createShaderProgram({.vertex = "skybox.vert",     .fragment = "skybox.frag"});
+  // Shader programs
+  Expected noColor           = this->createShaderProgram({.vertex = "positionOnly.vert", .fragment = "noColor.frag"});
+  Expected litSurface        = this->createShaderProgram({.vertex = "clipSpace.vert",    .fragment = "litSurface.frag"});
+  Expected litExploded       = this->createShaderProgram({.vertex = "worldSpace.vert",   .geometry = "explode.geom", .fragment = "litSurface.frag"});
+  Expected light             = this->createShaderProgram({.vertex = "clipSpace.vert",    .fragment = "light.frag"});
+  Expected surfaceDepth      = this->createShaderProgram({.vertex = "clipSpace.vert",    .fragment = "surfaceDepth.frag"});
+  Expected surfaceNormal     = this->createShaderProgram({.vertex = "clipSpace.vert",    .fragment = "surfaceNormal.frag"});
+  Expected vertexNormal      = this->createShaderProgram({.vertex = "worldSpace.vert",   .geometry = "vertexNormals.geom", .fragment = "vector.frag"});
+  Expected outline           = this->createShaderProgram({.vertex = "clipSpace.vert",    .fragment = "outline.frag"});
+  Expected reflectiveSurface = this->createShaderProgram({.vertex = "clipSpace.vert",    .fragment = "reflectiveSurface.frag"});
+  Expected refractiveSurface = this->createShaderProgram({.vertex = "clipSpace.vert",    .fragment = "refractiveSurface.frag"});
+  Expected copy              = this->createShaderProgram({.vertex = "screenQuad.vert",   .fragment = "postProcessing/copy.frag"});
+  Expected flipHorizontally  = this->createShaderProgram({.vertex = "screenQuad.vert",   .fragment = "postProcessing/flipHorizontally.frag"});
+  Expected flipVertically    = this->createShaderProgram({.vertex = "screenQuad.vert",   .fragment = "postProcessing/flipVertically.frag"});
+  Expected gammaCorrection   = this->createShaderProgram({.vertex = "screenQuad.vert",   .fragment = "postProcessing/gammaCorrection.frag"});
+  Expected grayscale         = this->createShaderProgram({.vertex = "screenQuad.vert",   .fragment = "postProcessing/grayscale.frag"});
+  Expected invert            = this->createShaderProgram({.vertex = "screenQuad.vert",   .fragment = "postProcessing/invert.frag"});
+  Expected kernel3x3         = this->createShaderProgram({.vertex = "screenQuad.vert",   .fragment = "postProcessing/kernel3x3.frag"});
+  Expected skybox            = this->createShaderProgram({.vertex = "skybox.vert",       .fragment = "skybox.frag"});
 
   ASSIGN_EXPECTED_OR_RETURN(mNoColorShaderProgram, noColor);
   ASSIGN_EXPECTED_OR_RETURN(mLitSurfaceShaderProgram, litSurface);
@@ -64,33 +65,52 @@ Expected<void> RenderingEngine::init() {
   ASSIGN_EXPECTED_OR_RETURN(mPostProcessKernel3x3ShaderProgram, kernel3x3);
   ASSIGN_EXPECTED_OR_RETURN(mSkyboxShaderProgram, skybox);
 
+  // Vertex arrays
   glCreateVertexArrays(1, &mScreenQuadVAO);
   glCreateVertexArrays(1, &mMeshesVAO);
   Vertex::setupVertexAttributes(mMeshesVAO);
 
+  // Samplers
+  mDiffuseTextureSampler = this->addSampler({});
+  mSpecularTextureSampler = this->addSampler({});
+  mEmissionTextureSampler = this->addSampler({});
+  mEnvironmentTextureSampler = this->addSampler({});
+
+  constexpr SamplerOptions shadowSamplerOptions = {
+    .minFilter = GL_LINEAR,
+    .wrapS = GL_CLAMP_TO_BORDER,
+    .wrapT = GL_CLAMP_TO_BORDER,
+    .borderColor = glm::vec4(1.0f),
+    .compareMode = GL_COMPARE_REF_TO_TEXTURE,
+    .compareFunc = GL_GREATER,
+  };
+  mDirectionalShadowMapsSampler = this->addSampler(shadowSamplerOptions);
+  mPointShadowMapsSampler = this->addSampler(shadowSamplerOptions);
+  mSpotlightShadowMapsSampler = this->addSampler(shadowSamplerOptions);
+
   mColorAttachmentSampler = this->addSampler(SamplerOptions { .minFilter = GL_LINEAR });
-  mDiffuseTextureSampler = this->addSampler(SamplerOptions {});
-  mSpecularTextureSampler = this->addSampler(SamplerOptions {});
-  mEmissionTextureSampler = this->addSampler(SamplerOptions {});
-  mEnvironmentTextureSampler = this->addSampler(SamplerOptions {});
 
-  mCameraUniformBuffer.emplace(this->createBuffer(GL_UNIFORM_BUFFER),
-                               this->createBuffer(GL_UNIFORM_BUFFER),
-                               this->createBuffer(GL_UNIFORM_BUFFER));
-  mCameraUniformBuffer->current()->allocate(sizeof(CameraUniforms));
+  // Textures
+  const AssetHandle<Bitmap> whiteBitmap = assets.addBitmap(Bitmap::fromMemory(asBytes('\xFF'), glm::uvec2(1), 1).value());
+  const AssetHandle<Bitmap> blackBitmap = assets.addBitmap(Bitmap::fromMemory(asBytes('\x00'), glm::uvec2(1), 1).value());
+  const AssetHandle<Bitmap> flatNormalBitmap = assets.addBitmap(Bitmap::fromMemory(asBytes("\x88\x88\xFF"), glm::uvec2(1), 3).value());
 
-  mDirectionalLightsStorageBuffer.emplace(this->createBuffer(GL_SHADER_STORAGE_BUFFER),
-                                          this->createBuffer(GL_SHADER_STORAGE_BUFFER),
-                                          this->createBuffer(GL_SHADER_STORAGE_BUFFER));
-  mPointLightsStorageBuffer.emplace(this->createBuffer(GL_SHADER_STORAGE_BUFFER),
-                                    this->createBuffer(GL_SHADER_STORAGE_BUFFER),
-                                    this->createBuffer(GL_SHADER_STORAGE_BUFFER));
-  mSpotlightsStorageBuffer.emplace(this->createBuffer(GL_SHADER_STORAGE_BUFFER),
-                                   this->createBuffer(GL_SHADER_STORAGE_BUFFER),
-                                   this->createBuffer(GL_SHADER_STORAGE_BUFFER));
-  mInstanceBuffer.emplace(this->createBuffer(GL_SHADER_STORAGE_BUFFER),
-                          this->createBuffer(GL_SHADER_STORAGE_BUFFER),
-                          this->createBuffer(GL_SHADER_STORAGE_BUFFER));
+  mWhiteTexture = this->addTexture2D(whiteBitmap);
+  mBlackTexture = this->addTexture2D(blackBitmap);
+  mFlatNormalMap = this->addTexture2D(flatNormalBitmap);
+  mEmptyDepthMaps = this->createEmptyTexture2DArray();
+  mBlackCubeMap = this->addTextureCubeMap({blackBitmap, blackBitmap, blackBitmap, blackBitmap, blackBitmap, blackBitmap});
+
+  mEmptyDepthMaps->generate(std::array { whiteBitmap }, GL_DEPTH_COMPONENT24);
+
+  // Buffers
+  mCameraUniformBuffer = MultiBuffer(this->createBuffer(GL_UNIFORM_BUFFER), 3);
+  mDirectionalLightsStorageBuffer = MultiBuffer(this->createBuffer(GL_SHADER_STORAGE_BUFFER), 3);
+  mPointLightsStorageBuffer = MultiBuffer(this->createBuffer(GL_SHADER_STORAGE_BUFFER), 3);
+  mSpotlightsStorageBuffer = MultiBuffer(this->createBuffer(GL_SHADER_STORAGE_BUFFER), 3);
+  mInstanceBuffer = MultiBuffer(this->createBuffer(GL_SHADER_STORAGE_BUFFER), 3);
+
+  mCameraUniformBuffer.allocate(sizeof(CameraUniforms));
 
   mInitialised = true;
   return {};
@@ -135,35 +155,36 @@ void RenderingEngine::destroy() {
   mMeshesVAO = GL_NONE;
   mScreenQuadVAO = GL_NONE;
 
-  mLitSurfaceShaderProgram.reset();
-  mLightShaderProgram.reset();
-  mOutlineShaderProgram.reset();
-  mSurfaceDepthShaderProgram.reset();
-  mSurfaceNormalShaderProgram.reset();
-  mVertexNormalShaderProgram.reset();
-  mPostProcessCopyShaderProgram.reset();
-  mPostProcessFlipHorizontallyShaderProgram.reset();
-  mPostProcessFlipVerticallyShaderProgram.reset();
-  mPostProcessGrayscaleShaderProgram.reset();
-  mPostProcessInvertShaderProgram.reset();
-  mPostProcessKernel3x3ShaderProgram.reset();
-  mSkyboxShaderProgram.reset();
+  mLitSurfaceShaderProgram = ShaderProgramHandle::null();
+  mLightShaderProgram = ShaderProgramHandle::null();
+  mOutlineShaderProgram = ShaderProgramHandle::null();
+  mSurfaceDepthShaderProgram = ShaderProgramHandle::null();
+  mSurfaceNormalShaderProgram = ShaderProgramHandle::null();
+  mVertexNormalShaderProgram = ShaderProgramHandle::null();
+  mPostProcessCopyShaderProgram = ShaderProgramHandle::null();
+  mPostProcessFlipHorizontallyShaderProgram = ShaderProgramHandle::null();
+  mPostProcessFlipVerticallyShaderProgram = ShaderProgramHandle::null();
+  mPostProcessGrayscaleShaderProgram = ShaderProgramHandle::null();
+  mPostProcessInvertShaderProgram = ShaderProgramHandle::null();
+  mPostProcessKernel3x3ShaderProgram = ShaderProgramHandle::null();
+  mSkyboxShaderProgram = ShaderProgramHandle::null();
 
-  mColorAttachmentSampler.reset();
-  mDiffuseTextureSampler.reset();
-  mSpecularTextureSampler.reset();
-  mEmissionTextureSampler.reset();
-  mEnvironmentTextureSampler.reset();
+  mColorAttachmentSampler = SamplerHandle::null();
+  mDiffuseTextureSampler = SamplerHandle::null();
+  mSpecularTextureSampler = SamplerHandle::null();
+  mEmissionTextureSampler = SamplerHandle::null();
+  mEnvironmentTextureSampler = SamplerHandle::null();
+  mDirectionalShadowMapsSampler = SamplerHandle::null();
+  mPointShadowMapsSampler = SamplerHandle::null();
+  mSpotlightShadowMapsSampler = SamplerHandle::null();
 
-  mCameraUniformBuffer.reset();
-  mDirectionalLightsStorageBuffer.reset();
-  mPointLightsStorageBuffer.reset();
-  mSpotlightsStorageBuffer.reset();
+  mCameraUniformBuffer = MultiBuffer();
+  mDirectionalLightsStorageBuffer = MultiBuffer();
+  mPointLightsStorageBuffer = MultiBuffer();
+  mSpotlightsStorageBuffer = MultiBuffer();
 
   mUploadedTextures.clear();
   mUploadedModels.clear();
-
-  mBoundTextureSlots.clear();
 
   mInitialised = false;
 }
@@ -187,7 +208,7 @@ ShaderProgramInstanceHandle RenderingEngine::createShaderProgramInstance(const S
 
 #define CASE_RETURN(ShaderType, shaderProgramOption) \
   case ShaderType: \
-    TO_STATEMENT(return this->addShaderProgramInstance(ShaderProgramInstance::create<ShaderType>(shaderProgramOption.value()));)
+    TO_STATEMENT(return this->addShaderProgramInstance(ShaderProgramInstance::create<ShaderType>(shaderProgramOption));)
 
   switch (type) {
     CASE_RETURN(ShaderProgramType::LitSurface, mLitSurfaceShaderProgram);
@@ -229,17 +250,15 @@ auto RenderingEngine::groupMeshesByTextures(AssetHandle<Model> model) {
   ZoneScoped;
 
   struct TexturePackHash {
-    static size_t textureOptionHash(const std::optional<AssetHandle<Bitmap>>& texOpt) {
-      const auto path = texOpt
-        .and_then([](AssetHandle<Bitmap> bitmap) { return std::optional(bitmap->filePath()); })
-        .value_or(std::filesystem::path());
+    static size_t textureHash(const AssetHandle<Bitmap>& bitmap) {
+      const auto path = bitmap.isNull() ? std::filesystem::path() : bitmap->filePath();
       return std::hash<std::filesystem::path>{}(path);
     }
 
     size_t operator()(const TexturePack& texturePack) const {
-      const size_t hashDiffuse = textureOptionHash(texturePack.diffuseMap);
-      const size_t hashSpecular = textureOptionHash(texturePack.specularMap);
-      const size_t hashEmission = textureOptionHash(texturePack.emissionMap);
+      const size_t hashDiffuse = textureHash(texturePack.diffuseMap);
+      const size_t hashSpecular = textureHash(texturePack.specularMap);
+      const size_t hashEmission = textureHash(texturePack.emissionMap);
       return hashDiffuse ^ ((hashSpecular ^ (hashEmission << 1)) << 1);
     }
   };
@@ -281,13 +300,12 @@ const std::vector<RenderData>& RenderingEngine::addModel(AssetHandle<Model> mode
   modelRenderData.reserve(texturesToMeshes.size());
   for (const auto& [textures, meshes] : texturesToMeshes) {
     const MeshData mergedMesh = RenderingEngine::mergeMeshes(meshes);
-    const auto optionalAddTexture2D = [this](const AssetHandle<Bitmap> texture) { return this->addTexture2D(texture); };
     RenderData renderData = {
       .mesh = this->addMesh(mergedMesh),
       .shaderProgramInstance = initialShader,
-      .diffuseMap = textures.diffuseMap.transform(optionalAddTexture2D),
-      .specularMap = textures.specularMap.transform(optionalAddTexture2D),
-      .emissionMap = textures.emissionMap.transform(optionalAddTexture2D),
+      .diffuseMap = textures.diffuseMap.isNull() ? Texture2DHandle::null() : this->addTexture2D(textures.diffuseMap),
+      .specularMap = textures.specularMap.isNull() ? Texture2DHandle::null() : this->addTexture2D(textures.specularMap),
+      .emissionMap = textures.emissionMap.isNull() ? Texture2DHandle::null() : this->addTexture2D(textures.emissionMap),
     };
     modelRenderData.push_back(renderData);
   }
@@ -327,19 +345,35 @@ SamplerHandle RenderingEngine::addSampler(const SamplerOptions& options) {
   return mSamplers.add(Sampler(options));
 }
 
-auto RenderingEngine::addTexture2Ds(const std::span<const std::optional<AssetHandle<Bitmap>>> bitmaps)
-  -> std::vector<std::optional<Texture2DHandle>>
-{
+Texture2DHandle RenderingEngine::createEmptyTexture2D() {
   ZoneScoped;
 
-  std::vector<std::optional<Texture2DHandle>> handles;
+  return mTexture2Ds.add(Texture2D());
+}
+
+Texture2DArrayHandle RenderingEngine::createEmptyTexture2DArray() {
+  ZoneScoped;
+
+  return mTexture2DArrays.add(Texture2DArray());
+}
+
+TextureCubeMapHandle RenderingEngine::createEmptyTextureCubeMap() {
+  ZoneScoped;
+
+  return mTextureCubeMaps.add(TextureCubeMap());
+}
+
+std::vector<Texture2DHandle> RenderingEngine::addTexture2Ds(const std::span<const AssetHandle<Bitmap>> bitmaps) {
+  ZoneScoped;
+
+  std::vector<Texture2DHandle> handles;
   handles.reserve(bitmaps.size());
-  for (const std::optional bitmap : bitmaps) {
-    if (bitmap.has_value()) {
-      const Texture2DHandle ref = this->addTexture2D(bitmap.value());
-      handles.emplace_back(ref);
+  for (const AssetHandle<Bitmap> bitmap : bitmaps) {
+    if (bitmap.isNull()) {
+      handles.emplace_back(Texture2DHandle::null());
     } else {
-      handles.emplace_back();
+      const Texture2DHandle ref = this->addTexture2D(bitmap);
+      handles.emplace_back(ref);
     }
   }
   return handles;
@@ -352,12 +386,16 @@ Texture2DHandle RenderingEngine::addTexture2D(const AssetHandle<Bitmap> bitmap) 
     return mUploadedTextures.at(bitmap.itemID());
   }
 
-  const GLint internalFormat = bitmap->bSRGB && bitmap->channels() == 4 ? GL_SRGB8_ALPHA8 :
-                               bitmap->bSRGB && bitmap->channels() < 4  ? GL_SRGB8 :
-                              !bitmap->bSRGB && bitmap->channels() == 4 ? GL_RGBA8 : GL_RGB8;
-  const Texture2DHandle handle = mTexture2Ds.add(Texture2D(bitmap, internalFormat));
+  const Texture2DHandle handle = mTexture2Ds.add(Texture2D(bitmap, textureInternalFormat(bitmap->bSRGB, bitmap->channels())));
   mUploadedTextures.emplace(bitmap.itemID(), handle);
   return handle;
+}
+
+Texture2DArrayHandle RenderingEngine::addTexture2DArray(const std::span<const AssetHandle<Bitmap>> bitmaps) {
+  ZoneScoped;
+  assert(!bitmaps.empty());
+
+  return mTexture2DArrays.add(Texture2DArray(bitmaps, textureInternalFormat(bitmaps.front()->bSRGB, bitmaps.front()->channels())));
 }
 
 TextureCubeMapHandle RenderingEngine::addTextureCubeMap(const TextureCubeMapBitmaps& bitmaps) {
@@ -367,11 +405,15 @@ TextureCubeMapHandle RenderingEngine::addTextureCubeMap(const TextureCubeMapBitm
                                           bitmaps.top->channels(), bitmaps.bottom->channels(),
                                           bitmaps.front->channels(), bitmaps.back->channels() });
 
-  const GLint internalFormat = bitmaps.bSRGB && maxChannels == 4 ? GL_SRGB8_ALPHA8 :
-                               bitmaps.bSRGB && maxChannels < 4  ? GL_SRGB8 :
-                              !bitmaps.bSRGB && maxChannels == 4 ? GL_RGBA8 : GL_RGB8;
+  return mTextureCubeMaps.add(TextureCubeMap(bitmaps, textureInternalFormat(bitmaps.bSRGB, maxChannels)));
+}
 
-  return mTextureCubeMaps.add(TextureCubeMap(bitmaps, internalFormat));
+GLint RenderingEngine::textureInternalFormat(const bool bSRGB, const uint32_t channels) {
+  return bSRGB && channels == 4 ? GL_SRGB8_ALPHA8 :
+         bSRGB && channels < 4  ? GL_SRGB8 :
+        !bSRGB && channels == 4 ? GL_RGBA8 :
+        !bSRGB && channels == 3 ? GL_RGB8 :
+        !bSRGB && channels == 2 ? GL_RG8 : GL_R8;
 }
 
 FramebufferHandle RenderingEngine::addFramebuffer(const FramebufferCreateInfo& info) {
@@ -391,10 +433,10 @@ void RenderingEngine::updateInstances(const size_t first, const InstanceBuffer& 
 
   assert(mInitialised);
 
-  mInstanceBuffer->current()->write(instances, first * sizeof(InstanceData));
+  mInstanceBuffer.write(instances, first * sizeof(InstanceData));
 }
 
-void RenderingEngine::submitRenderPasses(const std::span<RenderPass> renderPasses) {
+void RenderingEngine::submitCommands(CommandBuffer&& commandBuffer) {
   ZoneScoped;
 
   assert(mInitialised);
@@ -402,27 +444,38 @@ void RenderingEngine::submitRenderPasses(const std::span<RenderPass> renderPasse
   entt::entity lastCamera = entt::null;
   const Scene* lastScene = nullptr;
   std::span<const Draw> draws;
-  for (auto& [viewport, dstFramebuffer, pass] : renderPasses) {
-    pass.visit(Visitor {
-      [&](RenderScenePass& renderScenePass) {
-        if (lastScene != renderScenePass.scene) {
-          lastScene = renderScenePass.scene;
-          draws = renderScenePass.scene->draw(renderScenePass.entityCamera, *this);
-          this->updateLightSourceData(*renderScenePass.scene);
-        }
-        if (lastCamera != renderScenePass.entityCamera) {
-          lastCamera = renderScenePass.entityCamera;
-          this->updateCameraData(*renderScenePass.scene, renderScenePass.entityCamera, dstFramebuffer->size());
-        }
+  for (auto& command : commandBuffer.commands) {
+    command.visit(Visitor {
+      [&](CmdRenderPass& cmd) {
+        auto& [viewport, dstFramebuffer, pass] = cmd.renderPass;
+        pass.visit(Visitor {
+          [&](RenderScenePass& renderScenePass) {
+            if (lastScene != renderScenePass.scene) {
+              lastScene = renderScenePass.scene;
+              draws = renderScenePass.scene->draw(renderScenePass.entityCamera, *this);
+              this->updateLightSourceData(*renderScenePass.scene);
+            }
 
-        if (renderScenePass.mode == SceneRenderMode::Full) {
-          this->renderSceneFull(draws, viewport, dstFramebuffer, renderScenePass.bClearFramebuffer);
-        } else {
-          this->renderSceneSimple(draws, viewport, dstFramebuffer, renderScenePass.mode, renderScenePass.bClearFramebuffer);
-        }
+            if (lastCamera != renderScenePass.entityCamera) {
+              lastCamera = renderScenePass.entityCamera;
+              this->updateCameraData(*renderScenePass.scene, renderScenePass.entityCamera, dstFramebuffer->size());
+            }
+
+            if (renderScenePass.mode == SceneRenderMode::Full) {
+              this->renderSceneFull(draws, viewport, dstFramebuffer, renderScenePass.shadowMaps, renderScenePass.bClearFramebuffer);
+            } else {
+              this->renderSceneSimple(draws, viewport, dstFramebuffer, renderScenePass.mode, renderScenePass.bClearFramebuffer);
+            }
+          },
+          [&](const PostProcessingPass& postProcessingPass) {
+            this->postProcess(viewport, dstFramebuffer, postProcessingPass.srcFramebuffer, postProcessingPass.postProcessingShader);
+          },
+        });
       },
-      [&](const PostProcessingPass& postProcessingPass) {
-        this->postProcess(viewport, dstFramebuffer, postProcessingPass.srcFramebuffer, postProcessingPass.postProcessingShader);
+      [&](CmdCopyShadowMapsToArrayTexture& cmd) {
+        for (auto [i, shadowMap] : cmd.shadowMaps | std::views::enumerate) {
+          cmd.textureArray->copyFromFramebuffer(shadowMap, i);
+        }
       },
     });
   }
@@ -430,7 +483,8 @@ void RenderingEngine::submitRenderPasses(const std::span<RenderPass> renderPasse
   this->swapBuffers();
 }
 
-void RenderingEngine::renderSceneFull(const std::span<const Draw> draws, const Viewport& viewport, FramebufferHandle dstFramebuffer, bool bClearFramebuffer) {
+void RenderingEngine::renderSceneFull(const std::span<const Draw> draws, const Viewport& viewport, FramebufferHandle dstFramebuffer,
+                                      const ShadowMaps& shadowMaps, const bool bClearFramebuffer) {
   ZoneScoped;
   TracyGpuZone("Render scene (full)");
 
@@ -461,16 +515,29 @@ void RenderingEngine::renderSceneFull(const std::span<const Draw> draws, const V
   }
 
   glBindVertexArray(mMeshesVAO);
-  mDiffuseTextureSampler.value()->bind(BINDING_SAMPLER_DIFFUSE);
-  mSpecularTextureSampler.value()->bind(BINDING_SAMPLER_SPECULAR);
-  mEmissionTextureSampler.value()->bind(BINDING_SAMPLER_EMISSION);
-  mEnvironmentTextureSampler.value()->bind(BINDING_SAMPLER_ENVIRONMENT);
+
+  mDiffuseTextureSampler->bind(BINDING_SAMPLER_DIFFUSE);
+  mSpecularTextureSampler->bind(BINDING_SAMPLER_SPECULAR);
+  mEmissionTextureSampler->bind(BINDING_SAMPLER_EMISSION);
+  mEnvironmentTextureSampler->bind(BINDING_SAMPLER_ENVIRONMENT);
+  mDirectionalShadowMapsSampler->bind(BINDING_SAMPLER_DIRECTIONAL_SHADOWS);
+  mPointShadowMapsSampler->bind(BINDING_SAMPLER_POINT_SHADOWS);
+  mSpotlightShadowMapsSampler->bind(BINDING_SAMPLER_SPOTLIGHT_SHADOWS);
+
+  std::unordered_set<GLuint> boundTextureSlots;
+
+  shadowMaps.directionalShadowMaps.getOrDefault(mEmptyDepthMaps).bind(BINDING_SAMPLER_DIRECTIONAL_SHADOWS);
+  shadowMaps.pointShadowMaps.getOrDefault(mEmptyDepthMaps).bind(BINDING_SAMPLER_POINT_SHADOWS);
+  shadowMaps.spotlightShadowMaps.getOrDefault(mEmptyDepthMaps).bind(BINDING_SAMPLER_SPOTLIGHT_SHADOWS);
+  boundTextureSlots.emplace(BINDING_SAMPLER_DIRECTIONAL_SHADOWS);
+  boundTextureSlots.emplace(BINDING_SAMPLER_POINT_SHADOWS);
+  boundTextureSlots.emplace(BINDING_SAMPLER_SPOTLIGHT_SHADOWS);
 
   const Draw* lastDraw = &draws.front();
   for (const auto [drawIdx, currDraw] : draws | std::views::enumerate) {
-    mInstanceBuffer->current()->bindRange(BINDING_SSBO_INSTANCES,
-                                       currDraw.instanceOffset * sizeof(InstanceData),
-                                       currDraw.instanceCount * sizeof(InstanceData));
+    mInstanceBuffer.bindRange(BINDING_SSBO_INSTANCES,
+                              currDraw.instanceOffset * sizeof(InstanceData),
+                              currDraw.instanceCount * sizeof(InstanceData));
 
     if (drawIdx == 0 || currDraw.bBackfaceCulling != lastDraw->bBackfaceCulling) [[unlikely]] {
       if (currDraw.bBackfaceCulling) {
@@ -487,11 +554,7 @@ void RenderingEngine::renderSceneFull(const std::span<const Draw> draws, const V
       }
     }
     if (drawIdx == 0 || currDraw.bWriteToDepth != lastDraw->bWriteToDepth) [[unlikely]] {
-      if (currDraw.bWriteToDepth) {
-        glDepthMask(GL_TRUE);
-      } else {
-        glDepthMask(GL_FALSE);
-      }
+      glDepthMask(currDraw.bWriteToDepth ? GL_TRUE : GL_FALSE);
     }
     if (drawIdx == 0 || currDraw.bStencilTest != lastDraw->bStencilTest) [[unlikely]] {
       glStencilFunc(currDraw.bStencilTest ? GL_NOTEQUAL : GL_ALWAYS, 1, 0xff);
@@ -509,34 +572,25 @@ void RenderingEngine::renderSceneFull(const std::span<const Draw> draws, const V
     }
 
     const ShaderProgramInstance& currShader = currDraw.shaderProgramInstance.get();
-    if (drawIdx == 0 || currDraw.shaderProgramInstance.itemID() != lastDraw->shaderProgramInstance.itemID()) {
-      const ShaderProgramInstance& lastShader = lastDraw->shaderProgramInstance.get();
-      if (drawIdx == 0 || currShader.shaderProgram() != lastShader.shaderProgram()) {
+    if (drawIdx == 0 || currDraw.shaderProgramInstance != lastDraw->shaderProgramInstance) {
+      if (drawIdx == 0 || currShader.shaderProgram() != lastDraw->shaderProgramInstance->shaderProgram()) {
         currShader.use();
       }
       currShader.bindUniforms();
     }
 
-    GLuint slot = 0;
-    const auto bindTexture = [&, this](const auto& currTexture, const auto& lastTexture) {
+    const auto bindTexture = [&](const auto currTexture, const auto lastTexture, const auto defaultTexture, const GLuint unit) {
       if (drawIdx == 0 || currTexture != lastTexture) {
-        if (currTexture.has_value()) {
-          currTexture->get().bind(slot);
-          mBoundTextureSlots.insert(slot);
-        } else {
-          glBindTextureUnit(slot, GL_NONE);
-          mBoundTextureSlots.erase(slot);
-        }
+        currTexture.getOrDefault(defaultTexture).bind(unit);
+        boundTextureSlots.insert(unit);
       }
-      ++slot;
     };
-    bindTexture(currDraw.diffuseMap, lastDraw->diffuseMap);
-    bindTexture(currDraw.specularMap, lastDraw->specularMap);
-    bindTexture(currDraw.emissionMap, lastDraw->emissionMap);
-    bindTexture(currDraw.environmentMap, lastDraw->environmentMap);
+    bindTexture(currDraw.diffuseMap, lastDraw->diffuseMap, mBlackTexture, BINDING_SAMPLER_DIFFUSE);
+    bindTexture(currDraw.specularMap, lastDraw->specularMap, mBlackTexture, BINDING_SAMPLER_SPECULAR);
+    bindTexture(currDraw.emissionMap, lastDraw->emissionMap, mBlackTexture, BINDING_SAMPLER_EMISSION);
+    bindTexture(currDraw.environmentMap, lastDraw->environmentMap, mBlackCubeMap, BINDING_SAMPLER_ENVIRONMENT);
 
     currDraw.mesh->bind();
-
     {
       TracyGpuZone("Draw elements instanced");
       glDrawElementsInstanced(GL_TRIANGLES, currDraw.mesh->indexCount(), GL_UNSIGNED_INT,
@@ -551,11 +605,9 @@ void RenderingEngine::renderSceneFull(const std::span<const Draw> draws, const V
 
   glBindVertexArray(GL_NONE);
   glUseProgram(GL_NONE);
-  for (const GLuint slot : mBoundTextureSlots) {
-    glActiveTexture(GL_TEXTURE0 + slot);
-    glBindTexture(GL_TEXTURE_2D, GL_NONE);
+  for (const GLuint slot : boundTextureSlots) {
+    glBindTextureUnit(slot, GL_NONE);
   }
-  mBoundTextureSlots.clear();
 }
 
 void RenderingEngine::renderSceneSimple(const std::span<const Draw> draws, const Viewport& viewport, const FramebufferHandle dstFramebuffer, const SceneRenderMode mode, bool bClearFramebuffer) {
@@ -589,33 +641,33 @@ void RenderingEngine::renderSceneSimple(const std::span<const Draw> draws, const
       UNREACHABLE();
 
     case SceneRenderMode::Wireframe:
-      glUseProgram(mLightShaderProgram.value()->id());
+      glUseProgram(mLightShaderProgram->id());
       glUniform3f(4, 1.0f, 1.0f, 1.0f);
       glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
       break;
 
     case SceneRenderMode::SurfaceDepth:
-      glUseProgram(mSurfaceDepthShaderProgram.value()->id());
+      glUseProgram(mSurfaceDepthShaderProgram->id());
       break;
 
     case SceneRenderMode::SurfaceNormal:
-      glUseProgram(mSurfaceNormalShaderProgram.value()->id());
+      glUseProgram(mSurfaceNormalShaderProgram->id());
       break;
 
-    case SceneRenderMode::NoColor:
-      glUseProgram(mNoColorShaderProgram.value()->id());
+    case SceneRenderMode::DepthMap:
+      glUseProgram(mNoColorShaderProgram->id());
       break;
 
     case SceneRenderMode::VertexNormals:
-      glUseProgram(mVertexNormalShaderProgram.value()->id());
+      glUseProgram(mVertexNormalShaderProgram->id());
       break;
   }
 
   for (const Draw& currDraw : draws) {
     if (!currDraw.bSkybox) {
-      mInstanceBuffer->current()->bindRange(BINDING_SSBO_INSTANCES,
-                                         currDraw.instanceOffset * sizeof(InstanceData),
-                                         currDraw.instanceCount * sizeof(InstanceData));
+      mInstanceBuffer.bindRange(BINDING_SSBO_INSTANCES,
+                                currDraw.instanceOffset * sizeof(InstanceData),
+                                currDraw.instanceCount * sizeof(InstanceData));
       currDraw.mesh->bind();
       {
         TracyGpuZone("Draw elements instanced");
@@ -658,7 +710,7 @@ void RenderingEngine::postProcess(const Viewport& viewport, FramebufferHandle ds
   postProcessingShader->use();
   postProcessingShader->bindUniforms();
   srcFramebuffer->colorAttachments[0].bind(BINDING_SAMPLER_SCREEN);
-  mColorAttachmentSampler.value()->bind(BINDING_SAMPLER_SCREEN);
+  mColorAttachmentSampler->bind(BINDING_SAMPLER_SCREEN);
 
   glBindVertexArray(mScreenQuadVAO);
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -688,9 +740,9 @@ void RenderingEngine::present(const glm::uvec2 windowSize, FramebufferHandle src
   glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT);
 
-  glUseProgram(mPostProcessCopyShaderProgram.value()->id());
+  glUseProgram(mPostProcessCopyShaderProgram->id());
   srcFramebuffer->colorAttachments[0].bind(BINDING_SAMPLER_SCREEN);
-  mColorAttachmentSampler.value()->bind(BINDING_SAMPLER_SCREEN);
+  mColorAttachmentSampler->bind(BINDING_SAMPLER_SCREEN);
   glBindVertexArray(mScreenQuadVAO);
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
@@ -704,11 +756,11 @@ void RenderingEngine::swapBuffers() {
 
   assert(mInitialised);
 
-  mCameraUniformBuffer->switchToNext();
-  mDirectionalLightsStorageBuffer->switchToNext();
-  mPointLightsStorageBuffer->switchToNext();
-  mSpotlightsStorageBuffer->switchToNext();
-  mInstanceBuffer->switchToNext();
+  mCameraUniformBuffer.switchToNext();
+  mDirectionalLightsStorageBuffer.switchToNext();
+  mPointLightsStorageBuffer.switchToNext();
+  mSpotlightsStorageBuffer.switchToNext();
+  mInstanceBuffer.switchToNext();
 }
 
 void RenderingEngine::updateCameraData(const Scene& scene, const entt::entity entityCamera, const glm::uvec2 framebufferSize) {
@@ -718,8 +770,8 @@ void RenderingEngine::updateCameraData(const Scene& scene, const entt::entity en
 
   const auto [camera, cameraTransform] = scene.ecs.get<const CompCamera, const CompTransform>(entityCamera);
   const CameraUniforms cameraUniformData = CameraUniforms::from(camera, cameraTransform, framebufferSize);
-  mCameraUniformBuffer->current()->write(cameraUniformData);
-  mCameraUniformBuffer->current()->bindWhole(BINDING_UBO_CAMERA);
+  mCameraUniformBuffer.write(cameraUniformData);
+  mCameraUniformBuffer.bindWhole(BINDING_UBO_CAMERA);
 }
 
 void RenderingEngine::updateLightSourceData(const Scene& scene) {
@@ -727,24 +779,15 @@ void RenderingEngine::updateLightSourceData(const Scene& scene) {
 
   assert(mInitialised);
 
-  const auto updateLights = [&scene]<typename CompLight>(BufferHandle storageBuffer, const uint32_t bindPoint, const auto getLightUniformData) {
-    const entt::basic_view lights = scene.ecs.view<const CompLight>();
-    if (lights.begin() == lights.end()) {
-      return;
-    }
+  const DirectionalLightSourceBuffer directionalLightsData = scene.createDirectionalLightUniforms();
+  mDirectionalLightsStorageBuffer.write(directionalLightsData);
+  mDirectionalLightsStorageBuffer.bindWhole(BINDING_SSBO_DIRECTIONAL_LIGHTS);
 
-    const auto lightUniformData = getLightUniformData();
-    storageBuffer->write(lightUniformData);
-    storageBuffer->bindWhole(bindPoint);
-  };
+  const PointLightSourceBuffer pointLightsData = scene.createPointLightUniforms();
+  mPointLightsStorageBuffer.write(pointLightsData);
+  mPointLightsStorageBuffer.bindWhole(BINDING_SSBO_POINT_LIGHTS);
 
-  updateLights.operator()<CompDirectionalLight>(mDirectionalLightsStorageBuffer->current(),
-                                                BINDING_SSBO_DIRECTIONAL_LIGHTS,
-                                                [&] { return scene.createDirectionalLightUniforms(); });
-  updateLights.operator()<CompPointLight>(mPointLightsStorageBuffer->current(),
-                                          BINDING_SSBO_POINT_LIGHTS,
-                                          [&] { return scene.createPointLightUniforms(); });
-  updateLights.operator()<CompSpotlight>(mSpotlightsStorageBuffer->current(),
-                                         BINDING_SSBO_SPOTLIGHTS,
-                                         [&] { return scene.createSpotlightUniforms(); });
+  const SpotlightSourceBuffer spotlightsData = scene.createSpotlightUniforms();
+  mSpotlightsStorageBuffer.write(spotlightsData);
+  mSpotlightsStorageBuffer.bindWhole(BINDING_SSBO_SPOTLIGHTS);
 }

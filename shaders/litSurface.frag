@@ -10,6 +10,10 @@ struct Material {
 
 uniform Material uMaterial;
 
+uniform sampler2DArrayShadow uDirectionalLightShadowMaps;
+uniform sampler2DArrayShadow uPointLightShadowMaps;
+uniform sampler2DArrayShadow uSpotlightShadowMaps;
+
 #if HAS_GEOMETRY_SHADER
 in GS_OUT {
   vec3 position;
@@ -37,17 +41,36 @@ float specular(in vec3 normal, in vec3 lightDirection) {
   return pow(angularDifference, uMaterial.shininess);
 }
 
-LightColors directionalLight(in DirectionalLight light, vec3 normal) {
+float shadow(vec4 fragPosLightSpace, float cosTheta, in sampler2DArrayShadow shadowMap, uint lightIndex) {
+  vec3 projectedPosition = (fragPosLightSpace.xyz / fragPosLightSpace.w) * 0.5 + 0.5;
+  if (projectedPosition.z > 1) {
+    return 0;
+  }
+  float bias = max(0.01 * (1 - cosTheta), 0.005);
+  vec4 texCoord;
+  texCoord.xyw = projectedPosition;
+  texCoord.w -= bias;
+  texCoord.z = lightIndex;
+  return texture(shadowMap, texCoord);
+}
+
+LightColors directionalLight(uint lightIndex, vec3 normal) {
+  DirectionalLight light = uDirectionalLights.sources[lightIndex];
   vec3 lightDirection = normalize(-light.direction);
+  vec4 fragPosLightSpace = light.viewProjection * vec4(fsIn.position, 1);
+  float visibility = 1 - shadow(fragPosLightSpace, dot(normal, lightDirection), uDirectionalLightShadowMaps, lightIndex);
 
   LightColors colors;
+//  colors.ambient = vec3(visibility);
+//  colors.ambient = (fragPosLightSpace.xyz / fragPosLightSpace.w);
   colors.ambient = light.colors.ambient;
-  colors.diffuse = light.colors.diffuse * diffuse(normal, lightDirection);
-  colors.specular = light.colors.specular * specular(normal, lightDirection);
+  colors.diffuse = light.colors.diffuse * diffuse(normal, lightDirection) * visibility;
+  colors.specular = light.colors.specular * specular(normal, lightDirection) * visibility;
   return colors;
 }
 
-LightColors pointLight(in PointLight light, vec3 normal) {
+LightColors pointLight(uint lightIndex, vec3 normal) {
+  PointLight light = uPointLights.sources[lightIndex];
   vec3 lightDirection = normalize(light.position - fsIn.position);
   float distance = distance(light.position, fsIn.position);
   float attenuation = 1 / (light.constant +
@@ -61,7 +84,8 @@ LightColors pointLight(in PointLight light, vec3 normal) {
   return colors;
 }
 
-LightColors spotlight(in Spotlight light, vec3 normal) {
+LightColors spotlight(uint lightIndex, vec3 normal) {
+  Spotlight light = uSpotlights.sources[lightIndex];
   vec3 lightDirection = normalize(light.position - fsIn.position);
   float theta = dot(lightDirection, normalize(-light.direction));
   float epsilon = light.cutOff - light.outerCutOff;
@@ -89,21 +113,21 @@ void main() {
   vec3 combinedSpecular = vec3(0);
 
   for (uint i = 0; i < uDirectionalLights.count; ++i) {
-    LightColors directionalLightColors = directionalLight(uDirectionalLights.sources[i], normal);
+    LightColors directionalLightColors = directionalLight(i, normal);
     combinedAmbient += directionalLightColors.ambient;
     combinedDiffuse += directionalLightColors.diffuse;
     combinedSpecular += directionalLightColors.specular;
   }
 
   for (uint i = 0; i < uPointLights.count; ++i) {
-    LightColors pointLightColors = pointLight(uPointLights.sources[i], normal);
+    LightColors pointLightColors = pointLight(i, normal);
     combinedAmbient += pointLightColors.ambient;
     combinedDiffuse += pointLightColors.diffuse;
     combinedSpecular += pointLightColors.specular;
   }
 
   for (uint i = 0; i < uSpotlights.count; ++i) {
-    LightColors spotlightColors = spotlight(uSpotlights.sources[i], normal);
+    LightColors spotlightColors = spotlight(i, normal);
     combinedAmbient += spotlightColors.ambient;
     combinedDiffuse += spotlightColors.diffuse;
     combinedSpecular += spotlightColors.specular;

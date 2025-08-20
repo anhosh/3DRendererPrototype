@@ -38,7 +38,7 @@ Expected<Application> Application::create(const std::string_view title, const gl
 
   app.mState.assetManager = std::make_shared<AssetManager>();
   app.mState.renderingEngine = std::make_shared<RenderingEngine>();
-  RETURN_ERROR_IF_UNEXPECTED(app.mState.renderingEngine->init());
+  RETURN_ERROR_IF_UNEXPECTED(app.mState.renderingEngine->init(*app.mState.assetManager));
 
   app.mState.currentDemo = std::make_unique<SpaceDemo>();
   // app.mState.currentDemo = std::make_unique<FloatingBackpackDemo>();
@@ -106,8 +106,8 @@ Expected<void> Application::createContext(const std::string_view title, const gl
 }
 
 #ifdef DEBUG_ENABLED
-void APIENTRY Application::openGlDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity,
-                                               GLsizei length [[maybe_unused]], const GLchar* logMessage,
+void APIENTRY Application::openGlDebugCallback(const GLenum source, const GLenum type, const GLuint id, const GLenum severity,
+                                               const GLsizei length [[maybe_unused]], const GLchar* logMessage,
                                                const void* userParam [[maybe_unused]])
 {
   // ignore non-significant error/warning codes
@@ -201,10 +201,10 @@ void Application::shutDown() {
 void Application::drawFrame() {
   ZoneScoped;
 
-  std::vector<RenderPass> renderPasses = mState.currentDemo->render();
+  CommandBuffer commandBuffer = mState.currentDemo->render();
   mState.lastSceneRenderDuration = timedBlock([&, this] {
-    mState.renderingEngine->submitRenderPasses(renderPasses);
-    mState.renderingEngine->present(mState.windowSize, renderPasses.back().dstFramebuffer);
+    mState.renderingEngine->submitCommands(std::move(commandBuffer));
+    mState.renderingEngine->present(mState.windowSize, std::get<CmdRenderPass>(commandBuffer.commands.back()).renderPass.dstFramebuffer);
   });
 
   mState.lastGuiRenderDuration = timedBlock(renderImGui);

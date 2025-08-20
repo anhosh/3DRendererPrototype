@@ -20,7 +20,8 @@ class AssetManager {
 public:
   AssetManager();
 
-  AssetHandle<MeshData> addMesh(MeshData&& mesh);
+  [[nodiscard]] AssetHandle<MeshData> addMesh(MeshData&& mesh);
+  [[nodiscard]] AssetHandle<Bitmap> addBitmap(Bitmap&& bitmap);
 
   [[nodiscard]] Expected<AssetHandle<Bitmap>> loadBitmap(const std::filesystem::path& filePath, bool bFlipVertically = true);
   [[nodiscard]] Expected<AssetHandle<Model>> loadModel(const std::filesystem::path& filePath);

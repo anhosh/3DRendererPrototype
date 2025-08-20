@@ -5,8 +5,8 @@
 
 #include <tracy/TracyOpenGL.hpp>
 
-Framebuffer::Framebuffer(const FramebufferCreateInfo& info)
-  : mInfo(info)
+Framebuffer::Framebuffer(FramebufferCreateInfo info)
+  : mInfo(std::move(info))
 {
   ZoneScoped;
 
@@ -167,7 +167,7 @@ void Framebuffer::resize(const glm::uvec2 size) {
 void Framebuffer::resolveMultisample() const {
   if (mInfo.samples > 1) {
     ZoneScoped;
-    TracyGpuZone("Blit framebuffer");
+    TracyGpuZone("Resolve multisampled framebuffer");
 
     glBlitNamedFramebuffer(mMultisampledFBO, mFBO,
                            0, 0, static_cast<GLint>(mInfo.size.x), static_cast<GLint>(mInfo.size.y),

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <Graphics/Mesh.hpp>
-#include <Graphics/TextureCubeMap.hpp>
+#include <Graphics/Textures/TextureCubeMap.hpp>
 
 struct Skybox {
   MeshHandle cubeMesh;

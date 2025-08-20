@@ -7,6 +7,7 @@
 #include <tracy/TracyOpenGL.hpp>
 
 #include <vector>
+#include <Scene/Components/Camera.hpp>
 
 struct LightColorUniforms {
   glm::vec3 ambient;  float _padding0 = 0.0f;
@@ -42,22 +43,24 @@ struct LightSourceBuffer {
   }
 };
 
-struct DirectionalLightUniforms {
+struct DirectionalLightShaderData {
   LightColorUniforms colors;
+  glm::mat4 viewProjection;
   glm::vec3 direction;
   float _padding0 = 0.0f;
 
-  static DirectionalLightUniforms from(const CompDirectionalLight& light) {
+  static DirectionalLightShaderData from(const CompDirectionalLight& light, const CompCamera& camera, const CompTransform& transform) {
     ZoneScoped;
 
-    return DirectionalLightUniforms {
+    return DirectionalLightShaderData {
       .colors = LightColorUniforms::from(light.colors),
+      .viewProjection = camera.projection(glm::uvec2(0)) * transform.viewMatrix(),
       .direction = light.direction,
     };
   }
 };
 
-struct PointLightUniforms {
+struct PointLightShaderData {
   LightColorUniforms colors;
   glm::vec3 position; float _padding0 = 0.0f;
   float constant;
@@ -65,10 +68,10 @@ struct PointLightUniforms {
   float quadratic;
   float _padding1 = 0.0f;
 
-  static PointLightUniforms from(const CompPointLight& light, const CompTransform& transform) {
+  static PointLightShaderData from(const CompPointLight& light, const CompTransform& transform) {
     ZoneScoped;
 
-    return PointLightUniforms {
+    return PointLightShaderData {
       .colors = LightColorUniforms::from(light.colors),
       .position = transform.translation,
       .constant = light.constant,
@@ -78,7 +81,7 @@ struct PointLightUniforms {
   }
 };
 
-struct SpotlightUniforms {
+struct SpotlightShaderData {
   LightColorUniforms colors;
   glm::vec3 position; float _padding0 = 0.0f;
   glm::vec3 direction;
@@ -88,10 +91,10 @@ struct SpotlightUniforms {
   float _padding2 = 0.0f;
   float _padding3 = 0.0f;
 
-  static SpotlightUniforms from(const CompSpotlight& light, const CompTransform& transform) {
+  static SpotlightShaderData from(const CompSpotlight& light, const CompTransform& transform) {
     ZoneScoped;
 
-    return SpotlightUniforms {
+    return SpotlightShaderData {
       .colors = LightColorUniforms::from(light.colors),
       .position = transform.translation,
       .direction = light.direction,
@@ -101,6 +104,6 @@ struct SpotlightUniforms {
   }
 };
 
-using DirectionalLightSourceBuffer = LightSourceBuffer<DirectionalLightUniforms>;
-using PointLightSourceBuffer = LightSourceBuffer<PointLightUniforms>;
-using SpotlightSourceBuffer = LightSourceBuffer<SpotlightUniforms>;
+using DirectionalLightSourceBuffer = LightSourceBuffer<DirectionalLightShaderData>;
+using PointLightSourceBuffer = LightSourceBuffer<PointLightShaderData>;
+using SpotlightSourceBuffer = LightSourceBuffer<SpotlightShaderData>;

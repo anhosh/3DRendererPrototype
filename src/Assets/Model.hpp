@@ -9,7 +9,7 @@ struct MeshData;
 
 struct Model {
   std::vector<AssetHandle<MeshData>> meshes;
-  std::vector<std::optional<AssetHandle<Bitmap>>> diffuseMaps;
-  std::vector<std::optional<AssetHandle<Bitmap>>> specularMaps;
-  std::vector<std::optional<AssetHandle<Bitmap>>> emissionMaps;
+  std::vector<AssetHandle<Bitmap>> diffuseMaps;
+  std::vector<AssetHandle<Bitmap>> specularMaps;
+  std::vector<AssetHandle<Bitmap>> emissionMaps;
 };

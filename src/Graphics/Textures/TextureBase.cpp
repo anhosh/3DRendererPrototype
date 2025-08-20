@@ -1,0 +1,49 @@
+#include <Graphics/Textures/TextureBase.hpp>
+
+#include <tracy/TracyOpenGL.hpp>
+
+void TextureBase::init() {
+  if (mID ==  GL_NONE) {
+    glCreateTextures(mTarget, 1, &mID);
+  }
+}
+
+void TextureBase::destroy() {
+  if (mID != GL_NONE) {
+    glDeleteTextures(1, &mID);
+    mID = GL_NONE;
+  }
+}
+
+void TextureBase::bind(const GLuint slot) const {
+  glBindTextureUnit(slot, mID);
+}
+
+void TextureBase::unbind(const GLuint slot) const {
+  (void)mID;
+  glBindTextureUnit(slot, GL_NONE);
+}
+
+TextureBase::TextureBase(const GLenum target)
+  : mTarget(target)
+{
+  this->init();
+}
+
+void TextureBase::allocate2D(const glm::uvec2 size, const GLint internalFormat) {
+  ZoneScoped;
+  TracyGpuZone("Allocate Texture2D");
+
+  glTextureStorage2D(mID, 1, internalFormat, static_cast<GLsizei>(size.x), static_cast<GLsizei>(size.y));
+  mInternalFormat = internalFormat;
+  mSize = glm::uvec3(size, 1);
+}
+
+void TextureBase::allocate3D(const glm::uvec3 size, const GLint internalFormat) {
+  ZoneScoped;
+  TracyGpuZone("Allocate Texture3D");
+
+  glTextureStorage3D(mID, 1, internalFormat, static_cast<GLsizei>(size.x), static_cast<GLsizei>(size.y), static_cast<GLsizei>(size.z));
+  mInternalFormat = internalFormat;
+  mSize = size;
+}

@@ -9,6 +9,8 @@
 
 #include <imgui.h>
 
+#include <glm/gtx/compatibility.hpp>
+
 #include <ranges>
 
 Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const std::shared_ptr<RenderingEngine>& renderer) {
@@ -25,15 +27,19 @@ Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const
     },
   });
 
+  constexpr auto SHADOW_SIZE = glm::uvec2(4096);
+  uint32_t numDirectionalLightShadowMaps = 0;
   for (const auto [entity, light] : mScene.ecs.view<CompDirectionalLight>().each()) {
-    mScene.ecs.emplace<CompCamera>(entity, CompCamera { .bOrthographic = true });
-    mScene.ecs.emplace<CompTransform>(entity);
-    mShadowMaps.push_back(renderer->addFramebuffer({
-      .size = glm::uvec2(2048),
+    mDirectionalShadowFramebuffers.push_back(renderer->addFramebuffer({
+      .size = SHADOW_SIZE,
       .samples = 1,
-      .depthStencilMode = DepthStencilMode::DepthAttachment,
+      .depthStencilMode = DepthStencilMode::DepthRBO,
     }));
+    ++numDirectionalLightShadowMaps;
   }
+
+  mDirectionalLightShadowMaps = renderer->createEmptyTexture2DArray();
+  mDirectionalLightShadowMaps->allocate(SHADOW_SIZE, numDirectionalLightShadowMaps, GL_DEPTH_COMPONENT24);
 
   const ShaderProgramInstanceHandle gammaCorrectionShader = mRenderingEngine->createShaderProgramInstance(ShaderProgramType::PostProcessGammaCorrection);
   mPostProcessingShaderProgramInstances.push_back(gammaCorrectionShader);
@@ -56,53 +62,69 @@ Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const
   return {};
 }
 
-std::vector<RenderPass> DemoBase::render() {
-  std::vector<RenderPass> passes;
-  passes.reserve(mShadowMaps.size() +
-                  1 + // mMainSceneFramebuffer
-                  static_cast<size_t>(mbDebugVisualiseVertexNormals)
-                  + mPostProcessingFramebuffers.size());
+CommandBuffer DemoBase::render() {
+  CommandBuffer commandBuffer;
+  commandBuffer.commands.reserve(mDirectionalShadowFramebuffers.size() +
+                                 2 + // CmdCopyShadowMapsToArrayTexture, CmdRenderPass
+                                 static_cast<size_t>(mbDebugVisualiseVertexNormals)
+                                 + mPostProcessingFramebuffers.size());
 
   for (const auto [shadowMapIndex, pack] : mScene.ecs.view<CompDirectionalLight, CompCamera>().each() | std::views::enumerate) {
     const auto [entity, light, camera] = pack;
-    passes.emplace_back(Viewport {}, mShadowMaps[shadowMapIndex], RenderScenePass {
-      .scene = &mScene,
-      .entityCamera = entity,
-      .mode = SceneRenderMode::NoColor,
+    commandBuffer.commands.emplace_back(CmdRenderPass {
+      .renderPass.dstFramebuffer = mDirectionalShadowFramebuffers[shadowMapIndex],
+      .renderPass.pass = RenderScenePass {
+        .scene = &mScene,
+        .entityCamera = entity,
+        .mode = SceneRenderMode::DepthMap,
+      },
     });
   }
 
-  passes.emplace_back(Viewport {}, mMainSceneFramebuffer.value(), RenderScenePass {
-    .scene = &mScene,
-    .entityCamera = mMainCamera,
-    .mode = mSceneRenderMode,
+  commandBuffer.commands.emplace_back(CmdCopyShadowMapsToArrayTexture {
+    .shadowMaps = mDirectionalShadowFramebuffers,
+    .textureArray = mDirectionalLightShadowMaps,
+  });
+
+  commandBuffer.commands.emplace_back(CmdRenderPass {
+    .renderPass.dstFramebuffer = mMainSceneFramebuffer,
+    .renderPass.pass = RenderScenePass {
+      .scene = &mScene,
+      .entityCamera = mMainCamera,
+      .mode = mSceneRenderMode,
+      .shadowMaps.directionalShadowMaps = mDirectionalLightShadowMaps,
+    }
   });
 
   if (mbDebugVisualiseVertexNormals) {
-    passes.emplace_back(Viewport {}, mMainSceneFramebuffer.value(), RenderScenePass {
-      .scene = &mScene,
-      .entityCamera = mMainCamera,
-      .mode = SceneRenderMode::VertexNormals,
-      .bClearFramebuffer = false,
+    commandBuffer.commands.emplace_back(CmdRenderPass {
+      .renderPass.dstFramebuffer = mMainSceneFramebuffer,
+      .renderPass.pass = RenderScenePass {
+        .scene = &mScene,
+        .entityCamera = mMainCamera,
+        .mode = SceneRenderMode::VertexNormals,
+        .bClearFramebuffer = false,
+      },
     });
   }
 
-  FramebufferHandle lastFramebuffer = mMainSceneFramebuffer.value();
-  size_t shaderIndex = 0;
-  for (FramebufferHandle framebuffer : mPostProcessingFramebuffers) {
-    const PostProcessingPass pass = {
-      .srcFramebuffer = lastFramebuffer,
-      .postProcessingShader = mPostProcessingShaderProgramInstances[shaderIndex++],
-    };
-    passes.emplace_back(Viewport {}, framebuffer, pass);
+  FramebufferHandle lastFramebuffer = mMainSceneFramebuffer;
+  for (auto [shaderIndex, framebuffer] : mPostProcessingFramebuffers | std::views::enumerate) {
+    commandBuffer.commands.emplace_back(CmdRenderPass {
+      .renderPass.dstFramebuffer = framebuffer,
+      .renderPass.pass = PostProcessingPass {
+        .srcFramebuffer = lastFramebuffer,
+        .postProcessingShader = mPostProcessingShaderProgramInstances[shaderIndex++],
+      },
+    });
     lastFramebuffer = framebuffer;
   }
 
-  return passes;
+  return commandBuffer;
 }
 
 void DemoBase::onWindowResize(GLFWwindow*, const glm::uvec2 newSize) {
-  mMainSceneFramebuffer.value()->resize(newSize);
+  mMainSceneFramebuffer->resize(newSize);
   for (FramebufferHandle framebuffer : mPostProcessingFramebuffers) {
     framebuffer->resize(newSize);
   }

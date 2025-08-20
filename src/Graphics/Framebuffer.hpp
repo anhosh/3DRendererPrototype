@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Graphics/Texture2D.hpp>
+#include <Graphics/Textures/Texture2D.hpp>
 #include <Util/Registry.hpp>
 
 #include <vector>
@@ -26,7 +26,7 @@ struct FramebufferCreateInfo {
 
 class Framebuffer {
 public:
-  explicit Framebuffer(const FramebufferCreateInfo& info);
+  explicit Framebuffer(FramebufferCreateInfo  info);
 
   void init();
 private:
@@ -41,6 +41,7 @@ public:
   void bind() const;
   void unbind() const;
 
+  [[nodiscard]] GLuint fbo() const { return mFBO; }
   [[nodiscard]] glm::uvec2 size() const { return mInfo.size; }
   [[nodiscard]] DepthStencilMode depthStencilMode() const { return mInfo.depthStencilMode; }
 
