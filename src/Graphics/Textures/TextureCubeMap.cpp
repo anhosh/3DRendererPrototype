@@ -2,6 +2,8 @@
 
 #include <Assets/Bitmap.hpp>
 
+#include <tracy/TracyOpenGL.hpp>
+
 #include <array>
 #include <ranges>
 
@@ -16,12 +18,18 @@ TextureCubeMap::TextureCubeMap(const TextureCubeMapBitmaps& bitmaps, const GLint
   this->generate(bitmaps, internalFormat);
 }
 
+void TextureCubeMap::allocate(const glm::uvec2 size, const GLint internalFormat) {
+  this->allocate2D(size, internalFormat);
+}
+
 void TextureCubeMap::generate(const TextureCubeMapBitmaps& bitmaps, const GLint internalFormat) {
   ZoneScoped;
 
   const auto faces = std::array { bitmaps.right, bitmaps.left, bitmaps.top, bitmaps.bottom, bitmaps.front, bitmaps.back };
   constexpr auto formats = std::array { GL_RED, GL_RG, GL_RGB, GL_RGBA };
-  this->allocate2D(faces[0]->size(), internalFormat);
+
+  TracyGpuZone("Generate TextureCubeMap");
+  this->allocate(faces[0]->size(), internalFormat);
   for (const auto [i, face] : faces | std::views::enumerate) {
     const GLenum format = formats[face->channels() - 1];
     glTextureSubImage3D(this->id(), 0,

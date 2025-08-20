@@ -26,17 +26,16 @@ public:
   void write(const BufferObject auto& data, const size_t offset = 0) {
     ZoneScoped;
 
-    const size_t requiredSize = data.size();
-    if (mAlignedBufferSize < offset + requiredSize) {
+    if (const size_t requiredSize = data.size(); mAlignedBufferSize < offset + requiredSize) {
       this->reallocate(offset + requiredSize);
     }
 
-    data.writeToBuffer(this->data(), mCurrentBuffer * mAlignedBufferSize + offset);
+    data.writeToBuffer(this->data(), offset);
   }
 
   [[nodiscard]] GLuint id() const { return mBuffer->id(); }
-  [[nodiscard]] size_t size() const { return mBuffer->size(); }
-  [[nodiscard]] std::span<uint8_t> data() const { return mBuffer->data(); }
+  [[nodiscard]] size_t size() const { return mBufferSize; }
+  [[nodiscard]] std::span<uint8_t> data() const;
   [[nodiscard]] BufferHandle handle() const { return mBuffer; }
 
   void switchToNext();

@@ -4,8 +4,8 @@ class TextureBase {
 public:
   void init();
   void destroy();
-  void bind(GLuint slot) const;
-  void unbind(GLuint slot) const;
+  void bind(GLuint unit) const;
+  void unbind(GLuint unit) const;
 
   [[nodiscard]] GLuint id() const { return mID; }
   [[nodiscard]] GLuint target() const { return mTarget; }

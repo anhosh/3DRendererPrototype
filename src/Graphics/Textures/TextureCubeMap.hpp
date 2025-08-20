@@ -21,6 +21,7 @@ public:
   TextureCubeMap();
   explicit TextureCubeMap(const TextureCubeMapBitmaps& bitmaps, GLint internalFormat);
 
+  void allocate(glm::uvec2 size, GLint internalFormat);
   void generate(const TextureCubeMapBitmaps& bitmaps, GLint internalFormat);
 };
 

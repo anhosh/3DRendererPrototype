@@ -15,13 +15,13 @@ void TextureBase::destroy() {
   }
 }
 
-void TextureBase::bind(const GLuint slot) const {
-  glBindTextureUnit(slot, mID);
+void TextureBase::bind(const GLuint unit) const {
+  glBindTextureUnit(unit, mID);
 }
 
-void TextureBase::unbind(const GLuint slot) const {
+void TextureBase::unbind(const GLuint unit) const {
   (void)mID;
-  glBindTextureUnit(slot, GL_NONE);
+  glBindTextureUnit(unit, GL_NONE);
 }
 
 TextureBase::TextureBase(const GLenum target)

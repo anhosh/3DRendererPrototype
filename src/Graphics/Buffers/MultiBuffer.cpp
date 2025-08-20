@@ -41,6 +41,10 @@ void MultiBuffer::bindRange(const uint32_t bindPoint, const size_t offset, const
   mBuffer->bindRange(bindPoint, mCurrentBuffer * mAlignedBufferSize + offset, size);
 }
 
+std::span<uint8_t> MultiBuffer::data() const {
+  return mBuffer->data().subspan(mCurrentBuffer * mAlignedBufferSize, mBufferSize);
+}
+
 void MultiBuffer::switchToNext() {
   mCurrentBuffer = (mCurrentBuffer + 1) % mNumBuffers;
 }

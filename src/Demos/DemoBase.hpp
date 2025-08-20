@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Graphics/RenderingEngine.hpp>
+#include <Graphics/Textures/MultiTexture.hpp>
 #include <Scene/Scene.hpp>
 #include <Util/Expected.hpp>
 

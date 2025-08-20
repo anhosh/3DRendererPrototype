@@ -8,9 +8,11 @@
 
 using RegItemID = uint32_t;
 
-template <typename ItemType>
+template <typename T>
 class Registry {
 public:
+  using ItemType = T;
+
   ///  Iterator-related typedefs.
   using pointer              = ItemType*;
   using const_pointer        = const ItemType*;
@@ -27,6 +29,8 @@ public:
     friend class Registry;
 
   public:
+    using ItemType = ItemType;
+
     constexpr Handle(const Handle&) = default;
     constexpr Handle(Handle&&) = default;
     constexpr ~Handle() = default;
