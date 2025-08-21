@@ -21,6 +21,18 @@ void MultiBuffer::destroy() {
   mBuffer->destroy();
 }
 
+void MultiBuffer::setNumBuffers(const size_t newNumBuffers) {
+  if (mNumBuffers < newNumBuffers) {
+    this->reallocate(mBufferSize);
+  }
+  mNumBuffers = newNumBuffers;
+}
+
+void MultiBuffer::setCurrent(const size_t index) {
+  assert(index < mNumBuffers);
+  mCurrentBuffer = index;
+}
+
 void MultiBuffer::allocate(const size_t size) {
   mBufferSize = size;
   mAlignedBufferSize = align(size, sBufferAlignment.value());

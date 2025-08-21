@@ -1,7 +1,6 @@
 #pragma once
 
 #include <Graphics/RenderingEngine.hpp>
-#include <Graphics/Textures/MultiTexture.hpp>
 #include <Scene/Scene.hpp>
 #include <Util/Expected.hpp>
 
@@ -18,7 +17,7 @@ public:
   [[nodiscard]] virtual CommandBuffer render();
 
   virtual void onWindowResize(GLFWwindow* window, glm::uvec2 newSize);
-  virtual void onFrameEnd();
+  virtual void onFrameEnd() {}
 
   void runGUI(AppState& state);
   virtual void gui(AppState& state);
@@ -43,7 +42,7 @@ protected:
   std::vector<FramebufferHandle> mDirectionalShadowFramebuffers;
   std::vector<FramebufferHandle> mPostProcessingFramebuffers;
 
-  MultiTexture<Texture2DArray> mDirectionalLightShadowMaps;
+  Texture2DArrayHandle mDirectionalLightShadowMaps = Texture2DArrayHandle::null();
 
   SceneRenderMode mSceneRenderMode = SceneRenderMode::Full;
   bool mbDebugVisualiseVertexNormals = false;

@@ -45,7 +45,7 @@ private:
     AssetHandle<Bitmap> specularMap = AssetHandle<Bitmap>::null();
     AssetHandle<Bitmap> emissionMap = AssetHandle<Bitmap>::null();
 
-    auto operator<=>(const TexturePack&) const = default;
+    bool operator==(const TexturePack&) const = default;
   };
 
   static auto groupMeshesByTextures(AssetHandle<Model> model);
@@ -152,4 +152,5 @@ private:
 
   std::unordered_map<RegItemID, Texture2DHandle> mUploadedTextures;
   std::unordered_map<RegItemID, std::vector<RenderData>> mUploadedModels;
+  std::unordered_map<entt::entity, size_t> mCameraToBufferIndex;
 };

@@ -59,40 +59,40 @@ void Scene::prepareForRendering() {
   this->sortOutlines();
 }
 
-DirectionalLightSourceBuffer Scene::createDirectionalLightUniforms() const {
+DirectionalLightSourceBuffer Scene::createDirectionalLightBufferData() const {
   ZoneScoped;
 
   const entt::basic_view directionalLights = ecs.view<const CompDirectionalLight, const CompCamera, const CompTransform>();
 
   DirectionalLightSourceBuffer buffer;
   buffer.sources.reserve(std::distance(directionalLights.begin(), directionalLights.end()));
-  for (const auto& [entity, light, camera, transform]: directionalLights.each()) {
+  for (const auto [entity, light, camera, transform]: directionalLights.each()) {
     buffer.sources.push_back(DirectionalLightShaderData::from(light, camera, transform));
   }
   return buffer;
 }
 
-PointLightSourceBuffer Scene::createPointLightUniforms() const {
+PointLightSourceBuffer Scene::createPointLightBufferData() const {
   ZoneScoped;
 
   const entt::basic_view pointLights = ecs.view<const CompPointLight, const CompTransform>();
 
   PointLightSourceBuffer buffer;
   buffer.sources.reserve(static_cast<size_t>(std::distance(pointLights.begin(), pointLights.end())));
-  for (const auto& [entity, light, transform]: pointLights.each()) {
+  for (const auto [entity, light, transform]: pointLights.each()) {
     buffer.sources.push_back(PointLightShaderData::from(light, transform));
   }
   return buffer;
 }
 
-SpotlightSourceBuffer Scene::createSpotlightUniforms() const {
+SpotlightSourceBuffer Scene::createSpotlightBufferData() const {
   ZoneScoped;
 
   const entt::basic_view spotlights = ecs.view<const CompSpotlight, const CompTransform>();
 
   SpotlightSourceBuffer buffer;
   buffer.sources.reserve(static_cast<size_t>(std::distance(spotlights.begin(), spotlights.end())));
-  for (const auto& [entity, light, transform]: spotlights.each()) {
+  for (const auto [entity, light, transform]: spotlights.each()) {
     buffer.sources.push_back(SpotlightShaderData::from(light, transform));
   }
   return buffer;

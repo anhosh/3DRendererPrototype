@@ -412,7 +412,7 @@ GLint RenderingEngine::textureInternalFormat(const bool bSRGB, const uint32_t ch
   return bSRGB && channels == 4 ? GL_SRGB8_ALPHA8 :
          bSRGB && channels < 4  ? GL_SRGB8 :
         !bSRGB && channels == 4 ? GL_RGBA8 :
-        !bSRGB && channels == 3 ? GL_RGB8 :
+        !bSRGB && channels == 3 ? GL_RGBA8 :
         !bSRGB && channels == 2 ? GL_RG8 : GL_R8;
 }
 
@@ -444,7 +444,8 @@ void RenderingEngine::submitCommands(CommandBuffer&& commandBuffer) {
   entt::entity lastCamera = entt::null;
   const Scene* lastScene = nullptr;
   std::span<const Draw> draws;
-  for (auto& command : commandBuffer.commands) {
+
+  for (CommandBuffer::Command& command : commandBuffer.commands) {
     command.visit(Visitor {
       [&](CmdRenderPass& cmd) {
         auto& [viewport, dstFramebuffer, pass] = cmd.renderPass;
@@ -454,9 +455,21 @@ void RenderingEngine::submitCommands(CommandBuffer&& commandBuffer) {
               lastScene = renderScenePass.scene;
               draws = renderScenePass.scene->draw(renderScenePass.entityCamera, *this);
               this->updateLightSourceData(*renderScenePass.scene);
+
+              const auto camerasView = lastScene->ecs.view<const CompCamera, const CompTransform>();
+              if (const size_t numCameras = std::distance(camerasView.begin(), camerasView.end());
+                  numCameras * 3 > mCameraUniformBuffer.numBuffers())
+              {
+                mCameraUniformBuffer.setNumBuffers(numCameras * 3);
+              }
+
+              for (const auto [i, pack] : camerasView.each() | std::views::enumerate) {
+                const auto [entity, camera, transform] = pack;
+                mCameraToBufferIndex.insert_or_assign(entity, i);
+              }
             }
 
-            if (lastCamera != renderScenePass.entityCamera) {
+            if (lastCamera != renderScenePass.entityCamera && renderScenePass.entityCamera != entt::null) {
               lastCamera = renderScenePass.entityCamera;
               this->updateCameraData(*renderScenePass.scene, renderScenePass.entityCamera, dstFramebuffer->size());
             }
@@ -769,8 +782,9 @@ void RenderingEngine::updateCameraData(const Scene& scene, const entt::entity en
   assert(mInitialised);
 
   const auto [camera, cameraTransform] = scene.ecs.get<const CompCamera, const CompTransform>(entityCamera);
-  const CameraUniforms cameraUniformData = CameraUniforms::from(camera, cameraTransform, framebufferSize);
-  mCameraUniformBuffer.write(cameraUniformData);
+  const CameraUniforms cameraUniforms = CameraUniforms::from(camera, cameraTransform, framebufferSize);
+  mCameraUniformBuffer.setCurrent(mCameraToBufferIndex[entityCamera]);
+  mCameraUniformBuffer.write(cameraUniforms);
   mCameraUniformBuffer.bindWhole(BINDING_UBO_CAMERA);
 }
 
@@ -779,15 +793,15 @@ void RenderingEngine::updateLightSourceData(const Scene& scene) {
 
   assert(mInitialised);
 
-  const DirectionalLightSourceBuffer directionalLightsData = scene.createDirectionalLightUniforms();
+  const DirectionalLightSourceBuffer directionalLightsData = scene.createDirectionalLightBufferData();
   mDirectionalLightsStorageBuffer.write(directionalLightsData);
   mDirectionalLightsStorageBuffer.bindWhole(BINDING_SSBO_DIRECTIONAL_LIGHTS);
 
-  const PointLightSourceBuffer pointLightsData = scene.createPointLightUniforms();
+  const PointLightSourceBuffer pointLightsData = scene.createPointLightBufferData();
   mPointLightsStorageBuffer.write(pointLightsData);
   mPointLightsStorageBuffer.bindWhole(BINDING_SSBO_POINT_LIGHTS);
 
-  const SpotlightSourceBuffer spotlightsData = scene.createSpotlightUniforms();
+  const SpotlightSourceBuffer spotlightsData = scene.createSpotlightBufferData();
   mSpotlightsStorageBuffer.write(spotlightsData);
   mSpotlightsStorageBuffer.bindWhole(BINDING_SSBO_SPOTLIGHTS);
 }

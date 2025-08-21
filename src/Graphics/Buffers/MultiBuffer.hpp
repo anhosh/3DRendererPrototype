@@ -18,6 +18,9 @@ public:
   void init();
   void destroy();
 
+  void setNumBuffers(size_t newNumBuffers);
+  void setCurrent(size_t index);
+
   void allocate(size_t size);
   void reallocate(size_t newSize);
   void bindWhole(uint32_t bindPoint) const;
@@ -37,6 +40,7 @@ public:
   [[nodiscard]] size_t size() const { return mBufferSize; }
   [[nodiscard]] std::span<uint8_t> data() const;
   [[nodiscard]] BufferHandle handle() const { return mBuffer; }
+  [[nodiscard]] size_t numBuffers() const { return mNumBuffers; }
 
   void switchToNext();
 

@@ -71,6 +71,7 @@ void Texture2DArray::copyFromFramebuffer(const Framebuffer& framebuffer, const u
   TracyGpuZone("Copy from Texture2D");
   glBindFramebuffer(GL_READ_FRAMEBUFFER, framebuffer.fbo());
   glCopyTextureSubImage3D(this->id(), 0, 0, 0, targetSlice, 0, 0, framebuffer.size().x, framebuffer.size().y);
+  glBindFramebuffer(GL_READ_FRAMEBUFFER, GL_NONE);
 }
 
 void Texture2DArray::copyFromFramebuffer(const FramebufferHandle framebuffer, const uint32_t targetSlice) const {

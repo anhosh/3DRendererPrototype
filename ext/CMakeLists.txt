@@ -30,6 +30,7 @@ message(STATUS "[glm]")
 add_subdirectory(glm)
 target_compile_definitions(glm PUBLIC
   GLM_FORCE_SWIZZLE
+  GLM_FORCE_XYZW_ONLY
   GLM_FORCE_RADIANS
   GLM_FORCE_DEPTH_ZERO_TO_ONE
   GLM_FORCE_SILENT_WARNINGS

@@ -38,9 +38,8 @@ Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const
     ++numDirectionalLightShadowMaps;
   }
 
-  mDirectionalLightShadowMaps = MultiTexture<Texture2DArray>([&] { return renderer->createEmptyTexture2DArray(); },
-                                                             3, glm::uvec3(SHADOW_SIZE, numDirectionalLightShadowMaps),
-                                                             GL_DEPTH_COMPONENT24);
+  mDirectionalLightShadowMaps = renderer->createEmptyTexture2DArray();
+  mDirectionalLightShadowMaps->allocate(SHADOW_SIZE, numDirectionalLightShadowMaps, GL_DEPTH_COMPONENT24);
 
   const ShaderProgramInstanceHandle gammaCorrectionShader = mRenderingEngine->createShaderProgramInstance(ShaderProgramType::PostProcessGammaCorrection);
   mPostProcessingShaderProgramInstances.push_back(gammaCorrectionShader);
@@ -84,7 +83,7 @@ CommandBuffer DemoBase::render() {
 
   commandBuffer.commands.emplace_back(CmdCopyShadowMapsToArrayTexture {
     .shadowMaps = mDirectionalShadowFramebuffers,
-    .textureArray = mDirectionalLightShadowMaps.current(),
+    .textureArray = mDirectionalLightShadowMaps,
   });
 
   commandBuffer.commands.emplace_back(CmdRenderPass {
@@ -93,7 +92,7 @@ CommandBuffer DemoBase::render() {
       .scene = &mScene,
       .entityCamera = mMainCamera,
       .mode = mSceneRenderMode,
-      .shadowMaps.directionalShadowMaps = mDirectionalLightShadowMaps.current(),
+      .shadowMaps.directionalShadowMaps = mDirectionalLightShadowMaps,
     }
   });
 
@@ -129,10 +128,6 @@ void DemoBase::onWindowResize(GLFWwindow*, const glm::uvec2 newSize) {
   for (FramebufferHandle framebuffer : mPostProcessingFramebuffers) {
     framebuffer->resize(newSize);
   }
-}
-
-void DemoBase::onFrameEnd() {
-  mDirectionalLightShadowMaps.switchToNext();
 }
 
 void DemoBase::runGUI(AppState& state) {

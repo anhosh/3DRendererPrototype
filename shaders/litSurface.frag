@@ -61,8 +61,6 @@ LightColors directionalLight(uint lightIndex, vec3 normal) {
   float visibility = 1 - shadow(fragPosLightSpace, dot(normal, lightDirection), uDirectionalLightShadowMaps, lightIndex);
 
   LightColors colors;
-//  colors.ambient = vec3(visibility);
-//  colors.ambient = (fragPosLightSpace.xyz / fragPosLightSpace.w);
   colors.ambient = light.colors.ambient;
   colors.diffuse = light.colors.diffuse * diffuse(normal, lightDirection) * visibility;
   colors.specular = light.colors.specular * specular(normal, lightDirection) * visibility;

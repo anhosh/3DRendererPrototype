@@ -6,7 +6,7 @@
 
 namespace fs = std::filesystem;
 
-Expected<Bitmap> Bitmap::fromFile(const fs::path& fileName, bool bFlipVertically) {
+Expected<Bitmap> Bitmap::fromFile(const fs::path& fileName, const bool bFlipVertically) {
   ZoneScoped;
 
   stbi_set_flip_vertically_on_load(bFlipVertically);
@@ -29,13 +29,13 @@ Expected<Bitmap> Bitmap::fromMemory(std::span<const uint8_t> bytes, const glm::u
 
   if (bytes.size() != size.x * size.y * channels) {
     return std::unexpected(std::format("Bitmap size does not match data length: {} != {} [width({}) * height({}) * channels({})]",
-                                            bytes.size(), size.x * size.y * channels, size.x, size.y, channels));
+                                          bytes.size(), size.x * size.y * channels, size.x, size.y, channels));
   }
 
   Bitmap ret;
   ret.mSize = size;
   ret.mChannels = channels;
-  ret.mData.assign(bytes.begin(), bytes.end());
+  ret.mData.assign_range(bytes);
   return ret;
 }
 

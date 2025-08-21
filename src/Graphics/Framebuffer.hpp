@@ -26,7 +26,7 @@ struct FramebufferCreateInfo {
 
 class Framebuffer {
 public:
-  explicit Framebuffer(FramebufferCreateInfo  info);
+  explicit Framebuffer(FramebufferCreateInfo info);
 
   void init();
 private:

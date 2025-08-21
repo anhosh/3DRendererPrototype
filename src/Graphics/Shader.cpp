@@ -73,7 +73,7 @@ Expected<GLuint> createShaderProgram(const ShaderProgramPaths& shaderPaths) {
   std::vector<Shader> shaders;
   shaders.reserve(2); // mandatory vertex and fragment shaders
 
-  const auto addShader = [&](GLenum shaderType, const fs::path& sourcePath, std::string_view defines) -> Expected<void> {
+  const auto addShader = [&](const GLenum shaderType, const fs::path& sourcePath, const std::string_view defines) -> Expected<void> {
     const Expected shader = createShader(shaderType, sourcePath, defines);
     RETURN_ERROR_IF_UNEXPECTED(shader);
     shaders.push_back(shader.value());

@@ -23,9 +23,9 @@ public:
   void destroy();
   void prepareForRendering();
 
-  [[nodiscard]] DirectionalLightSourceBuffer createDirectionalLightUniforms() const;
-  [[nodiscard]] PointLightSourceBuffer createPointLightUniforms() const;
-  [[nodiscard]] SpotlightSourceBuffer createSpotlightUniforms() const;
+  [[nodiscard]] DirectionalLightSourceBuffer createDirectionalLightBufferData() const;
+  [[nodiscard]] PointLightSourceBuffer createPointLightBufferData() const;
+  [[nodiscard]] SpotlightSourceBuffer createSpotlightBufferData() const;
 
   [[nodiscard]] std::span<const Draw> draw(entt::entity entityCamera, RenderingEngine& renderingEngine);
 
