@@ -6,6 +6,7 @@
 #include <Util/Registry.hpp>
 
 #include <concepts>
+#include <functional>
 #include <type_traits>
 #include <vector>
 
@@ -18,21 +19,25 @@ public:
   MultiTexture(const MultiTexture&) = default;
   MultiTexture(MultiTexture&&) = default;
 
-  MultiTexture(Registry<Texture>& textureRegistry, const size_t numTextures, const glm::uvec3 size, const GLint internalFormat) {
+  MultiTexture& operator=(const MultiTexture&) = default;
+  MultiTexture& operator=(MultiTexture&&) = default;
+
+  template <std::invocable<> FnRegisterTexture>
+  explicit MultiTexture(const FnRegisterTexture& registerTexture, const size_t numTextures, const glm::uvec3 size, const GLint internalFormat) {
     mTextures.reserve(numTextures);
     for (size_t i = 0; i < numTextures; ++i) {
       if constexpr (std::is_same_v<Texture2D, Texture>) {
-        Texture2D texture;
-        texture.allocate(size.xy(), internalFormat);
-        mTextures.emplace_back(textureRegistry.add(texture));
+        Texture2DHandle texture = std::invoke(registerTexture);
+        texture->allocate(size.xy(), internalFormat);
+        mTextures.emplace_back(texture);
       } else if constexpr (std::is_same_v<Texture2DArray, Texture>) {
-        Texture2DArray textureArray;
-        textureArray.allocate(size.xy(), size.z, internalFormat);
-        mTextures.emplace_back(textureRegistry.add(textureArray));
+        Texture2DArrayHandle textureArray = std::invoke(registerTexture);
+        textureArray->allocate(size.xy(), size.z, internalFormat);
+        mTextures.emplace_back(textureArray);
       } else if constexpr (std::is_same_v<TextureCubeMap, Texture>) {
-        TextureCubeMap cubeMap;
-        cubeMap.allocate(size.xy(), internalFormat);
-        mTextures.emplace_back(textureRegistry.add(cubeMap));
+        TextureCubeMapHandle cubeMap = std::invoke(registerTexture);
+        cubeMap->allocate(size.xy(), internalFormat);
+        mTextures.emplace_back(cubeMap);
       }
     }
   }

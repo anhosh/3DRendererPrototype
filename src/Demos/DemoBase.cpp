@@ -29,7 +29,7 @@ Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const
 
   constexpr auto SHADOW_SIZE = glm::uvec2(4096);
   uint32_t numDirectionalLightShadowMaps = 0;
-  for (const auto [entity, light] : mScene.ecs.view<CompDirectionalLight>().each()) {
+  for (const auto _ : mScene.ecs.view<CompDirectionalLight>().each()) {
     mDirectionalShadowFramebuffers.push_back(renderer->addFramebuffer({
       .size = SHADOW_SIZE,
       .samples = 1,
@@ -38,8 +38,9 @@ Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const
     ++numDirectionalLightShadowMaps;
   }
 
-  mDirectionalLightShadowMaps = renderer->createEmptyTexture2DArray();
-  mDirectionalLightShadowMaps->allocate(SHADOW_SIZE, numDirectionalLightShadowMaps, GL_DEPTH_COMPONENT24);
+  mDirectionalLightShadowMaps = MultiTexture<Texture2DArray>([&] { return renderer->createEmptyTexture2DArray(); },
+                                                             3, glm::uvec3(SHADOW_SIZE, numDirectionalLightShadowMaps),
+                                                             GL_DEPTH_COMPONENT24);
 
   const ShaderProgramInstanceHandle gammaCorrectionShader = mRenderingEngine->createShaderProgramInstance(ShaderProgramType::PostProcessGammaCorrection);
   mPostProcessingShaderProgramInstances.push_back(gammaCorrectionShader);
@@ -83,7 +84,7 @@ CommandBuffer DemoBase::render() {
 
   commandBuffer.commands.emplace_back(CmdCopyShadowMapsToArrayTexture {
     .shadowMaps = mDirectionalShadowFramebuffers,
-    .textureArray = mDirectionalLightShadowMaps,
+    .textureArray = mDirectionalLightShadowMaps.current(),
   });
 
   commandBuffer.commands.emplace_back(CmdRenderPass {
@@ -92,7 +93,7 @@ CommandBuffer DemoBase::render() {
       .scene = &mScene,
       .entityCamera = mMainCamera,
       .mode = mSceneRenderMode,
-      .shadowMaps.directionalShadowMaps = mDirectionalLightShadowMaps,
+      .shadowMaps.directionalShadowMaps = mDirectionalLightShadowMaps.current(),
     }
   });
 
@@ -128,6 +129,10 @@ void DemoBase::onWindowResize(GLFWwindow*, const glm::uvec2 newSize) {
   for (FramebufferHandle framebuffer : mPostProcessingFramebuffers) {
     framebuffer->resize(newSize);
   }
+}
+
+void DemoBase::onFrameEnd() {
+  mDirectionalLightShadowMaps.switchToNext();
 }
 
 void DemoBase::runGUI(AppState& state) {

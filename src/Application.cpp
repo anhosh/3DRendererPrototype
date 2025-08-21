@@ -179,6 +179,7 @@ void Application::run() {
     this->drawFrame();
 
     glfwSwapBuffers(mState.window);
+    mState.currentDemo->onFrameEnd();
 
     FrameMark;
     TracyGpuCollect;

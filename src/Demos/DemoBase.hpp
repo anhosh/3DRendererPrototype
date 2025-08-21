@@ -18,6 +18,7 @@ public:
   [[nodiscard]] virtual CommandBuffer render();
 
   virtual void onWindowResize(GLFWwindow* window, glm::uvec2 newSize);
+  virtual void onFrameEnd();
 
   void runGUI(AppState& state);
   virtual void gui(AppState& state);
@@ -42,7 +43,7 @@ protected:
   std::vector<FramebufferHandle> mDirectionalShadowFramebuffers;
   std::vector<FramebufferHandle> mPostProcessingFramebuffers;
 
-  Texture2DArrayHandle mDirectionalLightShadowMaps = Texture2DArrayHandle::null();
+  MultiTexture<Texture2DArray> mDirectionalLightShadowMaps;
 
   SceneRenderMode mSceneRenderMode = SceneRenderMode::Full;
   bool mbDebugVisualiseVertexNormals = false;
