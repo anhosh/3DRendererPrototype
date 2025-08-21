@@ -38,11 +38,14 @@ protected:
 
   std::vector<ShaderProgramInstanceHandle> mPostProcessingShaderProgramInstances;
 
+  Texture2DHandle mMainSceneColorAttachment = Texture2DHandle::null();
   FramebufferHandle mMainSceneFramebuffer = FramebufferHandle::null();
-  std::vector<FramebufferHandle> mDirectionalShadowFramebuffers;
-  std::vector<FramebufferHandle> mPostProcessingFramebuffers;
 
   Texture2DArrayHandle mDirectionalLightShadowMaps = Texture2DArrayHandle::null();
+  std::vector<FramebufferHandle> mDirectionalShadowFramebuffers;
+
+  std::vector<Texture2DHandle> mPostProcessingColorAttachments;
+  std::vector<FramebufferHandle> mPostProcessingFramebuffers;
 
   SceneRenderMode mSceneRenderMode = SceneRenderMode::Full;
   bool mbDebugVisualiseVertexNormals = false;

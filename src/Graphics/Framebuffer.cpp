@@ -19,11 +19,8 @@ void Framebuffer::init() {
 
   glCreateFramebuffers(1, &mFBO);
 
-  colorAttachments.resize(mInfo.colorAttachments.size());
-  for (auto [i, colorAttachment] : colorAttachments | std::views::enumerate) {
-    colorAttachment.init();
-    colorAttachment.allocate(mInfo.size, mInfo.colorAttachments[i].internalFormat);
-    glNamedFramebufferTexture(mFBO, GL_COLOR_ATTACHMENT0 + i, colorAttachment.id(), 0);
+  for (auto [i, colorAttachment] : mInfo.colorAttachments | std::views::enumerate) {
+    glNamedFramebufferTexture(mFBO, GL_COLOR_ATTACHMENT0 + i, colorAttachment.texture->id(), 0);
   }
 
   switch (mInfo.depthStencilMode) {
@@ -31,19 +28,25 @@ void Framebuffer::init() {
       // no-op
       break;
 
-    case DepthStencilMode::DepthAttachment:
-      depthStencilAttachment.emplace();
-      depthStencilAttachment->init();
-      depthStencilAttachment->allocate(mInfo.size, GL_DEPTH_COMPONENT24);
-      glNamedFramebufferTexture(mFBO, GL_DEPTH_ATTACHMENT, depthStencilAttachment->id(), 0);
+    case DepthStencilMode::DepthAttachment: {
+      assert(mInfo.depthStencilAttachment.has_value());
+      const FramebufferAttachment& attachment = mInfo.depthStencilAttachment.value();
+      glNamedFramebufferTexture(mFBO, GL_DEPTH_ATTACHMENT, attachment.texture->id(), 0);
+      if (attachment.texture->target() == GL_TEXTURE_2D_ARRAY) {
+        glNamedFramebufferTextureLayer(mFBO, GL_DEPTH_ATTACHMENT, attachment.texture->id(), 0, attachment.layer);
+      }
       break;
+    }
 
-    case DepthStencilMode::DepthStencilAttachment:
-      depthStencilAttachment.emplace();
-      depthStencilAttachment->init();
-      depthStencilAttachment->allocate(mInfo.size, GL_DEPTH24_STENCIL8);
-      glNamedFramebufferTexture(mFBO, GL_DEPTH_STENCIL_ATTACHMENT, depthStencilAttachment->id(), 0);
+    case DepthStencilMode::DepthStencilAttachment: {
+      assert(mInfo.depthStencilAttachment.has_value());
+      const FramebufferAttachment& attachment = mInfo.depthStencilAttachment.value();
+      glNamedFramebufferTexture(mFBO, GL_DEPTH_STENCIL_ATTACHMENT, attachment.texture->id(), 0);
+      if (attachment.texture->target() == GL_TEXTURE_2D_ARRAY) {
+        glNamedFramebufferTextureLayer(mFBO, GL_DEPTH_STENCIL_ATTACHMENT, attachment.texture->id(), 0, attachment.layer);
+      }
       break;
+    }
 
     case DepthStencilMode::DepthRBO:
       glCreateRenderbuffers(1, &mDepthStencilRBO);
@@ -83,7 +86,7 @@ void Framebuffer::initMultisampled() {
   mMultisampledColorAttachments.resize(mInfo.colorAttachments.size());
   for (auto [i, colorAttachment] : mMultisampledColorAttachments | std::views::enumerate) {
     glCreateTextures(GL_TEXTURE_2D_MULTISAMPLE, 1, &colorAttachment);
-    glTextureStorage2DMultisample(colorAttachment, static_cast<GLsizei>(mInfo.samples), mInfo.colorAttachments[i].internalFormat,
+    glTextureStorage2DMultisample(colorAttachment, static_cast<GLsizei>(mInfo.samples), mInfo.colorAttachments[i].texture->internalFormat(),
                                   static_cast<GLint>(mInfo.size.x), static_cast<GLint>(mInfo.size.y), GL_TRUE);
     glNamedFramebufferTexture(mMultisampledFBO, GL_COLOR_ATTACHMENT0 + i, colorAttachment, 0);
   }
@@ -95,11 +98,9 @@ void Framebuffer::initMultisampled() {
 
     case DepthStencilMode::DepthAttachment:
       UNIMPLEMENTED();
-      break;
 
     case DepthStencilMode::DepthStencilAttachment:
       UNIMPLEMENTED();
-      break;
 
     case DepthStencilMode::DepthRBO:
       glCreateRenderbuffers(1, &mMultisampledDepthStencilRBO);
@@ -128,14 +129,6 @@ void Framebuffer::initMultisampled() {
 
 void Framebuffer::destroy() {
   ZoneScoped;
-
-  for (Texture2D& colorAttachment : colorAttachments) {
-    colorAttachment.destroy();
-  }
-  depthStencilAttachment.transform([](Texture2D& t) { t.destroy(); return t; });
-
-  colorAttachments.clear();
-  depthStencilAttachment.reset();
 
   if (mFBO != GL_NONE) {
     glDeleteFramebuffers(1, &mFBO);

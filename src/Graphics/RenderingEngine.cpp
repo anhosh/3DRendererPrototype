@@ -708,6 +708,7 @@ void RenderingEngine::postProcess(const Viewport& viewport, FramebufferHandle ds
   TracyGpuZone("Postprocess");
 
   assert(mInitialised);
+  assert(!srcFramebuffer->colorAttachments().empty());
 
   const glm::ivec2 viewportPositionPx = glm::round(viewport.position * glm::vec2(dstFramebuffer->size()));
   const glm::ivec2 viewportSizePx = glm::round(viewport.size * glm::vec2(dstFramebuffer->size()));
@@ -722,7 +723,7 @@ void RenderingEngine::postProcess(const Viewport& viewport, FramebufferHandle ds
 
   postProcessingShader->use();
   postProcessingShader->bindUniforms();
-  srcFramebuffer->colorAttachments[0].bind(BINDING_SAMPLER_SCREEN);
+  srcFramebuffer->colorAttachments().front().texture->bind(BINDING_SAMPLER_SCREEN);
   mColorAttachmentSampler->bind(BINDING_SAMPLER_SCREEN);
 
   glBindVertexArray(mScreenQuadVAO);
@@ -740,6 +741,7 @@ void RenderingEngine::present(const glm::uvec2 windowSize, FramebufferHandle src
   TracyGpuZone("Present");
 
   assert(mInitialised);
+  assert(!srcFramebuffer->colorAttachments().empty());
 
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -754,8 +756,10 @@ void RenderingEngine::present(const glm::uvec2 windowSize, FramebufferHandle src
   glClear(GL_COLOR_BUFFER_BIT);
 
   glUseProgram(mPostProcessCopyShaderProgram->id());
-  srcFramebuffer->colorAttachments[0].bind(BINDING_SAMPLER_SCREEN);
+  glUniform1i(glGetUniformLocation(mPostProcessCopyShaderProgram->id(), "uScreenTexture"), BINDING_SAMPLER_SCREEN);
+  srcFramebuffer->colorAttachments().front().texture->bind(BINDING_SAMPLER_SCREEN);
   mColorAttachmentSampler->bind(BINDING_SAMPLER_SCREEN);
+
   glBindVertexArray(mScreenQuadVAO);
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 

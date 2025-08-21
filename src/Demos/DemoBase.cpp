@@ -17,36 +17,45 @@ Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const
   mAssetManager = assets;
   mRenderingEngine = renderer;
 
+  mMainSceneColorAttachment = renderer->createEmptyTexture2D();
+  mMainSceneColorAttachment->allocate(glm::uvec2(1), GL_RGBA16);
   mMainSceneFramebuffer = mRenderingEngine->addFramebuffer({
     .size = glm::uvec2(1),
     .samples = 4,
     .colorAttachments = {
-      ColorAttachmentInfo {
-        .internalFormat = GL_RGB16, // Remove quantisation artifacts which occur during gamma correction from RGB8.
-      },
+      FramebufferAttachment { .texture = &mMainSceneColorAttachment.get() },
     },
   });
 
-  constexpr auto SHADOW_SIZE = glm::uvec2(4096);
-  uint32_t numDirectionalLightShadowMaps = 0;
-  for (const auto _ : mScene.ecs.view<CompDirectionalLight>().each()) {
+  constexpr auto shadowSize = glm::uvec2(4096);
+  const auto directionalLightView = mScene.ecs.view<CompDirectionalLight>();
+  const uint32_t numDirectionalLightShadowMaps = directionalLightView.size();
+  mDirectionalLightShadowMaps = renderer->createEmptyTexture2DArray();
+  mDirectionalLightShadowMaps->allocate(shadowSize, numDirectionalLightShadowMaps, GL_DEPTH_COMPONENT24);
+
+  for (const auto [shadowMapIndex, _] : mScene.ecs.view<CompDirectionalLight>().each() | std::views::enumerate) {
     mDirectionalShadowFramebuffers.push_back(renderer->addFramebuffer({
-      .size = SHADOW_SIZE,
+      .size = shadowSize,
       .samples = 1,
-      .depthStencilMode = DepthStencilMode::DepthRBO,
+      .depthStencilMode = DepthStencilMode::DepthAttachment,
+      .depthStencilAttachment = FramebufferAttachment {
+        .texture = &mDirectionalLightShadowMaps.get(),
+        .layer = static_cast<uint32_t>(shadowMapIndex),
+      }
     }));
-    ++numDirectionalLightShadowMaps;
   }
 
-  mDirectionalLightShadowMaps = renderer->createEmptyTexture2DArray();
-  mDirectionalLightShadowMaps->allocate(SHADOW_SIZE, numDirectionalLightShadowMaps, GL_DEPTH_COMPONENT24);
-
-  const ShaderProgramInstanceHandle gammaCorrectionShader = mRenderingEngine->createShaderProgramInstance(ShaderProgramType::PostProcessGammaCorrection);
+  mPostProcessingColorAttachments.emplace_back(mRenderingEngine->createEmptyTexture2D());
+  mPostProcessingColorAttachments.back()->allocate(glm::uvec2(1), GL_RGBA8);
+  const ShaderProgramInstanceHandle gammaCorrectionShader =
+    mRenderingEngine->createShaderProgramInstance(ShaderProgramType::PostProcessGammaCorrection);
   mPostProcessingShaderProgramInstances.push_back(gammaCorrectionShader);
   mPostProcessingFramebuffers.push_back(mRenderingEngine->addFramebuffer({
     .size = glm::uvec2(1),
-    .colorAttachments = { ColorAttachmentInfo {} },
     .depthStencilMode = DepthStencilMode::None,
+    .colorAttachments = {
+      FramebufferAttachment { .texture = &mPostProcessingColorAttachments.back().get() },
+    },
   }));
 
   mMainCamera = mScene.ecs.create();
@@ -80,11 +89,6 @@ CommandBuffer DemoBase::render() {
       },
     });
   }
-
-  commandBuffer.commands.emplace_back(CmdCopyShadowMapsToArrayTexture {
-    .shadowMaps = mDirectionalShadowFramebuffers,
-    .textureArray = mDirectionalLightShadowMaps,
-  });
 
   commandBuffer.commands.emplace_back(CmdRenderPass {
     .renderPass.dstFramebuffer = mMainSceneFramebuffer,
@@ -124,6 +128,16 @@ CommandBuffer DemoBase::render() {
 }
 
 void DemoBase::onWindowResize(GLFWwindow*, const glm::uvec2 newSize) {
+  mMainSceneColorAttachment->destroy();
+  mMainSceneColorAttachment->init();
+  mMainSceneColorAttachment->allocate(newSize, GL_RGBA16);
+
+  for (Texture2DHandle texture : mPostProcessingColorAttachments) {
+    texture->destroy();
+    texture->init();
+    texture->allocate(newSize, GL_RGBA8);
+  }
+
   mMainSceneFramebuffer->resize(newSize);
   for (FramebufferHandle framebuffer : mPostProcessingFramebuffers) {
     framebuffer->resize(newSize);
@@ -354,10 +368,14 @@ void DemoBase::guiPostProcessing(const AppState& state) {
     }
 
     if (ImGui::Button("+ Add effect")) {
+      mPostProcessingColorAttachments.emplace_back(mRenderingEngine->createEmptyTexture2D());
+      mPostProcessingColorAttachments.back()->allocate(state.windowSize, GL_RGBA8);
       const ShaderProgramInstanceHandle shader = mRenderingEngine->createShaderProgramInstance(ShaderProgramType::PostProcessCopy);
       const FramebufferHandle newFramebuffer = mRenderingEngine->addFramebuffer({
         .size = state.windowSize,
-        .colorAttachments = { ColorAttachmentInfo {} },
+        .colorAttachments = {
+          FramebufferAttachment { .texture = &mPostProcessingColorAttachments.back().get() },
+        },
         .depthStencilMode = DepthStencilMode::None,
       });
 

@@ -9,6 +9,7 @@ public:
 
   [[nodiscard]] GLuint id() const { return mID; }
   [[nodiscard]] GLuint target() const { return mTarget; }
+  [[nodiscard]] GLuint internalFormat() const { return mInternalFormat; }
   [[nodiscard]] glm::uvec3 size() const { return mSize; }
 
 protected:

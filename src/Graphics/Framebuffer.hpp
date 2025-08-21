@@ -5,8 +5,9 @@
 
 #include <vector>
 
-struct ColorAttachmentInfo {
-  GLint internalFormat = GL_RGB8;
+struct FramebufferAttachment {
+  NotNull<TextureBase> texture;
+  uint32_t layer = 0;
 };
 
 enum class DepthStencilMode {
@@ -20,8 +21,9 @@ enum class DepthStencilMode {
 struct FramebufferCreateInfo {
   glm::uvec2 size;
   uint32_t samples = 1;
-  std::vector<ColorAttachmentInfo> colorAttachments;
   DepthStencilMode depthStencilMode = DepthStencilMode::DepthStencilRBO;
+  std::vector<FramebufferAttachment> colorAttachments;
+  std::optional<FramebufferAttachment> depthStencilAttachment = std::nullopt;
 };
 
 class Framebuffer {
@@ -44,10 +46,8 @@ public:
   [[nodiscard]] GLuint fbo() const { return mFBO; }
   [[nodiscard]] glm::uvec2 size() const { return mInfo.size; }
   [[nodiscard]] DepthStencilMode depthStencilMode() const { return mInfo.depthStencilMode; }
-
-public:
-  std::vector<Texture2D> colorAttachments;
-  std::optional<Texture2D> depthStencilAttachment;
+  [[nodiscard]] std::span<const FramebufferAttachment> colorAttachments() const { return mInfo.colorAttachments; }
+  [[nodiscard]] const std::optional<FramebufferAttachment>& depthStencilAttachment() const { return mInfo.depthStencilAttachment; }
 
 private:
   GLuint mFBO = GL_NONE;
