@@ -46,12 +46,16 @@ float shadow(vec4 fragPosLightSpace, float cosTheta, in sampler2DArrayShadow sha
   if (projectedPosition.z > 1) {
     return 0;
   }
-  float bias = max(0.01 * (1 - cosTheta), 0.005);
-  vec4 texCoord;
-  texCoord.xyw = projectedPosition;
-  texCoord.w -= bias;
-  texCoord.z = lightIndex;
-  return texture(shadowMap, texCoord);
+
+  float w = projectedPosition.z - max(0.01 * (1 - cosTheta), 0.005);
+  vec2 texelSize = 1.0 / textureSize(shadowMap, 0).xy;
+  float ret = 0;
+  for (int x = -1; x <= 1; ++x) {
+    for (int y = -1; y <= 1; ++y) {
+      ret += texture(shadowMap, vec4(projectedPosition.xy + vec2(x, y) * texelSize, lightIndex, w));
+    }
+  }
+  return ret / 9;
 }
 
 LightColors directionalLight(uint lightIndex, vec3 normal) {

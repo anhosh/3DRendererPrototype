@@ -24,6 +24,19 @@ void TextureBase::unbind(const GLuint unit) const {
   glBindTextureUnit(unit, GL_NONE);
 }
 
+bool TextureBase::layered() const {
+  switch (mTarget) {
+    case GL_TEXTURE_2D_ARRAY:
+    case GL_TEXTURE_3D:
+    case GL_TEXTURE_CUBE_MAP:
+    case GL_TEXTURE_CUBE_MAP_ARRAY:
+      return true;
+
+    default:
+      return false;
+  }
+}
+
 TextureBase::TextureBase(const GLenum target)
   : mTarget(target)
 {

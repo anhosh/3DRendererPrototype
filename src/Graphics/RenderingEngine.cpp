@@ -78,6 +78,7 @@ Expected<void> RenderingEngine::init(AssetManager& assets) {
 
   constexpr SamplerOptions shadowSamplerOptions = {
     .minFilter = GL_LINEAR,
+    .magFilter = GL_LINEAR,
     .wrapS = GL_CLAMP_TO_BORDER,
     .wrapT = GL_CLAMP_TO_BORDER,
     .borderColor = glm::vec4(1.0f),

@@ -19,8 +19,11 @@ void Framebuffer::init() {
 
   glCreateFramebuffers(1, &mFBO);
 
-  for (auto [i, colorAttachment] : mInfo.colorAttachments | std::views::enumerate) {
-    glNamedFramebufferTexture(mFBO, GL_COLOR_ATTACHMENT0 + i, colorAttachment.texture->id(), 0);
+  for (auto [i, attachment] : mInfo.colorAttachments | std::views::enumerate) {
+    glNamedFramebufferTexture(mFBO, GL_COLOR_ATTACHMENT0 + i, attachment.texture->id(), 0);
+    if (attachment.texture->layered()) {
+      glNamedFramebufferTextureLayer(mFBO, GL_DEPTH_ATTACHMENT, attachment.texture->id(), 0, attachment.layer);
+    }
   }
 
   switch (mInfo.depthStencilMode) {
@@ -32,7 +35,7 @@ void Framebuffer::init() {
       assert(mInfo.depthStencilAttachment.has_value());
       const FramebufferAttachment& attachment = mInfo.depthStencilAttachment.value();
       glNamedFramebufferTexture(mFBO, GL_DEPTH_ATTACHMENT, attachment.texture->id(), 0);
-      if (attachment.texture->target() == GL_TEXTURE_2D_ARRAY) {
+      if (attachment.texture->layered()) {
         glNamedFramebufferTextureLayer(mFBO, GL_DEPTH_ATTACHMENT, attachment.texture->id(), 0, attachment.layer);
       }
       break;
@@ -42,7 +45,7 @@ void Framebuffer::init() {
       assert(mInfo.depthStencilAttachment.has_value());
       const FramebufferAttachment& attachment = mInfo.depthStencilAttachment.value();
       glNamedFramebufferTexture(mFBO, GL_DEPTH_STENCIL_ATTACHMENT, attachment.texture->id(), 0);
-      if (attachment.texture->target() == GL_TEXTURE_2D_ARRAY) {
+      if (attachment.texture->layered()) {
         glNamedFramebufferTextureLayer(mFBO, GL_DEPTH_STENCIL_ATTACHMENT, attachment.texture->id(), 0, attachment.layer);
       }
       break;
@@ -84,11 +87,15 @@ void Framebuffer::initMultisampled() {
 
   glCreateFramebuffers(1, &mMultisampledFBO);
   mMultisampledColorAttachments.resize(mInfo.colorAttachments.size());
-  for (auto [i, colorAttachment] : mMultisampledColorAttachments | std::views::enumerate) {
-    glCreateTextures(GL_TEXTURE_2D_MULTISAMPLE, 1, &colorAttachment);
-    glTextureStorage2DMultisample(colorAttachment, static_cast<GLsizei>(mInfo.samples), mInfo.colorAttachments[i].texture->internalFormat(),
+  for (auto [i, attachment] : mMultisampledColorAttachments | std::views::enumerate) {
+    if (mInfo.colorAttachments[i].texture->target() == GL_TEXTURE_2D) {
+      glCreateTextures(GL_TEXTURE_2D_MULTISAMPLE, 1, &attachment);
+    } else {
+      PANIC("Color attachment target for a multisampled framebuffer can only be GL_TEXTURE_2D");
+    }
+    glTextureStorage2DMultisample(attachment, static_cast<GLsizei>(mInfo.samples), mInfo.colorAttachments[i].texture->internalFormat(),
                                   static_cast<GLint>(mInfo.size.x), static_cast<GLint>(mInfo.size.y), GL_TRUE);
-    glNamedFramebufferTexture(mMultisampledFBO, GL_COLOR_ATTACHMENT0 + i, colorAttachment, 0);
+    glNamedFramebufferTexture(mMultisampledFBO, GL_COLOR_ATTACHMENT0 + i, attachment, 0);
   }
 
   switch (mInfo.depthStencilMode) {

@@ -27,7 +27,7 @@ Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const
     },
   });
 
-  constexpr auto shadowSize = glm::uvec2(4096);
+  constexpr auto shadowSize = glm::uvec2(4096 * 2);
   const auto directionalLightView = mScene.ecs.view<CompDirectionalLight>();
   const uint32_t numDirectionalLightShadowMaps = directionalLightView.size();
   mDirectionalLightShadowMaps = renderer->createEmptyTexture2DArray();
