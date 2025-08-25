@@ -17,6 +17,8 @@ Expected<void> FloatingBackpackDemo::init(const std::shared_ptr<AssetManager>& a
   Expected bitmapSkyboxBack   = assets->loadBitmap("skybox/sea_afternoon/back.jpg", false);
   Expected bitmapSkyboxFront  = assets->loadBitmap("skybox/sea_afternoon/front.jpg", false);
 
+  AssetHandle<Bitmap> floorBitmap = assets->addBitmap(Bitmap::fromMemory(asBytes("\xFF\xFF\xFF"), glm::uvec2(1), 3).value());
+
   RETURN_ERROR_IF_UNEXPECTED(modelBackpack);
   RETURN_ERROR_IF_UNEXPECTED(bitmapSkyboxRight);
   RETURN_ERROR_IF_UNEXPECTED(bitmapSkyboxLeft);
@@ -26,12 +28,22 @@ Expected<void> FloatingBackpackDemo::init(const std::shared_ptr<AssetManager>& a
   RETURN_ERROR_IF_UNEXPECTED(bitmapSkyboxFront);
 
   const AssetHandle<MeshData> skyboxCubeMesh = assets->addMesh(MeshData::createCube(glm::vec3(2.0f)));
+  const AssetHandle<MeshData> floorMeshData = assets->addMesh(MeshData::createQuad(glm::vec2(15.0f)));
 
   // Get shader instances
   const ShaderProgramInstanceHandle litSurfaceShader = renderer->createShaderProgramInstance(ShaderProgramType::LitSurface);
 
   // Upload assets to GPU
   std::vector<RenderData> backpackMeshes = renderer->addModel(modelBackpack.value(), litSurfaceShader);
+
+  MeshHandle floorMesh = renderer->addMesh(floorMeshData);
+  Texture2DHandle floorTexture = renderer->addTexture2D(floorBitmap);
+  RenderData floorRenderData = {
+    .mesh = floorMesh,
+    .shader = litSurfaceShader,
+    .diffuseMap = floorTexture,
+    .renderOptions = { .bBackfaceCulling = false, },
+  };
 
   TextureCubeMapHandle skyboxTexture = renderer->addTextureCubeMap(
     TextureCubeMapBitmaps {
@@ -66,7 +78,15 @@ Expected<void> FloatingBackpackDemo::init(const std::shared_ptr<AssetManager>& a
   const entt::entity entityBackpack = mScene.ecs.create();
   mScene.ecs.emplace<CompName>(entityBackpack, "Backpack");
   mScene.ecs.emplace<CompTransform>(entityBackpack);
-  mScene.ecs.emplace<CompGraphics>(entityBackpack, backpackMeshes);
+  mScene.ecs.emplace<CompGraphics>(entityBackpack, std::move(backpackMeshes));
+
+  const entt::entity entityFloor = mScene.ecs.create();
+  mScene.ecs.emplace<CompName>(entityFloor, "Floor");
+  mScene.ecs.emplace<CompTransform>(entityFloor, CompTransform {
+    .translation = glm::vec3(0.0f, -1.75f, 0.0f),
+    .rotation = glm::vec3(90.0f, 0.0f, 0.0f),
+  });
+  mScene.ecs.emplace<CompGraphics>(entityFloor, std::vector { floorRenderData });
 
   return FlyCamDemoBase::init(assets, renderer);
 }

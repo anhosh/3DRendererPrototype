@@ -1,6 +1,5 @@
 #include <Demos/FlyCamDemoBase.hpp>
 
-#include <Graphics/RenderPass.hpp>
 #include <Scene/Components/Camera.hpp>
 #include <Scene/Components/Transform.hpp>
 #include <Util/Macros/Errors.hpp>
@@ -29,26 +28,27 @@ void FlyCamDemoBase::processKeyboard(GLFWwindow* window) {
     mbFreeCursorPressed = false;
   }
 
-  auto [camera, cameraTransform] = mScene.ecs.get<CompCamera, CompTransform>(mMainCamera);
-
-  mCameraVelocity = glm::vec3(0.0f);
-  if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-    mCameraVelocity += mCameraSpeed * cameraTransform.forward();
-  }
-  if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-    mCameraVelocity -= mCameraSpeed * cameraTransform.forward();
-  }
-  if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-    mCameraVelocity -= mCameraSpeed * glm::normalize(glm::cross(cameraTransform.forward(), cameraTransform.up()));
-  }
-  if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
-    mCameraVelocity += mCameraSpeed * glm::normalize(glm::cross(cameraTransform.forward(), cameraTransform.up()));
-  }
-  if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
-    mCameraVelocity += mCameraSpeed * cameraTransform.up();
-  }
-  if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
-    mCameraVelocity -= mCameraSpeed * cameraTransform.up();
+  if (!mbFreeCursor) {
+    auto [camera, cameraTransform] = mScene.ecs.get<CompCamera, CompTransform>(mMainCamera);
+    mCameraVelocity = glm::vec3(0.0f);
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+      mCameraVelocity += mCameraSpeed * cameraTransform.forward();
+    }
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
+      mCameraVelocity -= mCameraSpeed * cameraTransform.forward();
+    }
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+      mCameraVelocity -= mCameraSpeed * glm::normalize(glm::cross(cameraTransform.forward(), cameraTransform.up()));
+    }
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
+      mCameraVelocity += mCameraSpeed * glm::normalize(glm::cross(cameraTransform.forward(), cameraTransform.up()));
+    }
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
+      mCameraVelocity += mCameraSpeed * cameraTransform.up();
+    }
+    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
+      mCameraVelocity -= mCameraSpeed * cameraTransform.up();
+    }
   }
 }
 
@@ -78,8 +78,11 @@ void FlyCamDemoBase::processMouse(const glm::vec2 mousePosition) {
 }
 
 void FlyCamDemoBase::update(const double dt) {
-  auto [camera, cameraTransform] = mScene.ecs.get<CompCamera, CompTransform>(mMainCamera);
-  cameraTransform.translation += mCameraVelocity * static_cast<float>(dt);
+  if (mCameraVelocity != glm::vec3(0.0f)) {
+    mScene.ecs.patch<CompTransform>(mMainCamera, [&](CompTransform& cameraTransform) {
+      cameraTransform.translation += mCameraVelocity * static_cast<float>(dt);
+    });
+  }
 
   DemoBase::update(dt);
 }

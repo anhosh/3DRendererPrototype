@@ -50,9 +50,11 @@ private:
   void onDestroyOutline(entt::registry& registry, entt::entity entity);
   void onDestroyGraphics(entt::registry& registry, entt::entity entity);
 
+  static void onUpdateCamera(entt::registry& ecs, entt::entity entity);
   static void onUpdateDirectionalLight(entt::registry& ecs, entt::entity entity);
   static void onUpdatePointLight(entt::registry& ecs, entt::entity entity);
   static void onUpdateSpotlight(entt::registry& ecs, entt::entity entity);
+  static void onUpdateTransform(entt::registry& ecs, entt::entity entity);
 
 private:
   struct MeshDataReference {

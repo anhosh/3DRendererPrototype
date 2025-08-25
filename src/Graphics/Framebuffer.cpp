@@ -188,3 +188,20 @@ void Framebuffer::unbind() const {
   (void)mFBO;
   glBindFramebuffer(GL_FRAMEBUFFER, GL_NONE);
 }
+
+void Framebuffer::setColorAttachment(const FramebufferAttachment attachment, const size_t index) {
+  assert(index < mInfo.colorAttachments.size());
+  mInfo.colorAttachments[index] = attachment;
+  glNamedFramebufferTexture(mFBO, GL_COLOR_ATTACHMENT0 + index, attachment.texture->id(), 0);
+  if (attachment.texture->layered()) {
+    glNamedFramebufferTextureLayer(mFBO, GL_DEPTH_ATTACHMENT, attachment.texture->id(), 0, attachment.layer);
+  }
+}
+
+void Framebuffer::setDepthStencilAttachment(const FramebufferAttachment attachment) {
+  mInfo.depthStencilAttachment = attachment;
+  glNamedFramebufferTexture(mFBO, GL_DEPTH_ATTACHMENT, attachment.texture->id(), 0);
+  if (attachment.texture->layered()) {
+    glNamedFramebufferTextureLayer(mFBO, GL_DEPTH_ATTACHMENT, attachment.texture->id(), 0, attachment.layer);
+  }
+}

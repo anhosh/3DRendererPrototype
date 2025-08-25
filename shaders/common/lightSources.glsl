@@ -23,6 +23,7 @@ struct PointLight {
 
 struct Spotlight {
   LightColors colors;
+  mat4 viewProjection;
   vec3 position;
   vec3 direction;
   float cutOff;

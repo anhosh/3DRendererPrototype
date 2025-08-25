@@ -2,11 +2,11 @@
 
 #include <Graphics/Framebuffer.hpp>
 #include <Graphics/ShaderProgramInstance.hpp>
+#include <Graphics/Textures/Texture2DArray.hpp>
 #include <Graphics/Viewport.hpp>
 #include <Util/NotNull.hpp>
 
 #include <entt/entity/entity.hpp>
-#include <Graphics/Textures/Texture2DArray.hpp>
 
 struct CompCamera;
 class Scene;
@@ -26,7 +26,7 @@ struct ShadowMaps {
   Texture2DArrayHandle spotlightShadowMaps = Texture2DArrayHandle::null();
 };
 
-struct RenderScenePass {
+struct RenderPassScene {
   NotNull<Scene> scene;
   entt::entity entityCamera;
   SceneRenderMode mode;
@@ -42,5 +42,5 @@ struct PostProcessingPass {
 struct RenderPass {
   Viewport viewport = {};
   FramebufferHandle dstFramebuffer;
-  std::variant<RenderScenePass, PostProcessingPass> pass;
+  std::variant<RenderPassScene, PostProcessingPass> pass;
 };

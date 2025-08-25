@@ -10,4 +10,10 @@ uniform Camera {
   float far;
 } uCamera;
 
+float linearizeDepth(float depth) {
+  float z = depth * 2 - 1;
+  return (2 * uCamera.near * uCamera.far) /
+         (uCamera.far + uCamera.near - z * (uCamera.far - uCamera.near));
+}
+
 #endif // CAMERA_UNIFORMS_GLSL

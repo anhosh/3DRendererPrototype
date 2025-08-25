@@ -4,6 +4,7 @@
 #include <Graphics/RenderingEngine.hpp>
 #include <Scene/Components/Graphics.hpp>
 #include <Scene/Components/Outline.hpp>
+#include <Scene/Components/Spectator.hpp>
 
 #include <glm/gtx/compatibility.hpp>
 
@@ -22,9 +23,11 @@ Scene::Scene() {
   ecs.on_destroy<CompOutline>().connect<&Scene::onDestroyOutline>(this);
   ecs.on_destroy<CompGraphics>().connect<&Scene::onDestroyGraphics>(this);
 
+  ecs.on_update<CompCamera>().connect<&Scene::onUpdateCamera>();
   ecs.on_update<CompDirectionalLight>().connect<&Scene::onUpdateDirectionalLight>();
   ecs.on_update<CompPointLight>().connect<&Scene::onUpdatePointLight>();
   ecs.on_update<CompSpotlight>().connect<&Scene::onUpdateSpotlight>();
+  ecs.on_update<CompTransform>().connect<&Scene::onUpdateTransform>();
 }
 
 void Scene::destroy() {
@@ -66,7 +69,7 @@ DirectionalLightSourceBuffer Scene::createDirectionalLightBufferData() const {
 
   DirectionalLightSourceBuffer buffer;
   buffer.sources.reserve(std::distance(directionalLights.begin(), directionalLights.end()));
-  for (const auto [entity, light, camera, transform]: directionalLights.each()) {
+  for (const auto [entity, light, camera, transform] : directionalLights.each()) {
     buffer.sources.push_back(DirectionalLightShaderData::from(light, camera, transform));
   }
   return buffer;
@@ -88,12 +91,12 @@ PointLightSourceBuffer Scene::createPointLightBufferData() const {
 SpotlightSourceBuffer Scene::createSpotlightBufferData() const {
   ZoneScoped;
 
-  const entt::basic_view spotlights = ecs.view<const CompSpotlight, const CompTransform>();
+  const entt::basic_view spotlights = ecs.view<const CompSpotlight, const CompCamera, const CompTransform>();
 
   SpotlightSourceBuffer buffer;
   buffer.sources.reserve(static_cast<size_t>(std::distance(spotlights.begin(), spotlights.end())));
-  for (const auto [entity, light, transform]: spotlights.each()) {
-    buffer.sources.push_back(SpotlightShaderData::from(light, transform));
+  for (const auto [entity, light, camera, transform]: spotlights.each()) {
+    buffer.sources.push_back(SpotlightShaderData::from(light, camera, transform));
   }
   return buffer;
 }
@@ -225,7 +228,7 @@ void Scene::drawMeshes(const std::span<const MeshDataReference> meshes, Instance
     }
 
     mCachedDraws.push_back(Draw {
-      .shaderProgramInstance = firstInstanceRD.shaderProgramInstance,
+      .shaderProgramInstance = firstInstanceRD.shader,
       .mesh = firstInstanceRD.mesh,
       .instanceOffset = firstInstanceIndex,
       .instanceCount = instanceCount,
@@ -250,8 +253,7 @@ void Scene::sortMeshes() {
       ZoneScopedN("Compare");
       const RenderData& rdA = a.renderData();
       const RenderData& rdB = b.renderData();
-      return rdA.shaderProgramInstance.itemID() < rdB.shaderProgramInstance.itemID() ||
-             rdA.mesh.itemID() < rdB.mesh.itemID();
+      return rdA.shader.itemID() < rdB.shader.itemID() || rdA.mesh.itemID() < rdB.mesh.itemID();
     });
 }
 
@@ -291,7 +293,7 @@ void Scene::onConstructOutline(entt::registry&, const entt::entity entity) {
 }
 
 void Scene::onConstructDirectionalLight(entt::registry& registry, const entt::entity entity) {
-  registry.emplace<CompCamera>(entity, CompCamera { .bOrthographic = true });
+  registry.emplace<CompCamera>(entity, CompCamera { .fov = 90.0f, .bOrthographic = true, .bUseFOVAsScreenSize = true });
   Scene::onUpdateDirectionalLight(registry, entity);
 }
 
@@ -300,7 +302,7 @@ void Scene::onConstructPointLight(entt::registry& registry, const entt::entity e
 }
 
 void Scene::onConstructSpotlight(entt::registry& registry, const entt::entity entity) {
-  registry.emplace<CompCamera>(entity, CompCamera { .bOrthographic = true });
+  registry.emplace<CompCamera>(entity);
   Scene::onUpdateSpotlight(registry, entity);
 }
 
@@ -330,43 +332,86 @@ void Scene::onDestroyGraphics(entt::registry&, const entt::entity entity) {
   }
 }
 
+void Scene::onUpdateCamera(entt::registry& ecs, const entt::entity entity) {
+  const CompCamera& camera = ecs.get<const CompCamera>(entity);
+
+  if (CompSpotlight* light = ecs.try_get<CompSpotlight>(entity)) {
+    light->outerCutOff = camera.fov * 0.5f;
+  }
+}
+
 void Scene::onUpdateDirectionalLight(entt::registry& ecs, const entt::entity entity) {
-  const auto& light = ecs.get<const CompDirectionalLight>(entity);
+  const CompDirectionalLight& light = ecs.get<const CompDirectionalLight>(entity);
+
   const glm::vec3 lightDirection = glm::normalize(light.direction);
+  const glm::vec3 lookAt = [&] {
+    for (auto [_, transform] : ecs.view<CompSpectator, const CompTransform>().each()) {
+      return transform.translation;
+    }
+    return glm::vec3(0.0f);
+  }();
   ecs.emplace_or_replace<CompTransform>(entity, CompTransform {
-    .translation = -lightDirection * 50.0f,
+    .translation = lookAt - lightDirection * 50.0f,
     .rotation = glm::vec3 {
       glm::degrees(glm::atan2(lightDirection.z, lightDirection.x)),
       glm::degrees(glm::asin(lightDirection.y)),
       0.0f,
     },
   });
+
   if (CompGraphics* graphics = ecs.try_get<CompGraphics>(entity)) {
     for (RenderData& renderData : graphics->renderData) {
-      if (renderData.shaderProgramInstance->type() == ShaderProgramType::Light) {
-        renderData.shaderProgramInstance->uniforms["uLightColor"] = light.colors.diffuse;
+      if (renderData.shader->type() == ShaderProgramType::Light) {
+        renderData.shader->uniforms["uLightColor"] = light.colors.diffuse;
       }
     }
   }
 }
 
 void Scene::onUpdatePointLight(entt::registry& ecs, const entt::entity entity) {
-  if (auto [graphics, light] = ecs.try_get<CompGraphics, const CompPointLight>(entity); graphics != nullptr) {
+  const CompPointLight& light = ecs.get<const CompPointLight>(entity);
+
+  if (CompGraphics* graphics = ecs.try_get<CompGraphics>(entity)) {
     for (RenderData& renderData : graphics->renderData) {
-      if (renderData.shaderProgramInstance->type() == ShaderProgramType::Light) {
-        renderData.shaderProgramInstance->uniforms["uLightColor"] = NotNull(light)->colors.diffuse;
+      if (renderData.shader->type() == ShaderProgramType::Light) {
+        renderData.shader->uniforms["uLightColor"] = light.colors.diffuse;
       }
     }
   }
 }
 
 void Scene::onUpdateSpotlight(entt::registry& ecs, const entt::entity entity) {
-  if (auto [graphics, light] = ecs.try_get<CompGraphics, const CompSpotlight>(entity); graphics != nullptr) {
+  const CompSpotlight& light = ecs.get<const CompSpotlight>(entity);
+
+  if (CompCamera* camera = ecs.try_get<CompCamera>(entity)) {
+    camera->fov = light.outerCutOff * 2.0f;
+  }
+
+  if (CompGraphics* graphics = ecs.try_get<CompGraphics>(entity)) {
     for (RenderData& renderData : graphics->renderData) {
-      if (renderData.shaderProgramInstance->type() == ShaderProgramType::Light) {
-        renderData.shaderProgramInstance->uniforms["uLightColor"] = NotNull(light)->colors.diffuse;
+      if (renderData.shader->type() == ShaderProgramType::Light) {
+        renderData.shader->uniforms["uLightColor"] = light.colors.diffuse;
       }
     }
+  }
+}
+
+void Scene::onUpdateTransform(entt::registry& ecs, const entt::entity entity) {
+  const CompTransform& transform = ecs.get<const CompTransform>(entity);
+
+  if (ecs.all_of<CompSpectator>(entity)) {
+    for (auto [_, light, lightTransform] : ecs.view<const CompDirectionalLight, CompTransform>().each()) {
+      const glm::vec3 lightDirection = glm::normalize(light.direction);
+      lightTransform.translation = transform.translation - lightDirection * 50.0f;
+    }
+  }
+
+  if (CompDirectionalLight* light = ecs.try_get<CompDirectionalLight>(entity)) {
+    light->direction = transform.forward();
+  }
+
+  if (CompSpotlight* light = ecs.try_get<CompSpotlight>(entity)) {
+    light->direction = transform.forward();
   }
 }
 

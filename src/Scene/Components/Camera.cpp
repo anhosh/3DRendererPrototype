@@ -4,12 +4,16 @@
 #include <glm/ext/matrix_transform.hpp>
 
 glm::mat4 CompCamera::projection(const glm::uvec2 screenSize) const {
+  const glm::vec2 fScreenSize = screenSize;
   if (bOrthographic) {
-    return glm::ortho(-fov, fov,
-                      -fov, fov,
+    if (bUseFOVAsScreenSize) {
+      return glm::ortho(-fov * 0.5f, fov * 0.5f,
+                        -fov * 0.5f, fov * 0.5f,
+                        near, far);
+    }
+    return glm::ortho(-fScreenSize.x * 0.5f, fScreenSize.x * 0.5f,
+                      -fScreenSize.y * 0.5f, fScreenSize.y * 0.5f,
                       near, far);
   }
-  return glm::perspective(glm::radians(fov),
-                          static_cast<float>(screenSize.x) / static_cast<float>(screenSize.y),
-                          near, far);
+  return glm::perspective(glm::radians(fov), fScreenSize.x / fScreenSize.y, near, far);
 }

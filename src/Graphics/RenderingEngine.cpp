@@ -27,7 +27,7 @@ Expected<void> RenderingEngine::init(AssetManager& assets) {
   ZoneScoped;
 
   // Shader programs
-  Expected noColor           = this->createShaderProgram({.vertex = "positionOnly.vert", .fragment = "noColor.frag"});
+  Expected shadowMap         = this->createShaderProgram({.vertex = "positionOnly.vert", .fragment = "depthMap.frag"});
   Expected litSurface        = this->createShaderProgram({.vertex = "clipSpace.vert",    .fragment = "litSurface.frag"});
   Expected litExploded       = this->createShaderProgram({.vertex = "worldSpace.vert",   .geometry = "explode.geom", .fragment = "litSurface.frag"});
   Expected light             = this->createShaderProgram({.vertex = "clipSpace.vert",    .fragment = "light.frag"});
@@ -46,7 +46,7 @@ Expected<void> RenderingEngine::init(AssetManager& assets) {
   Expected kernel3x3         = this->createShaderProgram({.vertex = "screenQuad.vert",   .fragment = "postProcessing/kernel3x3.frag"});
   Expected skybox            = this->createShaderProgram({.vertex = "skybox.vert",       .fragment = "skybox.frag"});
 
-  ASSIGN_EXPECTED_OR_RETURN(mNoColorShaderProgram, noColor);
+  ASSIGN_EXPECTED_OR_RETURN(mShadowMapShaderProgram, shadowMap);
   ASSIGN_EXPECTED_OR_RETURN(mLitSurfaceShaderProgram, litSurface);
   ASSIGN_EXPECTED_OR_RETURN(mLitExplodedShaderProgram, litExploded);
   ASSIGN_EXPECTED_OR_RETURN(mLightShaderProgram, light);
@@ -303,7 +303,7 @@ const std::vector<RenderData>& RenderingEngine::addModel(AssetHandle<Model> mode
     const MeshData mergedMesh = RenderingEngine::mergeMeshes(meshes);
     RenderData renderData = {
       .mesh = this->addMesh(mergedMesh),
-      .shaderProgramInstance = initialShader,
+      .shader = initialShader,
       .diffuseMap = textures.diffuseMap.isNull() ? Texture2DHandle::null() : this->addTexture2D(textures.diffuseMap),
       .specularMap = textures.specularMap.isNull() ? Texture2DHandle::null() : this->addTexture2D(textures.specularMap),
       .emissionMap = textures.emissionMap.isNull() ? Texture2DHandle::null() : this->addTexture2D(textures.emissionMap),
@@ -448,53 +448,58 @@ void RenderingEngine::submitCommands(CommandBuffer&& commandBuffer) {
 
   for (CommandBuffer::Command& command : commandBuffer.commands) {
     command.visit(Visitor {
-      [&](CmdRenderPass& cmd) {
-        auto& [viewport, dstFramebuffer, pass] = cmd.renderPass;
-        pass.visit(Visitor {
-          [&](RenderScenePass& renderScenePass) {
-            if (lastScene != renderScenePass.scene) {
-              lastScene = renderScenePass.scene;
-              draws = renderScenePass.scene->draw(renderScenePass.entityCamera, *this);
-              this->updateLightSourceData(*renderScenePass.scene);
-
-              const auto camerasView = lastScene->ecs.view<const CompCamera, const CompTransform>();
-              if (const size_t numCameras = std::distance(camerasView.begin(), camerasView.end());
-                  numCameras * 3 > mCameraUniformBuffer.numBuffers())
-              {
-                mCameraUniformBuffer.setNumBuffers(numCameras * 3);
-              }
-
-              for (const auto [i, pack] : camerasView.each() | std::views::enumerate) {
-                const auto [entity, camera, transform] = pack;
-                mCameraToBufferIndex.insert_or_assign(entity, i);
-              }
-            }
-
-            if (lastCamera != renderScenePass.entityCamera && renderScenePass.entityCamera != entt::null) {
-              lastCamera = renderScenePass.entityCamera;
-              this->updateCameraData(*renderScenePass.scene, renderScenePass.entityCamera, dstFramebuffer->size());
-            }
-
-            if (renderScenePass.mode == SceneRenderMode::Full) {
-              this->renderSceneFull(draws, viewport, dstFramebuffer, renderScenePass.shadowMaps, renderScenePass.bClearFramebuffer);
-            } else {
-              this->renderSceneSimple(draws, viewport, dstFramebuffer, renderScenePass.mode, renderScenePass.bClearFramebuffer);
-            }
-          },
-          [&](const PostProcessingPass& postProcessingPass) {
-            this->postProcess(viewport, dstFramebuffer, postProcessingPass.srcFramebuffer, postProcessingPass.postProcessingShader);
-          },
-        });
-      },
-      [&](CmdCopyShadowMapsToArrayTexture& cmd) {
-        for (auto [i, shadowMap] : cmd.shadowMaps | std::views::enumerate) {
-          cmd.textureArray->copyFromFramebuffer(shadowMap, i);
-        }
-      },
+      [&](CmdRenderPass& cmd) { this->cmdRenderPass(cmd, lastCamera, lastScene, draws); },
     });
   }
 
   this->swapBuffers();
+}
+
+void RenderingEngine::cmdRenderPass(CmdRenderPass& cmd, entt::entity& lastCamera, Scene const*& lastScene, std::span<const Draw>& draws) {
+  using namespace std::placeholders;
+  auto& [viewport, dstFramebuffer, pass] = cmd.renderPass;
+  pass.visit(Visitor {
+    [&](RenderPassScene& p) { this->renderPassScene(p, viewport, dstFramebuffer, lastCamera, lastScene, draws); },
+    [&](const PostProcessingPass& p) { this->postProcess(viewport, dstFramebuffer, p.srcFramebuffer, p.postProcessingShader); },
+  });
+}
+
+void RenderingEngine::renderPassScene(RenderPassScene& renderScenePass, const Viewport& viewport, FramebufferHandle dstFramebuffer,
+                                      entt::entity& lastCamera, Scene const*& lastScene, std::span<const Draw>& draws)
+{
+  const bool bSceneChanged = lastScene != renderScenePass.scene;
+  const bool bCameraChanged = lastCamera != renderScenePass.entityCamera;
+
+  if (bSceneChanged) {
+    lastScene = renderScenePass.scene;
+    draws = renderScenePass.scene->draw(renderScenePass.entityCamera, *this);
+
+    const auto camerasView = lastScene->ecs.view<const CompCamera, const CompTransform>();
+    if (const size_t numCameras = std::distance(camerasView.begin(), camerasView.end());
+        numCameras * 3 > mCameraUniformBuffer.numBuffers())
+    {
+      mCameraUniformBuffer.setNumBuffers(numCameras * 3);
+    }
+
+    for (const auto [i, pack] : camerasView.each() | std::views::enumerate) {
+      const auto [entity, camera, transform] = pack;
+      mCameraToBufferIndex.insert_or_assign(entity, i);
+    }
+  }
+
+  if (bCameraChanged && renderScenePass.entityCamera != entt::null) {
+    lastCamera = renderScenePass.entityCamera;
+    this->updateCameraData(*renderScenePass.scene, renderScenePass.entityCamera, dstFramebuffer->size());
+  }
+
+  if (renderScenePass.mode == SceneRenderMode::Full) {
+    if (bSceneChanged || bCameraChanged) {
+      this->updateLightSourceData(*renderScenePass.scene);
+    }
+    this->renderSceneFull(draws, viewport, dstFramebuffer, renderScenePass.shadowMaps, renderScenePass.bClearFramebuffer);
+  } else {
+    this->renderSceneSimple(draws, viewport, dstFramebuffer, renderScenePass.mode, renderScenePass.bClearFramebuffer);
+  }
 }
 
 void RenderingEngine::renderSceneFull(const std::span<const Draw> draws, const Viewport& viewport, FramebufferHandle dstFramebuffer,
@@ -624,7 +629,10 @@ void RenderingEngine::renderSceneFull(const std::span<const Draw> draws, const V
   }
 }
 
-void RenderingEngine::renderSceneSimple(const std::span<const Draw> draws, const Viewport& viewport, const FramebufferHandle dstFramebuffer, const SceneRenderMode mode, bool bClearFramebuffer) {
+void RenderingEngine::renderSceneSimple(const std::span<const Draw> draws, const Viewport& viewport,
+                                        const FramebufferHandle dstFramebuffer, const SceneRenderMode mode,
+                                        const bool bClearFramebuffer)
+{
   ZoneScoped;
   TracyGpuZone("Render scene (simple)");
 
@@ -669,7 +677,7 @@ void RenderingEngine::renderSceneSimple(const std::span<const Draw> draws, const
       break;
 
     case SceneRenderMode::DepthMap:
-      glUseProgram(mNoColorShaderProgram->id());
+      glUseProgram(mShadowMapShaderProgram->id());
       break;
 
     case SceneRenderMode::VertexNormals:

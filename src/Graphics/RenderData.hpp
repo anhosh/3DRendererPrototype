@@ -17,7 +17,7 @@ struct RenderOptions {
 struct RenderData {
   MeshHandle mesh;
 
-  ShaderProgramInstanceHandle shaderProgramInstance;
+  ShaderProgramInstanceHandle shader;
 
   Texture2DHandle diffuseMap = Texture2DHandle::null();
   Texture2DHandle specularMap = Texture2DHandle::null();

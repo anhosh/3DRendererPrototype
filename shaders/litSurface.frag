@@ -47,7 +47,7 @@ float shadow(vec4 fragPosLightSpace, float cosTheta, in sampler2DArrayShadow sha
     return 0;
   }
 
-  float w = projectedPosition.z - max(0.01 * (1 - cosTheta), 0.005);
+  float w = projectedPosition.z - max(0.0004 * (1 - cosTheta), 0.0002);
   vec2 texelSize = 1.0 / textureSize(shadowMap, 0).xy;
   float ret = 0;
   for (int x = -1; x <= 1; ++x) {
@@ -66,8 +66,8 @@ LightColors directionalLight(uint lightIndex, vec3 normal) {
 
   LightColors colors;
   colors.ambient = light.colors.ambient;
-  colors.diffuse = light.colors.diffuse * diffuse(normal, lightDirection) * visibility;
-  colors.specular = light.colors.specular * specular(normal, lightDirection) * visibility;
+  colors.diffuse = light.colors.diffuse * visibility * diffuse(normal, lightDirection);
+  colors.specular = light.colors.specular * visibility * specular(normal, lightDirection);
   return colors;
 }
 
@@ -89,14 +89,16 @@ LightColors pointLight(uint lightIndex, vec3 normal) {
 LightColors spotlight(uint lightIndex, vec3 normal) {
   Spotlight light = uSpotlights.sources[lightIndex];
   vec3 lightDirection = normalize(light.position - fsIn.position);
+  vec4 fragPosLightSpace = light.viewProjection * vec4(fsIn.position, 1);
+  float visibility = 1 - shadow(fragPosLightSpace, dot(normal, lightDirection), uSpotlightShadowMaps, lightIndex);
   float theta = dot(lightDirection, normalize(-light.direction));
   float epsilon = light.cutOff - light.outerCutOff;
   float intensity = step(light.outerCutOff, theta) * clamp((theta - light.outerCutOff) / epsilon, 0, 1);
 
   LightColors colors;
   colors.ambient = light.colors.ambient * intensity;
-  colors.diffuse = light.colors.diffuse * intensity * diffuse(normal, lightDirection);
-  colors.specular = light.colors.specular * intensity * specular(normal, lightDirection);
+  colors.diffuse = light.colors.diffuse * intensity * visibility * diffuse(normal, lightDirection);
+  colors.specular = light.colors.specular * intensity * visibility * specular(normal, lightDirection);
   return colors;
 }
 

@@ -17,7 +17,7 @@ public:
   [[nodiscard]] virtual CommandBuffer render();
 
   virtual void onWindowResize(GLFWwindow* window, glm::uvec2 newSize);
-  virtual void onFrameEnd() {}
+  virtual void onFrameEnd();
 
   void runGUI(AppState& state);
   virtual void gui(AppState& state);
@@ -31,18 +31,21 @@ private:
 protected:
   Scene mScene;
 
-  entt::entity mMainCamera = entt::null;
-
   std::shared_ptr<AssetManager> mAssetManager;
   std::shared_ptr<RenderingEngine> mRenderingEngine;
 
   std::vector<ShaderProgramInstanceHandle> mPostProcessingShaderProgramInstances;
 
-  Texture2DHandle mMainSceneColorAttachment = Texture2DHandle::null();
-  FramebufferHandle mMainSceneFramebuffer = FramebufferHandle::null();
+  entt::entity mMainCamera = entt::null;
+  Texture2DHandle mMainViewColorAttachment = Texture2DHandle::null();
+  FramebufferHandle mMainViewFramebuffer = FramebufferHandle::null();
 
   Texture2DArrayHandle mDirectionalLightShadowMaps = Texture2DArrayHandle::null();
-  std::vector<FramebufferHandle> mDirectionalShadowFramebuffers;
+  Texture2DArrayHandle mPointLightShadowMaps = Texture2DArrayHandle::null();
+  Texture2DArrayHandle mSpotlightShadowMaps = Texture2DArrayHandle::null();
+  std::vector<FramebufferHandle> mDirectionalLightShadowFramebuffers;
+  std::vector<FramebufferHandle> mPointLightShadowFramebuffers;
+  std::vector<FramebufferHandle> mSpotlightShadowFramebuffers;
 
   std::vector<Texture2DHandle> mPostProcessingColorAttachments;
   std::vector<FramebufferHandle> mPostProcessingFramebuffers;

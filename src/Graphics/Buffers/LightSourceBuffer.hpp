@@ -1,5 +1,6 @@
 #pragma once
 
+#include <Scene/Components/Camera.hpp>
 #include <Scene/Components/Light.hpp>
 #include <Scene/Components/Transform.hpp>
 #include <Util/IntoBytes.hpp>
@@ -7,20 +8,19 @@
 #include <tracy/TracyOpenGL.hpp>
 
 #include <vector>
-#include <Scene/Components/Camera.hpp>
 
 struct LightColorUniforms {
-  glm::vec3 ambient;  float _padding0 = 0.0f;
-  glm::vec3 diffuse;  float _padding1 = 0.0f;
-  glm::vec3 specular; float _padding2 = 0.0f;
+  glm::vec4 ambient;
+  glm::vec4 diffuse;
+  glm::vec4 specular;
 
   static LightColorUniforms from(const LightColors& colors) {
     ZoneScoped;
 
     return LightColorUniforms {
-      .ambient = colors.ambient,
-      .diffuse = colors.diffuse,
-      .specular = colors.specular,
+      .ambient = glm::vec4(colors.ambient, 0.0f),
+      .diffuse = glm::vec4(colors.diffuse, 0.0f),
+      .specular = glm::vec4(colors.specular, 0.0f),
     };
   }
 };
@@ -46,8 +46,7 @@ struct LightSourceBuffer {
 struct DirectionalLightShaderData {
   LightColorUniforms colors;
   glm::mat4 viewProjection;
-  glm::vec3 direction;
-  float _padding0 = 0.0f;
+  glm::vec4 direction;
 
   static DirectionalLightShaderData from(const CompDirectionalLight& light, const CompCamera& camera, const CompTransform& transform) {
     ZoneScoped;
@@ -55,25 +54,25 @@ struct DirectionalLightShaderData {
     return DirectionalLightShaderData {
       .colors = LightColorUniforms::from(light.colors),
       .viewProjection = camera.projection(glm::uvec2(0)) * transform.viewMatrix(),
-      .direction = light.direction,
+      .direction = glm::vec4(glm::normalize(light.direction), 0.0f),
     };
   }
 };
 
 struct PointLightShaderData {
   LightColorUniforms colors;
-  glm::vec3 position; float _padding0 = 0.0f;
+  glm::vec4 position;
   float constant;
   float linear;
   float quadratic;
-  float _padding1 = 0.0f;
+  float _padding0 = 0.0f;
 
   static PointLightShaderData from(const CompPointLight& light, const CompTransform& transform) {
     ZoneScoped;
 
     return PointLightShaderData {
       .colors = LightColorUniforms::from(light.colors),
-      .position = transform.translation,
+      .position = glm::vec4(transform.translation, 0.0f),
       .constant = light.constant,
       .linear = light.linear,
       .quadratic = light.quadratic,
@@ -83,21 +82,22 @@ struct PointLightShaderData {
 
 struct SpotlightShaderData {
   LightColorUniforms colors;
-  glm::vec3 position; float _padding0 = 0.0f;
-  glm::vec3 direction;
+  glm::mat4 viewProjection;
+  glm::vec4 position;
+  glm::vec4 direction;
   float cutOff;
   float outerCutOff;
+  float _padding0 = 0.0f;
   float _padding1 = 0.0f;
-  float _padding2 = 0.0f;
-  float _padding3 = 0.0f;
 
-  static SpotlightShaderData from(const CompSpotlight& light, const CompTransform& transform) {
+  static SpotlightShaderData from(const CompSpotlight& light, const CompCamera& camera, const CompTransform& transform) {
     ZoneScoped;
 
     return SpotlightShaderData {
       .colors = LightColorUniforms::from(light.colors),
-      .position = transform.translation,
-      .direction = light.direction,
+      .viewProjection = camera.projection(glm::uvec2(0)) * transform.viewMatrix(),
+      .position = glm::vec4(transform.translation, 0.0f),
+      .direction = glm::vec4(light.direction, 0.0f),
       .cutOff = glm::cos(glm::radians(light.cutOff)),
       .outerCutOff = glm::cos(glm::radians(light.outerCutOff)),
     };

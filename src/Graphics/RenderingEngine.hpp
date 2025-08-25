@@ -39,21 +39,6 @@ public:
   ShaderProgramInstanceHandle createShaderProgramInstance(ShaderProgramType type);
   ShaderProgramInstanceHandle addShaderProgramInstance(ShaderProgramInstance&& instance);
 
-private:
-  struct TexturePack {
-    AssetHandle<Bitmap> diffuseMap = AssetHandle<Bitmap>::null();
-    AssetHandle<Bitmap> specularMap = AssetHandle<Bitmap>::null();
-    AssetHandle<Bitmap> emissionMap = AssetHandle<Bitmap>::null();
-
-    bool operator==(const TexturePack&) const = default;
-  };
-
-  static auto groupMeshesByTextures(AssetHandle<Model> model);
-  // -> std::unordered_map<TexturePack, std::vector<NotNull<const MeshData>>, TexturePackHash>
-
-  static MeshData mergeMeshes(std::span<const NotNull<const MeshData>> meshes);
-
-public:
   const std::vector<RenderData>& addModel(AssetHandle<Model> model, ShaderProgramInstanceHandle initialShader);
 
   std::vector<MeshHandle> addMeshes(std::span<const AssetHandle<MeshData>> meshesData);
@@ -71,24 +56,37 @@ public:
   Texture2DArrayHandle addTexture2DArray(std::span<const AssetHandle<Bitmap>> bitmaps);
   TextureCubeMapHandle addTextureCubeMap(const TextureCubeMapBitmaps& bitmaps);
 
-private:
-  static GLint textureInternalFormat(bool bSRGB, uint32_t channels);
-
-public:
   FramebufferHandle addFramebuffer(const FramebufferCreateInfo& info);
 
   BufferHandle createBuffer(GLenum type);
 
   void updateInstances(size_t first, const InstanceBuffer& instances);
-
   void submitCommands(CommandBuffer&& commandBuffer);
-  void renderSceneFull(std::span<const Draw> draws, const Viewport& viewport, FramebufferHandle dstFramebuffer, const ShadowMaps& shadowMaps, bool bClearFramebuffer = true);
-  void renderSceneSimple(std::span<const Draw> draws, const Viewport& viewport, FramebufferHandle dstFramebuffer, SceneRenderMode mode, bool bClearFramebuffer = true);
-  void postProcess(const Viewport& viewport, FramebufferHandle dstFramebuffer, FramebufferHandle srcFramebuffer, ShaderProgramInstanceHandle postProcessingShader) const;
   void present(glm::uvec2 windowSize, FramebufferHandle srcFramebuffer) const;
   void swapBuffers();
 
 private:
+  struct TexturePack {
+    AssetHandle<Bitmap> diffuseMap = AssetHandle<Bitmap>::null();
+    AssetHandle<Bitmap> specularMap = AssetHandle<Bitmap>::null();
+    AssetHandle<Bitmap> emissionMap = AssetHandle<Bitmap>::null();
+
+    bool operator==(const TexturePack&) const = default;
+  };
+
+  static auto groupMeshesByTextures(AssetHandle<Model> model);
+  // -> std::unordered_map<TexturePack, std::vector<NotNull<const MeshData>>, TexturePackHash>
+
+  static MeshData mergeMeshes(std::span<const NotNull<const MeshData>> meshes);
+
+  static GLint textureInternalFormat(bool bSRGB, uint32_t channels);
+
+  void cmdRenderPass(CmdRenderPass& cmd, entt::entity& lastCamera, Scene const*& lastScene, std::span<const Draw>& draws);
+  void renderPassScene(RenderPassScene& renderScenePass, const Viewport& viewport, FramebufferHandle dstFramebuffer, entt::entity& lastCamera, Scene const*& lastScene, std::span<const Draw>& draws);
+  void renderSceneFull(std::span<const Draw> draws, const Viewport& viewport, FramebufferHandle dstFramebuffer, const ShadowMaps& shadowMaps, bool bClearFramebuffer = true);
+  void renderSceneSimple(std::span<const Draw> draws, const Viewport& viewport, FramebufferHandle dstFramebuffer, SceneRenderMode mode, bool bClearFramebuffer = true);
+  void postProcess(const Viewport& viewport, FramebufferHandle dstFramebuffer, FramebufferHandle srcFramebuffer, ShaderProgramInstanceHandle postProcessingShader) const;
+
   void updateCameraData(const Scene& scene, entt::entity entityCamera, glm::uvec2 framebufferSize);
   void updateLightSourceData(const Scene& scene);
 
@@ -110,7 +108,7 @@ private:
 
   GLsync mBuffersFence = GL_NONE;
 
-  ShaderProgramHandle mNoColorShaderProgram = ShaderProgramHandle::null();
+  ShaderProgramHandle mShadowMapShaderProgram = ShaderProgramHandle::null();
   ShaderProgramHandle mLitSurfaceShaderProgram = ShaderProgramHandle::null();
   ShaderProgramHandle mLitExplodedShaderProgram = ShaderProgramHandle::null();
   ShaderProgramHandle mLightShaderProgram = ShaderProgramHandle::null();

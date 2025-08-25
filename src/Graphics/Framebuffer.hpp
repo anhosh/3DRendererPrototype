@@ -43,6 +43,9 @@ public:
   void bind() const;
   void unbind() const;
 
+  void setColorAttachment(FramebufferAttachment attachment, size_t index);
+  void setDepthStencilAttachment(FramebufferAttachment attachment);
+
   [[nodiscard]] GLuint fbo() const { return mFBO; }
   [[nodiscard]] glm::uvec2 size() const { return mInfo.size; }
   [[nodiscard]] DepthStencilMode depthStencilMode() const { return mInfo.depthStencilMode; }

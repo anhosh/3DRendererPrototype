@@ -6,6 +6,7 @@
 #include <Scene/Components/Graphics.hpp>
 #include <Scene/Components/Name.hpp>
 #include <Scene/Components/Outline.hpp>
+#include <Scene/Components/Spectator.hpp>
 
 #include <imgui.h>
 
@@ -17,39 +18,56 @@ Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const
   mAssetManager = assets;
   mRenderingEngine = renderer;
 
-  mMainSceneColorAttachment = renderer->createEmptyTexture2D();
-  mMainSceneColorAttachment->allocate(glm::uvec2(1), GL_RGBA16);
-  mMainSceneFramebuffer = mRenderingEngine->addFramebuffer({
+  // Main view
+  mMainCamera = mScene.ecs.create();
+  mScene.ecs.emplace<CompName>(mMainCamera, "Main camera");
+  mScene.ecs.emplace<CompSpectator>(mMainCamera);
+  mScene.ecs.emplace<CompTransform>(mMainCamera, CompTransform {
+    .translation = glm::vec3(0.0f, 0.0f, 10.0f),
+    .rotation = glm::vec3(-90.0f, 0.0f, 0.0f),
+  });
+  mScene.ecs.emplace<CompCamera>(mMainCamera);
+
+  mMainViewColorAttachment = renderer->createEmptyTexture2D();
+  mMainViewColorAttachment->allocate(glm::uvec2(1), GL_RGBA16);
+  mMainViewFramebuffer = mRenderingEngine->addFramebuffer({
     .size = glm::uvec2(1),
     .samples = 4,
     .colorAttachments = {
-      FramebufferAttachment { .texture = &mMainSceneColorAttachment.get() },
+      FramebufferAttachment { .texture = &mMainViewColorAttachment.get() },
     },
   });
 
-  constexpr auto shadowSize = glm::uvec2(4096 * 2);
-  const auto directionalLightView = mScene.ecs.view<CompDirectionalLight>();
-  const uint32_t numDirectionalLightShadowMaps = directionalLightView.size();
-  mDirectionalLightShadowMaps = renderer->createEmptyTexture2DArray();
-  mDirectionalLightShadowMaps->allocate(shadowSize, numDirectionalLightShadowMaps, GL_DEPTH_COMPONENT24);
-
-  for (const auto [shadowMapIndex, _] : mScene.ecs.view<CompDirectionalLight>().each() | std::views::enumerate) {
-    mDirectionalShadowFramebuffers.push_back(renderer->addFramebuffer({
-      .size = shadowSize,
-      .samples = 1,
-      .depthStencilMode = DepthStencilMode::DepthAttachment,
-      .depthStencilAttachment = FramebufferAttachment {
-        .texture = &mDirectionalLightShadowMaps.get(),
-        .layer = static_cast<uint32_t>(shadowMapIndex),
-      }
-    }));
+  // Shadow maps
+  for (auto& [numShadowMaps, shadowMaps, framebuffers] : std::array {
+    std::tuple(mScene.ecs.view<CompDirectionalLight>().size(), std::ref(mDirectionalLightShadowMaps), std::ref(mDirectionalLightShadowFramebuffers)),
+    std::tuple(mScene.ecs.view<CompPointLight>().size(), std::ref(mPointLightShadowMaps), std::ref(mPointLightShadowFramebuffers)),
+    std::tuple(mScene.ecs.view<CompSpotlight>().size(), std::ref(mSpotlightShadowMaps), std::ref(mSpotlightShadowFramebuffers)),
+  }) {
+    constexpr auto shadowSize = glm::uvec2(4096 * 2);
+    shadowMaps.get() = renderer->createEmptyTexture2DArray();
+    shadowMaps.get()->allocate(shadowSize, glm::max(static_cast<int32_t>(numShadowMaps), 1), GL_DEPTH_COMPONENT24);
+    for (uint32_t shadowMapIndex = 0; shadowMapIndex < numShadowMaps; ++shadowMapIndex) {
+      framebuffers.get().push_back(renderer->addFramebuffer(FramebufferCreateInfo {
+        .size = shadowSize,
+        .samples = 1,
+        .depthStencilMode = DepthStencilMode::DepthAttachment,
+        .depthStencilAttachment = FramebufferAttachment {
+          .texture = &shadowMaps.get().get(),
+          .layer = shadowMapIndex,
+        },
+      }));
+    }
   }
 
+  // Post-processing effects
   mPostProcessingColorAttachments.emplace_back(mRenderingEngine->createEmptyTexture2D());
   mPostProcessingColorAttachments.back()->allocate(glm::uvec2(1), GL_RGBA8);
+
   const ShaderProgramInstanceHandle gammaCorrectionShader =
     mRenderingEngine->createShaderProgramInstance(ShaderProgramType::PostProcessGammaCorrection);
   mPostProcessingShaderProgramInstances.push_back(gammaCorrectionShader);
+
   mPostProcessingFramebuffers.push_back(mRenderingEngine->addFramebuffer({
     .size = glm::uvec2(1),
     .depthStencilMode = DepthStencilMode::None,
@@ -58,14 +76,6 @@ Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const
     },
   }));
 
-  mMainCamera = mScene.ecs.create();
-  mScene.ecs.emplace<CompName>(mMainCamera, "Main camera");
-  mScene.ecs.emplace<CompTransform>(mMainCamera, CompTransform {
-    .translation = glm::vec3(0.0f, 0.0f, 10.0f),
-    .rotation = glm::vec3(-90.0f, 0.0f, 0.0f),
-  });
-  mScene.ecs.emplace<CompCamera>(mMainCamera);
-
   mScene.prepareForRendering();
 
   return {};
@@ -73,7 +83,7 @@ Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const
 
 CommandBuffer DemoBase::render() {
   CommandBuffer commandBuffer;
-  commandBuffer.commands.reserve(mDirectionalShadowFramebuffers.size() +
+  commandBuffer.commands.reserve(mDirectionalLightShadowFramebuffers.size() +
                                  2 + // CmdCopyShadowMapsToArrayTexture, CmdRenderPass
                                  static_cast<size_t>(mbDebugVisualiseVertexNormals)
                                  + mPostProcessingFramebuffers.size());
@@ -81,8 +91,8 @@ CommandBuffer DemoBase::render() {
   for (const auto [shadowMapIndex, pack] : mScene.ecs.view<CompDirectionalLight, CompCamera>().each() | std::views::enumerate) {
     const auto [entity, light, camera] = pack;
     commandBuffer.commands.emplace_back(CmdRenderPass {
-      .renderPass.dstFramebuffer = mDirectionalShadowFramebuffers[shadowMapIndex],
-      .renderPass.pass = RenderScenePass {
+      .renderPass.dstFramebuffer = mDirectionalLightShadowFramebuffers[shadowMapIndex],
+      .renderPass.pass = RenderPassScene {
         .scene = &mScene,
         .entityCamera = entity,
         .mode = SceneRenderMode::DepthMap,
@@ -91,8 +101,8 @@ CommandBuffer DemoBase::render() {
   }
 
   commandBuffer.commands.emplace_back(CmdRenderPass {
-    .renderPass.dstFramebuffer = mMainSceneFramebuffer,
-    .renderPass.pass = RenderScenePass {
+    .renderPass.dstFramebuffer = mMainViewFramebuffer,
+    .renderPass.pass = RenderPassScene {
       .scene = &mScene,
       .entityCamera = mMainCamera,
       .mode = mSceneRenderMode,
@@ -102,8 +112,8 @@ CommandBuffer DemoBase::render() {
 
   if (mbDebugVisualiseVertexNormals) {
     commandBuffer.commands.emplace_back(CmdRenderPass {
-      .renderPass.dstFramebuffer = mMainSceneFramebuffer,
-      .renderPass.pass = RenderScenePass {
+      .renderPass.dstFramebuffer = mMainViewFramebuffer,
+      .renderPass.pass = RenderPassScene {
         .scene = &mScene,
         .entityCamera = mMainCamera,
         .mode = SceneRenderMode::VertexNormals,
@@ -112,7 +122,7 @@ CommandBuffer DemoBase::render() {
     });
   }
 
-  FramebufferHandle lastFramebuffer = mMainSceneFramebuffer;
+  FramebufferHandle lastFramebuffer = mMainViewFramebuffer;
   for (auto [shaderIndex, framebuffer] : mPostProcessingFramebuffers | std::views::enumerate) {
     commandBuffer.commands.emplace_back(CmdRenderPass {
       .renderPass.dstFramebuffer = framebuffer,
@@ -128,9 +138,9 @@ CommandBuffer DemoBase::render() {
 }
 
 void DemoBase::onWindowResize(GLFWwindow*, const glm::uvec2 newSize) {
-  mMainSceneColorAttachment->destroy();
-  mMainSceneColorAttachment->init();
-  mMainSceneColorAttachment->allocate(newSize, GL_RGBA16);
+  mMainViewColorAttachment->destroy();
+  mMainViewColorAttachment->init();
+  mMainViewColorAttachment->allocate(newSize, GL_RGBA16);
 
   for (Texture2DHandle texture : mPostProcessingColorAttachments) {
     texture->destroy();
@@ -138,10 +148,13 @@ void DemoBase::onWindowResize(GLFWwindow*, const glm::uvec2 newSize) {
     texture->allocate(newSize, GL_RGBA8);
   }
 
-  mMainSceneFramebuffer->resize(newSize);
+  mMainViewFramebuffer->resize(newSize);
   for (FramebufferHandle framebuffer : mPostProcessingFramebuffers) {
     framebuffer->resize(newSize);
   }
+}
+
+void DemoBase::onFrameEnd() {
 }
 
 void DemoBase::runGUI(AppState& state) {
