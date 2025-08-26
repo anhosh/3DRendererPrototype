@@ -100,7 +100,7 @@ Expected<void> SpaceDemo::init(const std::shared_ptr<AssetManager>& assets, cons
         0.4f * displacementDistribution(gen),
         glm::cos(glm::radians(angle)) * radius + displacementDistribution(gen),
       },
-      .rotation = rotationAngleDistribution(gen) * glm::vec3(0.4f, 0.6f, 0.8f),
+      .rotation = rotationAngleDistribution(gen) * Rotation(0.4f, 0.6f, 0.8f),
       .scale = glm::vec3(scaleDistribution(gen)),
     });
     mScene.ecs.emplace<CompGraphics>(entityAsteroid, rockMeshes);

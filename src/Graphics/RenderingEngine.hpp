@@ -61,7 +61,7 @@ public:
   BufferHandle createBuffer(GLenum type);
 
   void updateInstances(size_t first, const InstanceBuffer& instances);
-  void submitCommands(CommandBuffer&& commandBuffer);
+  FramebufferHandle submitCommands(CommandBuffer&& commandBuffer);
   void present(glm::uvec2 windowSize, FramebufferHandle srcFramebuffer) const;
   void swapBuffers();
 
@@ -82,12 +82,14 @@ private:
   static GLint textureInternalFormat(bool bSRGB, uint32_t channels);
 
   void cmdRenderPass(CmdRenderPass& cmd, entt::entity& lastCamera, Scene const*& lastScene, std::span<const Draw>& draws);
+  void cmdDrawDebugFrustum(const CmdDrawDebugFrustum& cmd);
+
   void renderPassScene(RenderPassScene& renderScenePass, const Viewport& viewport, FramebufferHandle dstFramebuffer, entt::entity& lastCamera, Scene const*& lastScene, std::span<const Draw>& draws);
   void renderSceneFull(std::span<const Draw> draws, const Viewport& viewport, FramebufferHandle dstFramebuffer, const ShadowMaps& shadowMaps, bool bClearFramebuffer = true);
   void renderSceneSimple(std::span<const Draw> draws, const Viewport& viewport, FramebufferHandle dstFramebuffer, SceneRenderMode mode, bool bClearFramebuffer = true);
   void postProcess(const Viewport& viewport, FramebufferHandle dstFramebuffer, FramebufferHandle srcFramebuffer, ShaderProgramInstanceHandle postProcessingShader) const;
 
-  void updateCameraData(const Scene& scene, entt::entity entityCamera, glm::uvec2 framebufferSize);
+  void updateCameraData(const Scene& scene, entt::entity entityCamera, glm::uvec2 framebufferSize, bool bSnapViewToFramebufferPixelGrid);
   void updateLightSourceData(const Scene& scene);
 
 private:
@@ -105,6 +107,7 @@ private:
 
   GLuint mMeshesVAO = GL_NONE;
   GLuint mScreenQuadVAO = GL_NONE;
+  GLuint mDebugShapesVAO = GL_NONE;
 
   GLsync mBuffersFence = GL_NONE;
 
@@ -126,6 +129,7 @@ private:
   ShaderProgramHandle mPostProcessInvertShaderProgram = ShaderProgramHandle::null();
   ShaderProgramHandle mPostProcessKernel3x3ShaderProgram = ShaderProgramHandle::null();
   ShaderProgramHandle mSkyboxShaderProgram = ShaderProgramHandle::null();
+  ShaderProgramHandle mDebugFrustum = ShaderProgramHandle::null();
 
   SamplerHandle mDiffuseTextureSampler = SamplerHandle::null();
   SamplerHandle mSpecularTextureSampler = SamplerHandle::null();

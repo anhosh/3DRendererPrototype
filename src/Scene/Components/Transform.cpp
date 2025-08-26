@@ -4,30 +4,40 @@
 #include <glm/gtx/quaternion.hpp>
 
 glm::vec3 CompTransform::forward() const {
+  // return rotation.asMat3() * FORWARD_AXIS;
   return {
-    glm::cos(glm::radians(rotation.y)) * glm::cos(glm::radians(rotation.x)),
-    glm::sin(glm::radians(rotation.y)),
-    glm::cos(glm::radians(rotation.y)) * glm::sin(glm::radians(rotation.x)),
+    glm::cos(glm::radians(rotation.pitch)) * glm::cos(glm::radians(rotation.yaw)),
+    glm::sin(glm::radians(-rotation.pitch)),
+    glm::cos(glm::radians(rotation.pitch)) * glm::sin(glm::radians(rotation.yaw)),
+  };
+}
+
+glm::vec3 CompTransform::right() const {
+  // return rotation.asMat3() * RIGHT_AXIS;
+  return {
+    -glm::sin(glm::radians(rotation.yaw)),
+    0.0f,
+    glm::cos(glm::radians(rotation.yaw)),
   };
 }
 
 glm::vec3 CompTransform::up() const {
-  // return {
-  //   glm::sin(glm::radians(rotation.z)) * glm::cos(glm::radians(rotation.y)),
-  //   glm::cos(glm::radians(rotation.z)),
-  //   glm::sin(glm::radians(rotation.z)) * glm::sin(glm::radians(rotation.y)),
-  // };
-  return { 0.0f, 1.0f, 0.0f };
+  // return rotation.asMat3() * UP_AXIS;
+  return {
+    glm::sin(glm::radians(rotation.pitch)) * glm::cos(glm::radians(rotation.yaw)),
+    glm::cos(glm::radians(rotation.pitch)),
+    glm::sin(glm::radians(rotation.pitch)) * glm::sin(glm::radians(rotation.yaw)),
+  };
 }
 
 glm::mat4 CompTransform::viewMatrix() const {
-  return glm::lookAt(translation, translation + this->forward(), this->up());
+  return glm::lookAt(translation, translation + this->forward(), UP_AXIS);
 }
 
 glm::mat4 CompTransform::modelMatrix() const {
   glm::mat4 model(1.0f);
   model = glm::translate(model, translation);
   model = glm::scale(model, scale);
-  model *= glm::toMat4(glm::quat(glm::radians(rotation)));
+  model *= rotation.asMat4();
   return model;
 }

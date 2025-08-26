@@ -5,11 +5,20 @@
 
 #include <algorithm>
 
-CameraUniforms CameraUniforms::from(const CompCamera& camera, const CompTransform& transform, const glm::uvec2 screenSize) {
+CameraUniforms CameraUniforms::from(const CompCamera& camera, const CompTransform& transform, const glm::uvec2 screenSize,
+                                    const bool bSnapViewToScreenPixelGrid)
+{
   ZoneScoped;
 
+  glm::mat4 view = transform.viewMatrix();
+  if (bSnapViewToScreenPixelGrid) {
+    for (int32_t row = 0; row < 3; ++row) {
+      view[3][row] -= glm::mod(view[3][row], 1.0f / static_cast<float>(screenSize[row % 2]));
+    }
+  }
+
   return CameraUniforms {
-    .view = transform.viewMatrix(),
+    .view = view,
     .projection = camera.projection(screenSize),
     .position = transform.translation,
     .near = camera.near,

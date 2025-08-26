@@ -1,5 +1,8 @@
 #pragma once
 
+struct CompTransform;
+struct Frustum;
+
 struct CompCamera {
   float fov = 45.0f;
   float near = 0.1f;
@@ -8,4 +11,5 @@ struct CompCamera {
   bool bUseFOVAsScreenSize = false;
 
   [[nodiscard]] glm::mat4 projection(glm::uvec2 screenSize) const;
+  [[nodiscard]] Frustum viewFrustum(CompTransform frustumTransform, glm::uvec2 screenSize) const;
 };

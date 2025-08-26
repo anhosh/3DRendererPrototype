@@ -104,4 +104,3 @@ MeshData MeshData::createQuad(const glm::vec2 size) {
 
   return {vertices, indices};
 }
-

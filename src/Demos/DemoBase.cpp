@@ -19,14 +19,24 @@ Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const
   mRenderingEngine = renderer;
 
   // Main view
-  mMainCamera = mScene.ecs.create();
-  mScene.ecs.emplace<CompName>(mMainCamera, "Main camera");
-  mScene.ecs.emplace<CompSpectator>(mMainCamera);
-  mScene.ecs.emplace<CompTransform>(mMainCamera, CompTransform {
-    .translation = glm::vec3(0.0f, 0.0f, 10.0f),
-    .rotation = glm::vec3(-90.0f, 0.0f, 0.0f),
-  });
-  mScene.ecs.emplace<CompCamera>(mMainCamera);
+  if (mMainCamera == entt::null) {
+    mMainCamera = mScene.ecs.create();
+  }
+  if (!mScene.ecs.all_of<CompName>(mMainCamera)) {
+    mScene.ecs.emplace<CompName>(mMainCamera, "Main camera");
+  }
+  if (!mScene.ecs.all_of<CompSpectator>(mMainCamera)) {
+    mScene.ecs.emplace<CompSpectator>(mMainCamera);
+  }
+  if (!mScene.ecs.all_of<CompTransform>(mMainCamera)) {
+    mScene.ecs.emplace<CompTransform>(mMainCamera, CompTransform {
+      .translation = glm::vec3(0.0f, 0.0f, 10.0f),
+      .rotation = Rotation(0.0f, -90.0f, 0.0f),
+    });
+  }
+  if (!mScene.ecs.all_of<CompCamera>(mMainCamera)) {
+    mScene.ecs.emplace<CompCamera>(mMainCamera);
+  }
 
   mMainViewColorAttachment = renderer->createEmptyTexture2D();
   mMainViewColorAttachment->allocate(glm::uvec2(1), GL_RGBA16);
@@ -46,7 +56,7 @@ Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const
   }) {
     constexpr auto shadowSize = glm::uvec2(4096 * 2);
     shadowMaps.get() = renderer->createEmptyTexture2DArray();
-    shadowMaps.get()->allocate(shadowSize, glm::max(static_cast<int32_t>(numShadowMaps), 1), GL_DEPTH_COMPONENT24);
+    shadowMaps.get()->allocate(shadowSize, glm::max(static_cast<int32_t>(numShadowMaps), 1), GL_DEPTH_COMPONENT32);
     for (uint32_t shadowMapIndex = 0; shadowMapIndex < numShadowMaps; ++shadowMapIndex) {
       framebuffers.get().push_back(renderer->addFramebuffer(FramebufferCreateInfo {
         .size = shadowSize,
@@ -138,6 +148,8 @@ CommandBuffer DemoBase::render() {
 }
 
 void DemoBase::onWindowResize(GLFWwindow*, const glm::uvec2 newSize) {
+  mWindowSize = newSize;
+
   mMainViewColorAttachment->destroy();
   mMainViewColorAttachment->init();
   mMainViewColorAttachment->allocate(newSize, GL_RGBA16);
@@ -152,9 +164,6 @@ void DemoBase::onWindowResize(GLFWwindow*, const glm::uvec2 newSize) {
   for (FramebufferHandle framebuffer : mPostProcessingFramebuffers) {
     framebuffer->resize(newSize);
   }
-}
-
-void DemoBase::onFrameEnd() {
 }
 
 void DemoBase::runGUI(AppState& state) {
@@ -220,7 +229,7 @@ void DemoBase::guiActors() {
           ImGui::Text("Transform");
 
           ImGui::DragFloat3(("Translation##" + name.name).c_str(), glm::value_ptr(transform->translation), 0.01f);
-          ImGui::DragFloat3(("Rotation##" + name.name).c_str(), glm::value_ptr(transform->rotation), 0.01f);
+          ImGui::DragFloat3(("Rotation##" + name.name).c_str(), transform->rotation.asFloatPtr(), 0.01f);
           ImGui::DragFloat3(("Scale##" + name.name).c_str(), glm::value_ptr(transform->scale), 0.01f);
 
           ImGui::Separator();
@@ -302,7 +311,7 @@ void DemoBase::guiActors() {
           }
 
           if (CompOutline* outline = mScene.ecs.try_get<CompOutline>(entity)) {
-            auto& outlineColor = outline->outlineShader->uniforms["uOutlineColor"].getRef<glm::vec3>();
+            auto& outlineColor = outline->outlineShader->uniforms["uColor"].getRef<glm::vec3>();
             ImGui::ColorPicker3(("Outline color##" + name.name).c_str(), glm::value_ptr(outlineColor));
           }
           ImGui::Separator();

@@ -9,6 +9,7 @@
 struct RenderOptions {
   bool bBackfaceCulling = true;
   bool bTransparent = false;
+  bool bWireframe = false;
 
   bool operator==(const RenderOptions&) const = default;
   bool operator!=(const RenderOptions&) const = default;

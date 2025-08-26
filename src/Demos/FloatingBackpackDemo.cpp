@@ -58,6 +58,9 @@ Expected<void> FloatingBackpackDemo::init(const std::shared_ptr<AssetManager>& a
   );
 
   // Create scene
+  mMainCamera = mScene.ecs.create();
+  mScene.ecs.emplace<CompCamera>(mMainCamera, CompCamera { .far = 50.0f });
+
   mScene.skybox = Skybox {
     .cubeMesh = renderer->addMesh(skyboxCubeMesh),
     .texture = skyboxTexture,
@@ -84,7 +87,7 @@ Expected<void> FloatingBackpackDemo::init(const std::shared_ptr<AssetManager>& a
   mScene.ecs.emplace<CompName>(entityFloor, "Floor");
   mScene.ecs.emplace<CompTransform>(entityFloor, CompTransform {
     .translation = glm::vec3(0.0f, -1.75f, 0.0f),
-    .rotation = glm::vec3(90.0f, 0.0f, 0.0f),
+    .rotation = Rotation(90.0f, 0.0f, 0.0f),
   });
   mScene.ecs.emplace<CompGraphics>(entityFloor, std::vector { floorRenderData });
 

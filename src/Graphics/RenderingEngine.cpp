@@ -34,7 +34,7 @@ Expected<void> RenderingEngine::init(AssetManager& assets) {
   Expected surfaceDepth      = this->createShaderProgram({.vertex = "clipSpace.vert",    .fragment = "surfaceDepth.frag"});
   Expected surfaceNormal     = this->createShaderProgram({.vertex = "clipSpace.vert",    .fragment = "surfaceNormal.frag"});
   Expected vertexNormal      = this->createShaderProgram({.vertex = "worldSpace.vert",   .geometry = "vertexNormals.geom", .fragment = "vector.frag"});
-  Expected outline           = this->createShaderProgram({.vertex = "clipSpace.vert",    .fragment = "outline.frag"});
+  Expected outline           = this->createShaderProgram({.vertex = "clipSpace.vert",    .fragment = "solidColor.frag"});
   Expected reflectiveSurface = this->createShaderProgram({.vertex = "clipSpace.vert",    .fragment = "reflectiveSurface.frag"});
   Expected refractiveSurface = this->createShaderProgram({.vertex = "clipSpace.vert",    .fragment = "refractiveSurface.frag"});
   Expected copy              = this->createShaderProgram({.vertex = "screenQuad.vert",   .fragment = "postProcessing/copy.frag"});
@@ -45,6 +45,7 @@ Expected<void> RenderingEngine::init(AssetManager& assets) {
   Expected invert            = this->createShaderProgram({.vertex = "screenQuad.vert",   .fragment = "postProcessing/invert.frag"});
   Expected kernel3x3         = this->createShaderProgram({.vertex = "screenQuad.vert",   .fragment = "postProcessing/kernel3x3.frag"});
   Expected skybox            = this->createShaderProgram({.vertex = "skybox.vert",       .fragment = "skybox.frag"});
+  Expected debugFrustum      = this->createShaderProgram({.vertex = "positionOnly.vert", .geometry = "frustum.geom", .fragment = "solidColor.frag"});
 
   ASSIGN_EXPECTED_OR_RETURN(mShadowMapShaderProgram, shadowMap);
   ASSIGN_EXPECTED_OR_RETURN(mLitSurfaceShaderProgram, litSurface);
@@ -64,10 +65,12 @@ Expected<void> RenderingEngine::init(AssetManager& assets) {
   ASSIGN_EXPECTED_OR_RETURN(mPostProcessInvertShaderProgram, invert);
   ASSIGN_EXPECTED_OR_RETURN(mPostProcessKernel3x3ShaderProgram, kernel3x3);
   ASSIGN_EXPECTED_OR_RETURN(mSkyboxShaderProgram, skybox);
+  ASSIGN_EXPECTED_OR_RETURN(mDebugFrustum, debugFrustum);
 
   // Vertex arrays
-  glCreateVertexArrays(1, &mScreenQuadVAO);
   glCreateVertexArrays(1, &mMeshesVAO);
+  glCreateVertexArrays(1, &mScreenQuadVAO);
+  glCreateVertexArrays(1, &mDebugShapesVAO);
   Vertex::setupVertexAttributes(mMeshesVAO);
 
   // Samplers
@@ -437,7 +440,7 @@ void RenderingEngine::updateInstances(const size_t first, const InstanceBuffer& 
   mInstanceBuffer.write(instances, first * sizeof(InstanceData));
 }
 
-void RenderingEngine::submitCommands(CommandBuffer&& commandBuffer) {
+FramebufferHandle RenderingEngine::submitCommands(CommandBuffer&& commandBuffer) {
   ZoneScoped;
 
   assert(mInitialised);
@@ -445,14 +448,21 @@ void RenderingEngine::submitCommands(CommandBuffer&& commandBuffer) {
   entt::entity lastCamera = entt::null;
   const Scene* lastScene = nullptr;
   std::span<const Draw> draws;
+  FramebufferHandle lastFramebuffer = FramebufferHandle::null();
 
   for (CommandBuffer::Command& command : commandBuffer.commands) {
     command.visit(Visitor {
-      [&](CmdRenderPass& cmd) { this->cmdRenderPass(cmd, lastCamera, lastScene, draws); },
+      [&](CmdRenderPass& cmd) {
+        lastFramebuffer = cmd.renderPass.dstFramebuffer;
+        this->cmdRenderPass(cmd, lastCamera, lastScene, draws);
+      },
+      [&](const CmdDrawDebugFrustum& cmd) { this->cmdDrawDebugFrustum(cmd); },
     });
   }
 
   this->swapBuffers();
+
+  return lastFramebuffer;
 }
 
 void RenderingEngine::cmdRenderPass(CmdRenderPass& cmd, entt::entity& lastCamera, Scene const*& lastScene, std::span<const Draw>& draws) {
@@ -462,6 +472,26 @@ void RenderingEngine::cmdRenderPass(CmdRenderPass& cmd, entt::entity& lastCamera
     [&](RenderPassScene& p) { this->renderPassScene(p, viewport, dstFramebuffer, lastCamera, lastScene, draws); },
     [&](const PostProcessingPass& p) { this->postProcess(viewport, dstFramebuffer, p.srcFramebuffer, p.postProcessingShader); },
   });
+}
+
+void RenderingEngine::cmdDrawDebugFrustum(const CmdDrawDebugFrustum& cmd) {
+  ZoneScoped;
+  TracyGpuZone("Draw debug frustum");
+
+  glUseProgram(mDebugFrustum->id());
+  glUniform3fv(glGetUniformLocation(mDebugFrustum->id(), "uFrustum.nearBottomLeft"), 1, glm::value_ptr(cmd.frustum.nearBottomLeft));
+  glUniform3fv(glGetUniformLocation(mDebugFrustum->id(), "uFrustum.nearBottomRight"), 1, glm::value_ptr(cmd.frustum.nearBottomRight));
+  glUniform3fv(glGetUniformLocation(mDebugFrustum->id(), "uFrustum.nearTopLeft"), 1, glm::value_ptr(cmd.frustum.nearTopLeft));
+  glUniform3fv(glGetUniformLocation(mDebugFrustum->id(), "uFrustum.nearTopRight"), 1, glm::value_ptr(cmd.frustum.nearTopRight));
+  glUniform3fv(glGetUniformLocation(mDebugFrustum->id(), "uFrustum.farBottomLeft"), 1, glm::value_ptr(cmd.frustum.farBottomLeft));
+  glUniform3fv(glGetUniformLocation(mDebugFrustum->id(), "uFrustum.farBottomRight"), 1, glm::value_ptr(cmd.frustum.farBottomRight));
+  glUniform3fv(glGetUniformLocation(mDebugFrustum->id(), "uFrustum.farTopLeft"), 1, glm::value_ptr(cmd.frustum.farTopLeft));
+  glUniform3fv(glGetUniformLocation(mDebugFrustum->id(), "uFrustum.farTopRight"), 1, glm::value_ptr(cmd.frustum.farTopRight));
+  glUniform3f(4, 0.0f, 1.0f, 0.0f);
+
+  glBindVertexArray(mDebugShapesVAO);
+  glDrawArrays(GL_POINTS, 0, 1);
+  glBindVertexArray(GL_NONE);
 }
 
 void RenderingEngine::renderPassScene(RenderPassScene& renderScenePass, const Viewport& viewport, FramebufferHandle dstFramebuffer,
@@ -489,7 +519,8 @@ void RenderingEngine::renderPassScene(RenderPassScene& renderScenePass, const Vi
 
   if (bCameraChanged && renderScenePass.entityCamera != entt::null) {
     lastCamera = renderScenePass.entityCamera;
-    this->updateCameraData(*renderScenePass.scene, renderScenePass.entityCamera, dstFramebuffer->size());
+    this->updateCameraData(*renderScenePass.scene, renderScenePass.entityCamera, dstFramebuffer->size(),
+                           renderScenePass.mode == SceneRenderMode::DepthMap);
   }
 
   if (renderScenePass.mode == SceneRenderMode::Full) {
@@ -789,13 +820,15 @@ void RenderingEngine::swapBuffers() {
   mInstanceBuffer.switchToNext();
 }
 
-void RenderingEngine::updateCameraData(const Scene& scene, const entt::entity entityCamera, const glm::uvec2 framebufferSize) {
+void RenderingEngine::updateCameraData(const Scene& scene, const entt::entity entityCamera, const glm::uvec2 framebufferSize,
+                                       const bool bSnapViewToFramebufferPixelGrid)
+{
   ZoneScoped;
 
   assert(mInitialised);
 
   const auto [camera, cameraTransform] = scene.ecs.get<const CompCamera, const CompTransform>(entityCamera);
-  const CameraUniforms cameraUniforms = CameraUniforms::from(camera, cameraTransform, framebufferSize);
+  const CameraUniforms cameraUniforms = CameraUniforms::from(camera, cameraTransform, framebufferSize, bSnapViewToFramebufferPixelGrid);
   mCameraUniformBuffer.setCurrent(mCameraToBufferIndex[entityCamera]);
   mCameraUniformBuffer.write(cameraUniforms);
   mCameraUniformBuffer.bindWhole(BINDING_UBO_CAMERA);

@@ -4,6 +4,7 @@
 #include <Graphics/Draw.hpp>
 #include <Graphics/Skybox.hpp>
 #include <Scene/Scene.hpp>
+#include <Util/Math/AABB.hpp>
 
 #include <entt/entity/registry.hpp>
 
@@ -71,4 +72,6 @@ private:
   std::vector<MeshDataReference> mCachedSortedTransparentMeshes;
   std::vector<MeshDataReference> mCachedSortedOutlines;
   std::vector<Draw> mCachedDraws;
+
+  AABB mSceneBounds;
 };

@@ -17,7 +17,7 @@ public:
   [[nodiscard]] virtual CommandBuffer render();
 
   virtual void onWindowResize(GLFWwindow* window, glm::uvec2 newSize);
-  virtual void onFrameEnd();
+  virtual void onFrameEnd() {}
 
   void runGUI(AppState& state);
   virtual void gui(AppState& state);
@@ -30,6 +30,8 @@ private:
 
 protected:
   Scene mScene;
+
+  glm::uvec2 mWindowSize = glm::uvec2(0.0f);
 
   std::shared_ptr<AssetManager> mAssetManager;
   std::shared_ptr<RenderingEngine> mRenderingEngine;

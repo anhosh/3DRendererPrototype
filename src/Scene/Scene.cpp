@@ -43,7 +43,7 @@ void Scene::prepareForRendering() {
     mCachedSortedOpaqueMeshes.clear();
     mCachedSortedTransparentMeshes.clear();
     mCachedSortedOutlines.clear();
-    for (const auto [entity, graphics] : ecs.view<CompGraphics>().each()) {
+    for (const auto [entity, graphics, transform] : ecs.view<const CompGraphics, const CompTransform>().each()) {
       for (size_t renderDataIndex = 0; renderDataIndex < graphics.renderData.size(); ++renderDataIndex) {
         MeshDataReference mesh(&ecs, entity, renderDataIndex);
         if (mesh.renderData().renderOptions.bTransparent) {
@@ -55,6 +55,7 @@ void Scene::prepareForRendering() {
           mesh.bHasOutline = true;
           mCachedSortedOutlines.push_back(mesh);
         }
+        mSceneBounds.includeAABB(mesh.renderData().mesh->boundingBox().transformed(transform.modelMatrix()));
       }
     }
   }
@@ -345,18 +346,14 @@ void Scene::onUpdateDirectionalLight(entt::registry& ecs, const entt::entity ent
 
   const glm::vec3 lightDirection = glm::normalize(light.direction);
   const glm::vec3 lookAt = [&] {
-    for (auto [_, transform] : ecs.view<CompSpectator, const CompTransform>().each()) {
-      return transform.translation;
+    for (auto [_, transform, camera] : ecs.view<CompSpectator, const CompTransform, const CompCamera>().each()) {
+      return transform.translation + transform.forward() * (camera.near + camera.far) * 0.5f;
     }
     return glm::vec3(0.0f);
   }();
   ecs.emplace_or_replace<CompTransform>(entity, CompTransform {
     .translation = lookAt - lightDirection * 50.0f,
-    .rotation = glm::vec3 {
-      glm::degrees(glm::atan2(lightDirection.z, lightDirection.x)),
-      glm::degrees(glm::asin(lightDirection.y)),
-      0.0f,
-    },
+    .rotation = Rotation::fromDirection(lightDirection),
   });
 
   if (CompGraphics* graphics = ecs.try_get<CompGraphics>(entity)) {
@@ -399,10 +396,16 @@ void Scene::onUpdateSpotlight(entt::registry& ecs, const entt::entity entity) {
 void Scene::onUpdateTransform(entt::registry& ecs, const entt::entity entity) {
   const CompTransform& transform = ecs.get<const CompTransform>(entity);
 
-  if (ecs.all_of<CompSpectator>(entity)) {
-    for (auto [_, light, lightTransform] : ecs.view<const CompDirectionalLight, CompTransform>().each()) {
+  if (ecs.all_of<const CompSpectator, const CompCamera>(entity)) {
+    const CompCamera& camera = ecs.get<const CompCamera>(entity);
+
+    const glm::vec3 specPos = transform.translation;
+    const glm::vec3 specDir = transform.forward();
+    const glm::vec3 midpoint = specPos + specDir * (camera.near + camera.far) * 0.5f;
+
+    for (auto [_, light, lightTransform, lightCamera] : ecs.view<const CompDirectionalLight, CompTransform, CompCamera>().each()) {
       const glm::vec3 lightDirection = glm::normalize(light.direction);
-      lightTransform.translation = transform.translation - lightDirection * 50.0f;
+      lightTransform.translation = midpoint - lightDirection * 50.0f;
     }
   }
 

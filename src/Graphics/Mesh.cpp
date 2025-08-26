@@ -35,6 +35,11 @@ void Mesh::generateMesh(const MeshData& mesh) {
 
   assert(mesh.indices.size() % 3 == 0);
 
+  mBoundingBox = {};
+  for (const Vertex& vertex : mesh.vertices) {
+    mBoundingBox.includePoint(vertex.position);
+  }
+
   const auto verticesSize = static_cast<GLsizei>(mesh.vertices.size() * sizeof(Vertex));
   const auto indicesSize = static_cast<GLsizei>(mesh.vertices.size() * sizeof(Vertex));
 

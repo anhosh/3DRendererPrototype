@@ -81,7 +81,7 @@ ShaderProgramInstance ShaderProgramInstance::create<ShaderProgramType::Outline>(
 
   ShaderProgramInstance instance(program, ShaderProgramType::Outline);
   
-  instance.setUniform("uOutlineColor", glm::vec3(1.0f));
+  instance.setUniform("uColor", glm::vec3(1.0f));
   
   return instance;
 }

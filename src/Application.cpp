@@ -204,8 +204,8 @@ void Application::drawFrame() {
 
   CommandBuffer commandBuffer = mState.currentDemo->render();
   mState.lastSceneRenderDuration = timedBlock([&, this] {
-    mState.renderingEngine->submitCommands(std::move(commandBuffer));
-    mState.renderingEngine->present(mState.windowSize, std::get<CmdRenderPass>(commandBuffer.commands.back()).renderPass.dstFramebuffer);
+    const FramebufferHandle lastFramebuffer = mState.renderingEngine->submitCommands(std::move(commandBuffer));
+    mState.renderingEngine->present(mState.windowSize, lastFramebuffer);
   });
 
   mState.lastGuiRenderDuration = timedBlock(renderImGui);
