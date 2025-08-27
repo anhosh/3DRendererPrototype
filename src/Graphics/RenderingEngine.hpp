@@ -19,7 +19,6 @@
 #include <unordered_map>
 #include <vector>
 
-struct CompCamera;
 struct InstanceBuffer;
 struct RenderData;
 struct RenderPass;
@@ -89,7 +88,7 @@ private:
   void renderSceneSimple(std::span<const Draw> draws, const Viewport& viewport, FramebufferHandle dstFramebuffer, SceneRenderMode mode, bool bClearFramebuffer = true);
   void postProcess(const Viewport& viewport, FramebufferHandle dstFramebuffer, FramebufferHandle srcFramebuffer, ShaderProgramInstanceHandle postProcessingShader) const;
 
-  void updateCameraData(const Scene& scene, entt::entity entityCamera, glm::uvec2 framebufferSize, bool bSnapViewToFramebufferPixelGrid);
+  void updateCameraData(const Scene& scene, entt::entity enttCamera);
   void updateLightSourceData(const Scene& scene);
 
 private:

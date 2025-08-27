@@ -8,7 +8,6 @@
 
 #include <entt/entity/entity.hpp>
 
-struct CompCamera;
 class Scene;
 
 enum class SceneRenderMode : int32_t {

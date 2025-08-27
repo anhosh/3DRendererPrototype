@@ -519,8 +519,7 @@ void RenderingEngine::renderPassScene(RenderPassScene& renderScenePass, const Vi
 
   if (bCameraChanged && renderScenePass.entityCamera != entt::null) {
     lastCamera = renderScenePass.entityCamera;
-    this->updateCameraData(*renderScenePass.scene, renderScenePass.entityCamera, dstFramebuffer->size(),
-                           renderScenePass.mode == SceneRenderMode::DepthMap);
+    this->updateCameraData(*renderScenePass.scene, renderScenePass.entityCamera);
   }
 
   if (renderScenePass.mode == SceneRenderMode::Full) {
@@ -820,16 +819,20 @@ void RenderingEngine::swapBuffers() {
   mInstanceBuffer.switchToNext();
 }
 
-void RenderingEngine::updateCameraData(const Scene& scene, const entt::entity entityCamera, const glm::uvec2 framebufferSize,
-                                       const bool bSnapViewToFramebufferPixelGrid)
-{
+void RenderingEngine::updateCameraData(const Scene& scene, const entt::entity enttCamera) {
   ZoneScoped;
 
   assert(mInitialised);
 
-  const auto [camera, cameraTransform] = scene.ecs.get<const CompCamera, const CompTransform>(entityCamera);
-  const CameraUniforms cameraUniforms = CameraUniforms::from(camera, cameraTransform, framebufferSize, bSnapViewToFramebufferPixelGrid);
-  mCameraUniformBuffer.setCurrent(mCameraToBufferIndex[entityCamera]);
+  const auto [camera, cameraTransform] = scene.ecs.get<const CompCamera, const CompTransform>(enttCamera);
+  CameraUniforms cameraUniforms;
+  if (scene.ecs.all_of<CompDirectionalLight>(enttCamera)) {
+    cameraUniforms = CameraUniforms::fromOrthographic(camera, cameraTransform);
+  } else {
+    cameraUniforms = CameraUniforms::fromPerspective(camera, cameraTransform);
+  }
+
+  mCameraUniformBuffer.setCurrent(mCameraToBufferIndex[enttCamera]);
   mCameraUniformBuffer.write(cameraUniforms);
   mCameraUniformBuffer.bindWhole(BINDING_UBO_CAMERA);
 }

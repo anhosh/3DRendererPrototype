@@ -53,7 +53,7 @@ struct DirectionalLightShaderData {
 
     return DirectionalLightShaderData {
       .colors = LightColorUniforms::from(light.colors),
-      .viewProjection = camera.projection(glm::uvec2(0)) * transform.viewMatrix(),
+      .viewProjection = camera.orthographic() * transform.viewMatrix(),
       .direction = glm::vec4(glm::normalize(light.direction), 0.0f),
     };
   }
@@ -95,7 +95,7 @@ struct SpotlightShaderData {
 
     return SpotlightShaderData {
       .colors = LightColorUniforms::from(light.colors),
-      .viewProjection = camera.projection(glm::uvec2(0)) * transform.viewMatrix(),
+      .viewProjection = camera.perspective() * transform.viewMatrix(),
       .position = glm::vec4(transform.translation, 0.0f),
       .direction = glm::vec4(light.direction, 0.0f),
       .cutOff = glm::cos(glm::radians(light.cutOff)),

@@ -241,7 +241,6 @@ void DemoBase::guiActors() {
           ImGui::DragFloat("FOV", &camera->fov, 0.1f, 10.0f, 120.0f);
           ImGui::DragFloat("Near", &camera->near, 0.01f, 0.01f, 10.0f);
           ImGui::DragFloat("Far", &camera->far, 0.01f, 10.0f, 1000.0f);
-          ImGui::Checkbox("Orthographic", &camera->bOrthographic);
 
           ImGui::Separator();
         }

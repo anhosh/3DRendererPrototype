@@ -20,7 +20,7 @@ void AABB::transform(const glm::mat4& transform) {
   const auto [minZ, maxZ] = std::ranges::minmax(vertices, [](const glm::vec4& a, const glm::vec4 b) { return a.z < b.z; });
   std::tie(min.x, max.x) = std::tie(minX.x, maxX.x);
   std::tie(min.y, max.y) = std::tie(minY.y, maxY.y);
-  std::tie(min.z, max.z) = std::tie(minZ.z, maxZ.z); 
+  std::tie(min.z, max.z) = std::tie(minZ.z, maxZ.z);
 }
 
 void AABB::moveToCenter(const glm::vec3 center) {

@@ -109,7 +109,7 @@ CommandBuffer FlyCamDemoBase::render() {
   if (mbDrawViewFrustum) {
     const CompCamera& camera = mScene.ecs.get<const CompCamera>(mMainCamera);
     const CompTransform& frustumTransform = mScene.ecs.get<const CompTransform>(mViewFrustum);
-    const auto command = CmdDrawDebugFrustum(camera.viewFrustum(frustumTransform, mWindowSize));
+    const auto command = CmdDrawDebugFrustum(camera.viewFrustumPerspective(frustumTransform));
     commandBuffer.commands.push_back(command);
   }
   return commandBuffer;
@@ -117,6 +117,8 @@ CommandBuffer FlyCamDemoBase::render() {
 
 void FlyCamDemoBase::onWindowResize(GLFWwindow* window, const glm::uvec2 newSize) {
   DemoBase::onWindowResize(window, newSize);
+
+  mScene.ecs.get<CompCamera>(mMainCamera).screenSize = newSize;
 
   mLastMousePosition = glm::vec2(newSize) * 0.5f;
   mbFirstMouse = true;

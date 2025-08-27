@@ -294,7 +294,9 @@ void Scene::onConstructOutline(entt::registry&, const entt::entity entity) {
 }
 
 void Scene::onConstructDirectionalLight(entt::registry& registry, const entt::entity entity) {
-  registry.emplace<CompCamera>(entity, CompCamera { .fov = 90.0f, .bOrthographic = true, .bUseFOVAsScreenSize = true });
+  if (!registry.all_of<CompCamera>(entity)) {
+    registry.emplace<CompCamera>(entity);
+  }
   Scene::onUpdateDirectionalLight(registry, entity);
 }
 
@@ -303,7 +305,9 @@ void Scene::onConstructPointLight(entt::registry& registry, const entt::entity e
 }
 
 void Scene::onConstructSpotlight(entt::registry& registry, const entt::entity entity) {
-  registry.emplace<CompCamera>(entity);
+  if (!registry.all_of<CompCamera>(entity)) {
+    registry.emplace<CompCamera>(entity);
+  }
   Scene::onUpdateSpotlight(registry, entity);
 }
 
@@ -341,8 +345,8 @@ void Scene::onUpdateCamera(entt::registry& ecs, const entt::entity entity) {
   }
 }
 
-void Scene::onUpdateDirectionalLight(entt::registry& ecs, const entt::entity entity) {
-  const CompDirectionalLight& light = ecs.get<const CompDirectionalLight>(entity);
+void Scene::onUpdateDirectionalLight(entt::registry& ecs, const entt::entity enttLight) {
+  const CompDirectionalLight& light = ecs.get<const CompDirectionalLight>(enttLight);
 
   const glm::vec3 lightDirection = glm::normalize(light.direction);
   const glm::vec3 lookAt = [&] {
@@ -351,12 +355,12 @@ void Scene::onUpdateDirectionalLight(entt::registry& ecs, const entt::entity ent
     }
     return glm::vec3(0.0f);
   }();
-  ecs.emplace_or_replace<CompTransform>(entity, CompTransform {
+  ecs.emplace_or_replace<CompTransform>(enttLight, CompTransform {
     .translation = lookAt - lightDirection * 50.0f,
     .rotation = Rotation::fromDirection(lightDirection),
   });
 
-  if (CompGraphics* graphics = ecs.try_get<CompGraphics>(entity)) {
+  if (CompGraphics* graphics = ecs.try_get<CompGraphics>(enttLight)) {
     for (RenderData& renderData : graphics->renderData) {
       if (renderData.shader->type() == ShaderProgramType::Light) {
         renderData.shader->uniforms["uLightColor"] = light.colors.diffuse;
@@ -393,11 +397,12 @@ void Scene::onUpdateSpotlight(entt::registry& ecs, const entt::entity entity) {
   }
 }
 
-void Scene::onUpdateTransform(entt::registry& ecs, const entt::entity entity) {
-  const CompTransform& transform = ecs.get<const CompTransform>(entity);
+void Scene::onUpdateTransform(entt::registry& ecs, const entt::entity enttTransform) {
+  const CompTransform& transform = ecs.get<const CompTransform>(enttTransform);
 
-  if (ecs.all_of<const CompSpectator, const CompCamera>(entity)) {
-    const CompCamera& camera = ecs.get<const CompCamera>(entity);
+  if (ecs.all_of<const CompSpectator, const CompCamera>(enttTransform)) {
+    const CompCamera& camera = ecs.get<const CompCamera>(enttTransform);
+    const Frustum frustum = camera.viewFrustumPerspective(transform);
 
     const glm::vec3 specPos = transform.translation;
     const glm::vec3 specDir = transform.forward();
@@ -406,14 +411,19 @@ void Scene::onUpdateTransform(entt::registry& ecs, const entt::entity entity) {
     for (auto [_, light, lightTransform, lightCamera] : ecs.view<const CompDirectionalLight, CompTransform, CompCamera>().each()) {
       const glm::vec3 lightDirection = glm::normalize(light.direction);
       lightTransform.translation = midpoint - lightDirection * 50.0f;
+
+      const std::array<glm::vec3, 8> pointsLightSpace = frustum.transform(lightTransform.viewMatrix()).asArray();
+      const auto [minX, maxX] = std::ranges::minmax(pointsLightSpace, [](const glm::vec3 a, const glm::vec3 b) { return a.x > b.x; });
+      const auto [minY, maxY] = std::ranges::minmax(pointsLightSpace, [](const glm::vec3 a, const glm::vec3 b) { return a.y > b.y; });
+      lightCamera.screenSize = { maxX.x - minX.x, maxY.y - minY.y };
     }
   }
 
-  if (CompDirectionalLight* light = ecs.try_get<CompDirectionalLight>(entity)) {
+  if (CompDirectionalLight* light = ecs.try_get<CompDirectionalLight>(enttTransform)) {
     light->direction = transform.forward();
   }
 
-  if (CompSpotlight* light = ecs.try_get<CompSpotlight>(entity)) {
+  if (CompSpotlight* light = ecs.try_get<CompSpotlight>(enttTransform)) {
     light->direction = transform.forward();
   }
 }

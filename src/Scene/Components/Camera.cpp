@@ -6,30 +6,25 @@
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/ext/matrix_transform.hpp>
 
-glm::mat4 CompCamera::projection(const glm::uvec2 screenSize) const {
-  const glm::vec2 fScreenSize = screenSize;
-  if (bOrthographic) {
-    if (bUseFOVAsScreenSize) {
-      return glm::ortho(-fov * 0.5f, fov * 0.5f,
-                        -fov * 0.5f, fov * 0.5f,
-                        near, far);
-    }
-    return glm::ortho(-fScreenSize.x * 0.5f, fScreenSize.x * 0.5f,
-                      -fScreenSize.y * 0.5f, fScreenSize.y * 0.5f,
-                      near, far);
-  }
-  return glm::perspective(glm::radians(fov), fScreenSize.x / fScreenSize.y, near, far);
+glm::mat4 CompCamera::perspective() const {
+  return glm::perspective(glm::radians(fov), screenSize.x / screenSize.y, near, far);
 }
 
-Frustum CompCamera::viewFrustum(CompTransform frustumTransform, const glm::uvec2 screenSize) const {
-  const glm::vec3 lookDirection = frustumTransform.forward();
-  const glm::vec3 upDirection = frustumTransform.up();
-  const glm::vec3 rightDirection = frustumTransform.right();
+glm::mat4 CompCamera::orthographic() const {
+  return glm::ortho(-screenSize.x * 0.5f, screenSize.x * 0.5f,
+                    -screenSize.y * 0.5f, screenSize.y * 0.5f,
+                    near, far);
+}
 
-  const glm::vec3 nearCentre = frustumTransform.translation + lookDirection * near;
-  const glm::vec3 farCentre = frustumTransform.translation + lookDirection * far;
+Frustum CompCamera::viewFrustumPerspective(const CompTransform& viewTransform) const {
+  const glm::vec3 lookDirection = viewTransform.forward();
+  const glm::vec3 upDirection = viewTransform.up();
+  const glm::vec3 rightDirection = viewTransform.right();
 
-  const float aspect = static_cast<float>(screenSize.x) / static_cast<float>(screenSize.y);
+  const glm::vec3 nearCentre = viewTransform.translation + lookDirection * near;
+  const glm::vec3 farCentre = viewTransform.translation + lookDirection * far;
+
+  const float aspect = screenSize.x / screenSize.y;
   const float nearHeight = glm::tan(glm::radians(fov)) * near;
   const float farHeight = glm::tan(glm::radians(fov)) * far;
   const float nearWidth = aspect * nearHeight;
@@ -49,5 +44,28 @@ Frustum CompCamera::viewFrustum(CompTransform frustumTransform, const glm::uvec2
     .nearBottomRight = nearCentre - nearUp + nearRight,
     .nearTopLeft     = nearCentre + nearUp - nearRight,
     .nearTopRight    = nearCentre + nearUp + nearRight,
+  };
+}
+
+Frustum CompCamera::viewFrustumOrthographic(const CompTransform& viewTransform) const {
+  const glm::vec3 lookDirection = viewTransform.forward();
+  const glm::vec3 upDirection = viewTransform.up();
+  const glm::vec3 rightDirection = viewTransform.right();
+
+  const glm::vec3 nearCentre = viewTransform.translation + lookDirection * near;
+  const glm::vec3 farCentre = viewTransform.translation + lookDirection * far;
+
+  const glm::vec3 up = upDirection * screenSize.y * 0.5f;
+  const glm::vec3 right = rightDirection * screenSize.x * 0.5f;
+
+  return {
+    .farBottomLeft   = farCentre - up - right,
+    .farBottomRight  = farCentre - up + right,
+    .farTopLeft      = farCentre + up - right,
+    .farTopRight     = farCentre + up + right,
+    .nearBottomLeft  = nearCentre - up - right,
+    .nearBottomRight = nearCentre - up + right,
+    .nearTopLeft     = nearCentre + up - right,
+    .nearTopRight    = nearCentre + up + right,
   };
 }

@@ -13,7 +13,8 @@ struct CameraUniforms {
   float _padding1 = 0.0f;
   float _padding3 = 0.0f;
 
-  static CameraUniforms from(const CompCamera& camera, const CompTransform& transform, glm::uvec2 screenSize, bool bSnapViewToScreenPixelGrid);
+  static CameraUniforms fromPerspective(const CompCamera& camera, const CompTransform& transform);
+  static CameraUniforms fromOrthographic(const CompCamera& camera, const CompTransform& transform);
 
   static constexpr size_t size() {
     return sizeof(CameraUniforms);
