@@ -6,6 +6,10 @@ project(3DRendererPrototype-ext)
 message(STATUS "[assimp]")
 add_subdirectory(assimp)
 
+# setup catch library
+message(STATUS "[catch]")
+add_subdirectory(catch)
+
 # add EnTT to build tree
 message(STATUS "[EnTT]")
 add_subdirectory(entt)
@@ -87,6 +91,10 @@ else ()
 endif ()
 add_subdirectory(tracy)
 
+# add util to build tree
+message(STATUS "[tracy]")
+add_subdirectory(util)
+
 # declare ext library target
 add_library(${PROJECT_NAME} INTERFACE)
 add_library(3DRendererPrototype::ext ALIAS ${PROJECT_NAME})
@@ -100,6 +108,7 @@ target_link_libraries(${PROJECT_NAME} INTERFACE
   imgui::imgui
   stb::stb
   TracyClient
+  3DRendererPrototype::util
 )
 
 if(CMAKE_SYSTEM_NAME STREQUAL Linux)

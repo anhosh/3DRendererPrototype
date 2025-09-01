@@ -65,14 +65,6 @@ public:
   void swapBuffers();
 
 private:
-  struct TexturePack {
-    AssetHandle<Bitmap> diffuseMap = AssetHandle<Bitmap>::null();
-    AssetHandle<Bitmap> specularMap = AssetHandle<Bitmap>::null();
-    AssetHandle<Bitmap> emissionMap = AssetHandle<Bitmap>::null();
-
-    bool operator==(const TexturePack&) const = default;
-  };
-
   static auto groupMeshesByTextures(AssetHandle<Model> model);
   // -> std::unordered_map<TexturePack, std::vector<NotNull<const MeshData>>, TexturePackHash>
 
@@ -154,4 +146,13 @@ private:
   std::unordered_map<RegItemID, Texture2DHandle> mUploadedTextures;
   std::unordered_map<RegItemID, std::vector<RenderData>> mUploadedModels;
   std::unordered_map<entt::entity, size_t> mCameraToBufferIndex;
+
+private:
+  struct TexturePack {
+    AssetHandle<Bitmap> diffuseMap = AssetHandle<Bitmap>::null();
+    AssetHandle<Bitmap> specularMap = AssetHandle<Bitmap>::null();
+    AssetHandle<Bitmap> emissionMap = AssetHandle<Bitmap>::null();
+
+    bool operator==(const TexturePack&) const = default;
+  };
 };

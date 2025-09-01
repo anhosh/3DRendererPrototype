@@ -11,9 +11,8 @@ glm::mat4 CompCamera::perspective() const {
 }
 
 glm::mat4 CompCamera::orthographic() const {
-  return glm::ortho(-screenSize.x * 0.5f, screenSize.x * 0.5f,
-                    -screenSize.y * 0.5f, screenSize.y * 0.5f,
-                    near, far);
+  const glm::vec2 halfSize = screenSize * 0.5f;
+  return glm::ortho(-halfSize.x, halfSize.x, -halfSize.y, halfSize.y, near, far);
 }
 
 Frustum CompCamera::viewFrustumPerspective(const CompTransform& viewTransform) const {

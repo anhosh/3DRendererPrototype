@@ -47,7 +47,7 @@ float shadow(vec4 fragPosLightSpace, float cosTheta, in sampler2DArrayShadow sha
     return 0;
   }
 
-  float w = projectedPosition.z - max(0.0004 * (1 - cosTheta), 0.0002);
+  float w = projectedPosition.z - max(0.005 * (1 - cosTheta), 0.001);
 //  return texture(shadowMap, vec4(projectedPosition.xy, lightIndex, w));
   vec2 texelSize = 1.0 / textureSize(shadowMap, 0).xy;
   float ret = 0;

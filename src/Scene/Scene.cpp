@@ -5,6 +5,10 @@
 #include <Scene/Components/Graphics.hpp>
 #include <Scene/Components/Outline.hpp>
 #include <Scene/Components/Spectator.hpp>
+#include <Util/Math/Clipping.hpp>
+#include <Util/Math/Rectangle.hpp>
+#include <Util/Math/Triangle.hpp>
+#include <Util/Math/Vectors.hpp>
 
 #include <glm/gtx/compatibility.hpp>
 
@@ -15,19 +19,21 @@
 namespace views = std::ranges::views;
 
 Scene::Scene() {
+  ecs.on_construct<CompGraphics>().connect<&Scene::onConstructGraphics>(this);
   ecs.on_construct<CompOutline>().connect<&Scene::onConstructOutline>(this);
-  ecs.on_construct<CompDirectionalLight>().connect<&Scene::onConstructDirectionalLight>();
-  ecs.on_construct<CompPointLight>().connect<&Scene::onConstructPointLight>();
-  ecs.on_construct<CompSpotlight>().connect<&Scene::onConstructSpotlight>();
+  ecs.on_construct<CompDirectionalLight>().connect<&Scene::onConstructDirectionalLight>(this);
+  ecs.on_construct<CompPointLight>().connect<&Scene::onConstructPointLight>(this);
+  ecs.on_construct<CompSpotlight>().connect<&Scene::onConstructSpotlight>(this);
+  ecs.on_construct<CompTransform>().connect<&Scene::onConstructTransform>(this);
 
   ecs.on_destroy<CompOutline>().connect<&Scene::onDestroyOutline>(this);
   ecs.on_destroy<CompGraphics>().connect<&Scene::onDestroyGraphics>(this);
 
-  ecs.on_update<CompCamera>().connect<&Scene::onUpdateCamera>();
-  ecs.on_update<CompDirectionalLight>().connect<&Scene::onUpdateDirectionalLight>();
-  ecs.on_update<CompPointLight>().connect<&Scene::onUpdatePointLight>();
-  ecs.on_update<CompSpotlight>().connect<&Scene::onUpdateSpotlight>();
-  ecs.on_update<CompTransform>().connect<&Scene::onUpdateTransform>();
+  ecs.on_update<CompCamera>().connect<&Scene::onUpdateCamera>(this);
+  ecs.on_update<CompDirectionalLight>().connect<&Scene::onUpdateDirectionalLight>(this);
+  ecs.on_update<CompPointLight>().connect<&Scene::onUpdatePointLight>(this);
+  ecs.on_update<CompSpotlight>().connect<&Scene::onUpdateSpotlight>(this);
+  ecs.on_update<CompTransform>().connect<&Scene::onUpdateTransform>(this);
 }
 
 void Scene::destroy() {
@@ -55,7 +61,6 @@ void Scene::prepareForRendering() {
           mesh.bHasOutline = true;
           mCachedSortedOutlines.push_back(mesh);
         }
-        mSceneBounds.includeAABB(mesh.renderData().mesh->boundingBox().transformed(transform.modelMatrix()));
       }
     }
   }
@@ -283,8 +288,17 @@ void Scene::sortOutlines() {
     });
 }
 
-void Scene::onConstructOutline(entt::registry&, const entt::entity entity) {
-  const auto meshHasSameEntity = [=](const MeshDataReference& mesh) { return mesh.entity == entity; };
+void Scene::onConstructGraphics(entt::registry&, entt::entity enttOutline) {
+  const auto [graphics, transform] = ecs.get<const CompGraphics, const CompTransform>(enttOutline);
+  for (const RenderData& renderData : graphics.renderData) {
+    mSceneBounds.includeAABB(renderData.mesh->boundingBox().transformed(transform.modelMatrix()));
+  }
+}
+
+void Scene::onConstructOutline(entt::registry&, const entt::entity enttOutline) {
+  ZoneScoped;
+
+  const auto meshHasSameEntity = [=](const MeshDataReference& mesh) { return mesh.entity == enttOutline; };
   auto meshesRange = std::views::concat(mCachedSortedOpaqueMeshes, mCachedSortedTransparentMeshes);
   if (const auto mesh = std::find_if(meshesRange.begin(), meshesRange.end(), meshHasSameEntity); mesh != meshesRange.end()) {
     (*mesh).bHasOutline = true;
@@ -293,36 +307,40 @@ void Scene::onConstructOutline(entt::registry&, const entt::entity entity) {
   }
 }
 
-void Scene::onConstructDirectionalLight(entt::registry& registry, const entt::entity entity) {
-  if (!registry.all_of<CompCamera>(entity)) {
-    registry.emplace<CompCamera>(entity);
+void Scene::onConstructDirectionalLight(entt::registry&, const entt::entity enttLight) {
+  ZoneScoped;
+
+  if (!ecs.all_of<CompCamera>(enttLight)) {
+    ecs.emplace<CompCamera>(enttLight);
   }
-  Scene::onUpdateDirectionalLight(registry, entity);
+  Scene::onUpdateDirectionalLight(ecs, enttLight);
 }
 
-void Scene::onConstructPointLight(entt::registry& registry, const entt::entity entity) {
-  Scene::onUpdatePointLight(registry, entity);
+void Scene::onConstructPointLight(entt::registry&, const entt::entity enttLight) {
+  ZoneScoped;
+
+  Scene::onUpdatePointLight(ecs, enttLight);
 }
 
-void Scene::onConstructSpotlight(entt::registry& registry, const entt::entity entity) {
-  if (!registry.all_of<CompCamera>(entity)) {
-    registry.emplace<CompCamera>(entity);
+void Scene::onConstructSpotlight(entt::registry&, const entt::entity enttLight) {
+  ZoneScoped;
+
+  if (!ecs.all_of<CompCamera>(enttLight)) {
+    ecs.emplace<CompCamera>(enttLight);
   }
-  Scene::onUpdateSpotlight(registry, entity);
+  Scene::onUpdateSpotlight(ecs, enttLight);
 }
 
-void Scene::onDestroyOutline(entt::registry&, const entt::entity entity) {
-  const auto meshHasSameEntity = [=](const MeshDataReference& mesh) { return mesh.entity == entity; };
-  auto meshesRange = std::views::concat(mCachedSortedOpaqueMeshes, mCachedSortedTransparentMeshes);
-  if (const auto mesh = std::find_if(meshesRange.begin(), meshesRange.end(), meshHasSameEntity); mesh != meshesRange.end()) {
-    (*mesh).bHasOutline = false;
-  }
-  auto removedOutlines = std::ranges::remove_if(mCachedSortedOutlines, meshHasSameEntity);
-  mCachedSortedOutlines.erase(removedOutlines.begin(), removedOutlines.end());
+void Scene::onConstructTransform(entt::registry&, entt::entity enttTransform) {
+  ZoneScoped;
+
+  this->onUpdateTransform(ecs, enttTransform);
 }
 
-void Scene::onDestroyGraphics(entt::registry&, const entt::entity entity) {
-  const auto meshHasSameEntity = [=](const MeshDataReference& mesh) { return mesh.entity == entity; };
+void Scene::onDestroyGraphics(entt::registry&, const entt::entity enttGraphics) {
+  ZoneScoped;
+
+  const auto meshHasSameEntity = [=](const MeshDataReference& mesh) { return mesh.entity == enttGraphics; };
 
   if (auto removed = std::ranges::remove_if(mCachedSortedOutlines, meshHasSameEntity); !removed.empty()) {
     mCachedSortedOutlines.erase(removed.begin(), removed.end());
@@ -337,20 +355,36 @@ void Scene::onDestroyGraphics(entt::registry&, const entt::entity entity) {
   }
 }
 
-void Scene::onUpdateCamera(entt::registry& ecs, const entt::entity entity) {
-  const CompCamera& camera = ecs.get<const CompCamera>(entity);
+void Scene::onDestroyOutline(entt::registry&, const entt::entity enttOutline) {
+  ZoneScoped;
 
-  if (CompSpotlight* light = ecs.try_get<CompSpotlight>(entity)) {
+  const auto meshHasSameEntity = [=](const MeshDataReference& mesh) { return mesh.entity == enttOutline; };
+  auto meshesRange = std::views::concat(mCachedSortedOpaqueMeshes, mCachedSortedTransparentMeshes);
+  if (const auto mesh = std::find_if(meshesRange.begin(), meshesRange.end(), meshHasSameEntity); mesh != meshesRange.end()) {
+    (*mesh).bHasOutline = false;
+  }
+  auto removedOutlines = std::ranges::remove_if(mCachedSortedOutlines, meshHasSameEntity);
+  mCachedSortedOutlines.erase(removedOutlines.begin(), removedOutlines.end());
+}
+
+void Scene::onUpdateCamera(entt::registry&, const entt::entity enttCamera) {
+  ZoneScoped;
+
+  const CompCamera& camera = ecs.get<const CompCamera>(enttCamera);
+
+  if (CompSpotlight* light = ecs.try_get<CompSpotlight>(enttCamera)) {
     light->outerCutOff = camera.fov * 0.5f;
   }
 }
 
-void Scene::onUpdateDirectionalLight(entt::registry& ecs, const entt::entity enttLight) {
+void Scene::onUpdateDirectionalLight(entt::registry&, const entt::entity enttLight) {
+  ZoneScoped;
+
   const CompDirectionalLight& light = ecs.get<const CompDirectionalLight>(enttLight);
 
   const glm::vec3 lightDirection = glm::normalize(light.direction);
   const glm::vec3 lookAt = [&] {
-    for (auto [_, transform, camera] : ecs.view<CompSpectator, const CompTransform, const CompCamera>().each()) {
+    for (auto [enttSpectator, spectator, transform, camera] : ecs.view<CompSpectator, const CompTransform, const CompCamera>().each()) {
       return transform.translation + transform.forward() * (camera.near + camera.far) * 0.5f;
     }
     return glm::vec3(0.0f);
@@ -369,10 +403,12 @@ void Scene::onUpdateDirectionalLight(entt::registry& ecs, const entt::entity ent
   }
 }
 
-void Scene::onUpdatePointLight(entt::registry& ecs, const entt::entity entity) {
-  const CompPointLight& light = ecs.get<const CompPointLight>(entity);
+void Scene::onUpdatePointLight(entt::registry&, const entt::entity enttLight) {
+  ZoneScoped;
 
-  if (CompGraphics* graphics = ecs.try_get<CompGraphics>(entity)) {
+  const CompPointLight& light = ecs.get<const CompPointLight>(enttLight);
+
+  if (CompGraphics* graphics = ecs.try_get<CompGraphics>(enttLight)) {
     for (RenderData& renderData : graphics->renderData) {
       if (renderData.shader->type() == ShaderProgramType::Light) {
         renderData.shader->uniforms["uLightColor"] = light.colors.diffuse;
@@ -381,14 +417,16 @@ void Scene::onUpdatePointLight(entt::registry& ecs, const entt::entity entity) {
   }
 }
 
-void Scene::onUpdateSpotlight(entt::registry& ecs, const entt::entity entity) {
-  const CompSpotlight& light = ecs.get<const CompSpotlight>(entity);
+void Scene::onUpdateSpotlight(entt::registry&, const entt::entity enttLight) {
+  ZoneScoped;
 
-  if (CompCamera* camera = ecs.try_get<CompCamera>(entity)) {
+  const CompSpotlight& light = ecs.get<const CompSpotlight>(enttLight);
+
+  if (CompCamera* camera = ecs.try_get<CompCamera>(enttLight)) {
     camera->fov = light.outerCutOff * 2.0f;
   }
 
-  if (CompGraphics* graphics = ecs.try_get<CompGraphics>(entity)) {
+  if (CompGraphics* graphics = ecs.try_get<CompGraphics>(enttLight)) {
     for (RenderData& renderData : graphics->renderData) {
       if (renderData.shader->type() == ShaderProgramType::Light) {
         renderData.shader->uniforms["uLightColor"] = light.colors.diffuse;
@@ -397,27 +435,10 @@ void Scene::onUpdateSpotlight(entt::registry& ecs, const entt::entity entity) {
   }
 }
 
-void Scene::onUpdateTransform(entt::registry& ecs, const entt::entity enttTransform) {
+void Scene::onUpdateTransform(entt::registry&, const entt::entity enttTransform) {
+  ZoneScoped;
+
   const CompTransform& transform = ecs.get<const CompTransform>(enttTransform);
-
-  if (ecs.all_of<const CompSpectator, const CompCamera>(enttTransform)) {
-    const CompCamera& camera = ecs.get<const CompCamera>(enttTransform);
-    const Frustum frustum = camera.viewFrustumPerspective(transform);
-
-    const glm::vec3 specPos = transform.translation;
-    const glm::vec3 specDir = transform.forward();
-    const glm::vec3 midpoint = specPos + specDir * (camera.near + camera.far) * 0.5f;
-
-    for (auto [_, light, lightTransform, lightCamera] : ecs.view<const CompDirectionalLight, CompTransform, CompCamera>().each()) {
-      const glm::vec3 lightDirection = glm::normalize(light.direction);
-      lightTransform.translation = midpoint - lightDirection * 50.0f;
-
-      const std::array<glm::vec3, 8> pointsLightSpace = frustum.transform(lightTransform.viewMatrix()).asArray();
-      const auto [minX, maxX] = std::ranges::minmax(pointsLightSpace, [](const glm::vec3 a, const glm::vec3 b) { return a.x > b.x; });
-      const auto [minY, maxY] = std::ranges::minmax(pointsLightSpace, [](const glm::vec3 a, const glm::vec3 b) { return a.y > b.y; });
-      lightCamera.screenSize = { maxX.x - minX.x, maxY.y - minY.y };
-    }
-  }
 
   if (CompDirectionalLight* light = ecs.try_get<CompDirectionalLight>(enttTransform)) {
     light->direction = transform.forward();
@@ -425,6 +446,45 @@ void Scene::onUpdateTransform(entt::registry& ecs, const entt::entity enttTransf
 
   if (CompSpotlight* light = ecs.try_get<CompSpotlight>(enttTransform)) {
     light->direction = transform.forward();
+  }
+
+  if (const auto [spectator, camera] = ecs.try_get<const CompSpectator, const CompCamera>(enttTransform);
+      spectator && camera && spectator->bDirectionalLightsFollowSpectator)
+  {
+    if (spectator->bDirectionalLightsFollowSpectator) {
+      const Frustum frustum = camera->viewFrustumPerspective(transform);
+
+      const glm::vec3 specPos = transform.translation;
+      const glm::vec3 specDir = transform.forward();
+      const glm::vec3 midpoint = specPos + specDir * (camera->near + camera->far) * 0.5f;
+
+      for (auto [_, light, lightTransform, lightCamera] : ecs.view<const CompDirectionalLight, CompTransform, CompCamera>().each()) {
+        lightTransform.translation = midpoint;
+
+        const glm::mat4 lightView = lightTransform.viewMatrix();
+        const std::array<glm::vec3, 8> viewFrustumPointsLightSpace = frustum.transform(lightView).asArray();
+        const std::array<Triangle, 12> sceneBoundsTrianglesLightSpace = mSceneBounds.triangulated(lightView);
+
+        const auto [minX, maxX] = std::ranges::minmax(viewFrustumPointsLightSpace, vecXLess<3, float>);
+        const auto [minY, maxY] = std::ranges::minmax(viewFrustumPointsLightSpace, vecYLess<3, float>);
+        lightCamera.screenSize = { maxX.x - minX.x, maxY.y - minY.y };
+
+        const Rectangle lightViewRect = { .min = { minX.x, minY.y }, .max = { maxX.x, maxY.y } };
+        std::vector<float> clippedSceneBoundsDepths;
+        clippedSceneBoundsDepths.reserve(16);
+        for (const Triangle& triangle : sceneBoundsTrianglesLightSpace) {
+          const std::basic_string<Triangle> clippedTriangles = clipTriangleToRectanglePlanes(triangle, lightViewRect);
+          for (const Triangle& clippedTriangle : clippedTriangles) {
+            for (const glm::vec3 point : clippedTriangle.points) {
+              clippedSceneBoundsDepths.push_back(point.z);
+            }
+          }
+        }
+        const auto [minZ, maxZ] = std::ranges::minmax(clippedSceneBoundsDepths);
+        lightCamera.near = minZ;
+        lightCamera.far = maxZ;
+      }
+    }
   }
 }
 

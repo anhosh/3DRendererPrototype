@@ -487,7 +487,7 @@ void RenderingEngine::cmdDrawDebugFrustum(const CmdDrawDebugFrustum& cmd) {
   glUniform3fv(glGetUniformLocation(mDebugFrustum->id(), "uFrustum.farBottomRight"), 1, glm::value_ptr(cmd.frustum.farBottomRight));
   glUniform3fv(glGetUniformLocation(mDebugFrustum->id(), "uFrustum.farTopLeft"), 1, glm::value_ptr(cmd.frustum.farTopLeft));
   glUniform3fv(glGetUniformLocation(mDebugFrustum->id(), "uFrustum.farTopRight"), 1, glm::value_ptr(cmd.frustum.farTopRight));
-  glUniform3f(4, 0.0f, 1.0f, 0.0f);
+  glUniform3f(4, cmd.color.x, cmd.color.y, cmd.color.z);
 
   glBindVertexArray(mDebugShapesVAO);
   glDrawArrays(GL_POINTS, 0, 1);

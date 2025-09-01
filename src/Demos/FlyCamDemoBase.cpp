@@ -2,19 +2,11 @@
 
 #include <Scene/Components/Camera.hpp>
 #include <Scene/Components/Graphics.hpp>
-#include <Scene/Components/Name.hpp>
 #include <Scene/Components/Transform.hpp>
 #include <Util/Macros/Errors.hpp>
+#include <Util/Math/Vectors.hpp>
 
 #include <imgui.h>
-
-Expected<void> FlyCamDemoBase::init(const std::shared_ptr<AssetManager>& assets, const std::shared_ptr<RenderingEngine>& renderer) {
-  mViewFrustum = mScene.ecs.create();
-  mScene.ecs.emplace<CompName>(mViewFrustum, "View frustum");
-  mScene.ecs.emplace<CompTransform>(mViewFrustum);
-
-  return DemoBase::init(assets, renderer);
-}
 
 void FlyCamDemoBase::processKeyboard(GLFWwindow* window) {
   ZoneScoped;
@@ -48,16 +40,16 @@ void FlyCamDemoBase::processKeyboard(GLFWwindow* window) {
       mCameraVelocity -= mCameraSpeed * cameraTransform.forward();
     }
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-      mCameraVelocity -= mCameraSpeed * cameraTransform.right();
-    }
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
       mCameraVelocity += mCameraSpeed * cameraTransform.right();
     }
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
+      mCameraVelocity -= mCameraSpeed * cameraTransform.right();
+    }
     if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
-      mCameraVelocity += mCameraSpeed * cameraTransform.up();
+      mCameraVelocity += mCameraSpeed * DIRECTION_UP;
     }
     if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
-      mCameraVelocity -= mCameraSpeed * cameraTransform.up();
+      mCameraVelocity -= mCameraSpeed * DIRECTION_UP;
     }
   }
 }
@@ -77,7 +69,7 @@ void FlyCamDemoBase::processMouse(const glm::vec2 mousePosition) {
   mScene.ecs.patch<CompTransform>(mMainCamera, [&](CompTransform& cameraTransform) {
     constexpr float sensitivity = 0.1f;
     const glm::vec2 offset = {
-      (mousePosition.x - mLastMousePosition.x) * sensitivity,
+      (mLastMousePosition.x - mousePosition.x) * sensitivity,
       (mousePosition.y - mLastMousePosition.y) * sensitivity,
     };
     cameraTransform.rotation.yaw += offset.x;
@@ -94,31 +86,11 @@ void FlyCamDemoBase::update(const double dt) {
     });
   }
 
-  if (mbViewFrustumFollowsMainView) {
-    mScene.ecs.patch<CompTransform>(mViewFrustum, [&](CompTransform& frustumTransform) {
-      const CompTransform& cameraTransform = mScene.ecs.get<CompTransform>(mMainCamera);
-      frustumTransform = cameraTransform;
-    });
-  }
-
   DemoBase::update(dt);
-}
-
-CommandBuffer FlyCamDemoBase::render() {
-  CommandBuffer commandBuffer = DemoBase::render();
-  if (mbDrawViewFrustum) {
-    const CompCamera& camera = mScene.ecs.get<const CompCamera>(mMainCamera);
-    const CompTransform& frustumTransform = mScene.ecs.get<const CompTransform>(mViewFrustum);
-    const auto command = CmdDrawDebugFrustum(camera.viewFrustumPerspective(frustumTransform));
-    commandBuffer.commands.push_back(command);
-  }
-  return commandBuffer;
 }
 
 void FlyCamDemoBase::onWindowResize(GLFWwindow* window, const glm::uvec2 newSize) {
   DemoBase::onWindowResize(window, newSize);
-
-  mScene.ecs.get<CompCamera>(mMainCamera).screenSize = newSize;
 
   mLastMousePosition = glm::vec2(newSize) * 0.5f;
   mbFirstMouse = true;
@@ -131,9 +103,7 @@ void FlyCamDemoBase::gui(AppState& state) {
   if (ImGui::CollapsingHeader("Fly cam")) {
     ImGui::Indent();
 
-    ImGui::DragFloat("Movement speed", &mCameraSpeed, 0.001f, 0.0f, 5.0f);
-    ImGui::Checkbox("Draw view frustum", &mbDrawViewFrustum);
-    ImGui::Checkbox("View frustum follows camera", &mbViewFrustumFollowsMainView);
+    ImGui::DragFloat("Movement speed", &mCameraSpeed, 0.001f, 0.0f, 50.0f);
 
     ImGui::Unindent();
   }

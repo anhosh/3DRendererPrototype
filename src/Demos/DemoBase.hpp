@@ -13,7 +13,7 @@ public:
   virtual Expected<void> init(const std::shared_ptr<AssetManager>& assets, const std::shared_ptr<RenderingEngine>& renderer);
   virtual void processKeyboard(GLFWwindow* window) {}
   virtual void processMouse(glm::vec2 mousePosition) {}
-  virtual void update(double dt) {}
+  virtual void update(double dt);
   [[nodiscard]] virtual CommandBuffer render();
 
   virtual void onWindowResize(GLFWwindow* window, glm::uvec2 newSize);
@@ -52,6 +52,13 @@ protected:
   std::vector<Texture2DHandle> mPostProcessingColorAttachments;
   std::vector<FramebufferHandle> mPostProcessingFramebuffers;
 
+private:
   SceneRenderMode mSceneRenderMode = SceneRenderMode::Full;
   bool mbDebugVisualiseVertexNormals = false;
+  bool mbDrawSceneBoundingBoxes = false;
+
+  entt::entity mViewFrustum = entt::null;
+  bool mbDrawViewFrustum = false;
+  bool mbDrawDirectionalLightsViewFrusta = false;
+  bool mbViewFrustumFollowsMainView = true;
 };

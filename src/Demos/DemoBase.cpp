@@ -31,12 +31,16 @@ Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const
   if (!mScene.ecs.all_of<CompTransform>(mMainCamera)) {
     mScene.ecs.emplace<CompTransform>(mMainCamera, CompTransform {
       .translation = glm::vec3(0.0f, 0.0f, 10.0f),
-      .rotation = Rotation(0.0f, -90.0f, 0.0f),
+      .rotation = Rotation(0.0f, 180.0f, 0.0f),
     });
   }
   if (!mScene.ecs.all_of<CompCamera>(mMainCamera)) {
     mScene.ecs.emplace<CompCamera>(mMainCamera);
   }
+
+  mViewFrustum = mScene.ecs.create();
+  mScene.ecs.emplace<CompName>(mViewFrustum, "View frustum");
+  mScene.ecs.emplace<CompTransform>(mViewFrustum);
 
   mMainViewColorAttachment = renderer->createEmptyTexture2D();
   mMainViewColorAttachment->allocate(glm::uvec2(1), GL_RGBA16);
@@ -91,6 +95,14 @@ Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const
   return {};
 }
 
+void DemoBase::update(double dt) {
+  if (mbViewFrustumFollowsMainView) {
+    mScene.ecs.patch<CompTransform>(mViewFrustum, [&](CompTransform& frustumTransform) {
+      frustumTransform = mScene.ecs.get<CompTransform>(mMainCamera);
+    });
+  }
+}
+
 CommandBuffer DemoBase::render() {
   CommandBuffer commandBuffer;
   commandBuffer.commands.reserve(mDirectionalLightShadowFramebuffers.size() +
@@ -120,18 +132,6 @@ CommandBuffer DemoBase::render() {
     }
   });
 
-  if (mbDebugVisualiseVertexNormals) {
-    commandBuffer.commands.emplace_back(CmdRenderPass {
-      .renderPass.dstFramebuffer = mMainViewFramebuffer,
-      .renderPass.pass = RenderPassScene {
-        .scene = &mScene,
-        .entityCamera = mMainCamera,
-        .mode = SceneRenderMode::VertexNormals,
-        .bClearFramebuffer = false,
-      },
-    });
-  }
-
   FramebufferHandle lastFramebuffer = mMainViewFramebuffer;
   for (auto [shaderIndex, framebuffer] : mPostProcessingFramebuffers | std::views::enumerate) {
     commandBuffer.commands.emplace_back(CmdRenderPass {
@@ -144,11 +144,54 @@ CommandBuffer DemoBase::render() {
     lastFramebuffer = framebuffer;
   }
 
+  if (mbDebugVisualiseVertexNormals) {
+    commandBuffer.commands.emplace_back(CmdRenderPass {
+      .renderPass.dstFramebuffer = mMainViewFramebuffer,
+      .renderPass.pass = RenderPassScene {
+        .scene = &mScene,
+        .entityCamera = mMainCamera,
+        .mode = SceneRenderMode::VertexNormals,
+        .bClearFramebuffer = false,
+      },
+    });
+  }
+
+  if (mbDrawSceneBoundingBoxes) {
+    constexpr auto boundingBoxColor = glm::vec3(1.0f, 1.0f, 0.0f);
+    const auto cmdDrawSceneBounds = CmdDrawDebugFrustum(Frustum::fromAABB(mScene.bounds()), boundingBoxColor);
+    commandBuffer.commands.emplace_back(cmdDrawSceneBounds);
+    for (const auto [enttGraphics, graphics, transform] : mScene.ecs.view<const CompGraphics, const CompTransform>().each()) {
+      for (const RenderData& renderData : graphics.renderData) {
+        const Frustum frustum = Frustum::fromAABB(renderData.mesh->boundingBox().transformed(transform.modelMatrix()));
+        commandBuffer.commands.emplace_back(CmdDrawDebugFrustum(frustum, boundingBoxColor));
+      }
+    }
+  }
+
+  if (mbDrawViewFrustum) {
+    const CompCamera& mainCamera = mScene.ecs.get<const CompCamera>(mMainCamera);
+    const CompTransform& frustumTransform = mScene.ecs.get<const CompTransform>(mViewFrustum);
+    const auto command = CmdDrawDebugFrustum(mainCamera.viewFrustumPerspective(frustumTransform), glm::vec3(0.0f, 1.0f, 0.0f));
+    commandBuffer.commands.push_back(command);
+  }
+
+  if (mbDrawDirectionalLightsViewFrusta) {
+    for (const auto [enttLight, lightTransform, light, lightCamera] : mScene.ecs.view<const CompTransform,
+                                                                                      const CompDirectionalLight,
+                                                                                      const CompCamera>().each())
+    {
+      const auto command = CmdDrawDebugFrustum(lightCamera.viewFrustumOrthographic(lightTransform), glm::vec3(1.0f, 0.0f, 0.0f));
+      commandBuffer.commands.push_back(command);
+    }
+  }
+
   return commandBuffer;
 }
 
 void DemoBase::onWindowResize(GLFWwindow*, const glm::uvec2 newSize) {
   mWindowSize = newSize;
+
+  mScene.ecs.get<CompCamera>(mMainCamera).screenSize = newSize;
 
   mMainViewColorAttachment->destroy();
   mMainViewColorAttachment->init();
@@ -207,6 +250,11 @@ void DemoBase::guiDebug() {
                  sceneRenderModeNames.data(), sceneRenderModeNames.size());
 
     ImGui::Checkbox("Draw vertex normals", &mbDebugVisualiseVertexNormals);
+    ImGui::Checkbox("Draw scene bounding boxes", &mbDrawSceneBoundingBoxes);
+    ImGui::Checkbox("Draw directional light view frusta", &mbDrawDirectionalLightsViewFrusta);
+    ImGui::Checkbox("Draw view frustum", &mbDrawViewFrustum);
+    ImGui::Checkbox("View frustum follows camera", &mbViewFrustumFollowsMainView);
+    ImGui::Checkbox("Directional lights follow camera", &mScene.ecs.get<CompSpectator>(mMainCamera).bDirectionalLightsFollowSpectator);
 
     ImGui::Unindent();
   }

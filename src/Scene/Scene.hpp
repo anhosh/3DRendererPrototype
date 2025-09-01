@@ -4,6 +4,7 @@
 #include <Graphics/Draw.hpp>
 #include <Graphics/Skybox.hpp>
 #include <Scene/Scene.hpp>
+
 #include <Util/Math/AABB.hpp>
 
 #include <entt/entity/registry.hpp>
@@ -24,6 +25,8 @@ public:
   void destroy();
   void prepareForRendering();
 
+  [[nodiscard]] AABB bounds() const { return mSceneBounds; }
+
   [[nodiscard]] DirectionalLightSourceBuffer createDirectionalLightBufferData() const;
   [[nodiscard]] PointLightSourceBuffer createPointLightBufferData() const;
   [[nodiscard]] SpotlightSourceBuffer createSpotlightBufferData() const;
@@ -43,19 +46,21 @@ private:
   void sortTransparentMeshes(entt::entity enttCamera);
   void sortOutlines();
 
-  void onConstructOutline(entt::registry& registry, entt::entity enttOutline);
-  static void onConstructDirectionalLight(entt::registry& registry, entt::entity enttLight);
-  static void onConstructPointLight(entt::registry& registry, entt::entity enttLight);
-  static void onConstructSpotlight(entt::registry& registry, entt::entity enttLight);
+  void onConstructGraphics(entt::registry&, entt::entity enttOutline);
+  void onConstructOutline(entt::registry&, entt::entity enttOutline);
+  void onConstructDirectionalLight(entt::registry&, entt::entity enttLight);
+  void onConstructPointLight(entt::registry&, entt::entity enttLight);
+  void onConstructSpotlight(entt::registry&, entt::entity enttLight);
+  void onConstructTransform(entt::registry&, entt::entity enttTransform);
 
-  void onDestroyOutline(entt::registry& registry, entt::entity enttOutline);
-  void onDestroyGraphics(entt::registry& registry, entt::entity enttGraphics);
+  void onDestroyGraphics(entt::registry&, entt::entity enttGraphics);
+  void onDestroyOutline(entt::registry&, entt::entity enttOutline);
 
-  static void onUpdateCamera(entt::registry& ecs, entt::entity enttCamera);
-  static void onUpdateDirectionalLight(entt::registry& ecs, entt::entity enttLight);
-  static void onUpdatePointLight(entt::registry& ecs, entt::entity enttLight);
-  static void onUpdateSpotlight(entt::registry& ecs, entt::entity enttLight);
-  static void onUpdateTransform(entt::registry& ecs, entt::entity enttTransform);
+  void onUpdateCamera(entt::registry&, entt::entity enttCamera);
+  void onUpdateDirectionalLight(entt::registry&, entt::entity enttLight);
+  void onUpdatePointLight(entt::registry&, entt::entity enttLight);
+  void onUpdateSpotlight(entt::registry&, entt::entity enttLight);
+  void onUpdateTransform(entt::registry&, entt::entity enttTransform);
 
 private:
   struct MeshDataReference {

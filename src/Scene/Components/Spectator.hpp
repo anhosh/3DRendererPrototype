@@ -1,3 +1,5 @@
 #pragma once
 
-struct CompSpectator {};
+struct CompSpectator {
+  bool bDirectionalLightsFollowSpectator = true;
+};

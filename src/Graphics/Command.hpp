@@ -6,6 +6,7 @@
 
 struct CmdDrawDebugFrustum {
   Frustum frustum;
+  glm::vec3 color;
 };
 
 struct CmdRenderPass {
