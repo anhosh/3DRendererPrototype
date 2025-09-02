@@ -450,7 +450,7 @@ void Scene::onUpdateTransform(entt::registry&, const entt::entity enttTransform)
 
     const glm::vec3 specPos = transform.translation;
     const glm::vec3 specDir = transform.forward();
-    const glm::vec3 midpoint = specPos + specDir * (camera->near + camera->far) * 0.5f;
+    const glm::vec3 midpoint = specPos + specDir * (camera->clipBox.min.z + camera->clipBox.max.z) * 0.5f;
 
     for (auto [enttLight, light, lightTransform, lightCamera] : ecs.view<const CompDirectionalLight, CompTransform, CompCamera>().each()) {
       lightTransform.translation = midpoint;
@@ -466,7 +466,7 @@ void Scene::onUpdateTransform(entt::registry&, const entt::entity enttTransform)
       std::vector<float> clippedSceneBoundsDepths;
       clippedSceneBoundsDepths.reserve(16);
       for (const Triangle& triangle : sceneBoundsTrianglesLightSpace) {
-        const std::vector<Triangle> clippedTriangles = clipTriangleToRectanglePlanes(triangle, lightCamera.screenBounds);
+        const std::vector<Triangle> clippedTriangles = clipTriangleToRectanglePlanes(triangle, lightCamera.screenBounds());
         for (const Triangle& clippedTriangle : clippedTriangles) {
           for (const glm::vec3 point : clippedTriangle.points) {
             clippedSceneBoundsDepths.push_back(point.z);

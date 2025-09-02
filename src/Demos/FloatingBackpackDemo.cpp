@@ -58,9 +58,6 @@ Expected<void> FloatingBackpackDemo::init(const std::shared_ptr<AssetManager>& a
   );
 
   // Create scene
-  mMainCamera = mScene.ecs.create();
-  mScene.ecs.emplace<CompCamera>(mMainCamera, CompCamera { .far = 50.0f });
-
   mScene.skybox = Skybox {
     .cubeMesh = renderer->addMesh(skyboxCubeMesh),
     .texture = skyboxTexture,

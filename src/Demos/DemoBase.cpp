@@ -25,6 +25,9 @@ Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const
   if (!mScene.ecs.all_of<CompName>(mMainCamera)) {
     mScene.ecs.emplace<CompName>(mMainCamera, "Main camera");
   }
+  if (!mScene.ecs.all_of<CompCamera>(mMainCamera)) {
+    mScene.ecs.emplace<CompCamera>(mMainCamera);
+  }
   if (!mScene.ecs.all_of<CompSpectator>(mMainCamera)) {
     mScene.ecs.emplace<CompSpectator>(mMainCamera);
   }
@@ -33,9 +36,6 @@ Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const
       .translation = glm::vec3(0.0f, 0.0f, 10.0f),
       .rotation = Rotation(0.0f, 180.0f, 0.0f),
     });
-  }
-  if (!mScene.ecs.all_of<CompCamera>(mMainCamera)) {
-    mScene.ecs.emplace<CompCamera>(mMainCamera);
   }
 
   mViewFrustum = mScene.ecs.create();
@@ -191,10 +191,11 @@ CommandBuffer DemoBase::render() {
 void DemoBase::onWindowResize(GLFWwindow*, const glm::uvec2 newSize) {
   mWindowSize = newSize;
 
-  mScene.ecs.get<CompCamera>(mMainCamera).screenBounds = {
-    .min = glm::vec2(newSize) * -0.5f,
-    .max = glm::vec2(newSize) * 0.5f,
-  };
+  auto& [clipBox, fov] = mScene.ecs.get<CompCamera>(mMainCamera);
+  clipBox.min.x = static_cast<float>(newSize.x) * -0.5f;
+  clipBox.min.y = static_cast<float>(newSize.y) * -0.5f;
+  clipBox.max.x = static_cast<float>(newSize.x) * 0.5f;
+  clipBox.max.y = static_cast<float>(newSize.y) * 0.5f;
 
   mMainViewColorAttachment->destroy();
   mMainViewColorAttachment->init();
@@ -290,8 +291,8 @@ void DemoBase::guiActors() {
           ImGui::Text("Camera");
 
           ImGui::DragFloat("FOV", &camera->fov, 0.1f, 10.0f, 120.0f);
-          ImGui::DragFloat("Near", &camera->near, 0.01f, 0.01f, 10.0f);
-          ImGui::DragFloat("Far", &camera->far, 0.01f, 10.0f, 1000.0f);
+          ImGui::DragFloat("Near", &camera->clipBox.min.z, 0.01f, 0.01f, 10.0f);
+          ImGui::DragFloat("Far", &camera->clipBox.max.z, 0.01f, 10.0f, 1000.0f);
 
           ImGui::Separator();
         }

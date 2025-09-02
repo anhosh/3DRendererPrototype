@@ -29,22 +29,22 @@ std::array<Triangle, 12> AABB::triangulated(const glm::mat4& transform) const {
   return {
     // left
     Triangle { leftTopFront, leftTopBack, leftBottomFront },
-    Triangle { leftTopBack, leftBottomBack, leftBottomFront },
+    Triangle { leftTopBack, leftBottomFront, leftBottomBack },
     // right
     Triangle { rightTopBack, rightTopFront, rightBottomBack },
-    Triangle { rightTopFront, rightBottomFront, rightBottomBack },
+    Triangle { rightTopFront, rightBottomBack, rightBottomFront },
     // top
     Triangle { rightTopBack, leftTopBack, rightTopFront },
-    Triangle { leftTopBack, leftTopFront, rightTopFront },
+    Triangle { leftTopBack, rightTopFront, leftTopFront },
     // bottom
     Triangle { rightBottomFront, leftBottomFront, rightBottomBack },
-    Triangle { leftBottomFront, leftBottomBack, rightBottomBack },
+    Triangle { leftBottomFront, rightBottomBack, leftBottomBack },
     // front
     Triangle { rightTopFront, leftTopFront, rightBottomFront },
-    Triangle { leftTopFront, leftBottomFront, rightBottomFront },
+    Triangle { leftTopFront, rightBottomFront, leftBottomFront },
     // back
     Triangle { leftTopBack, rightTopBack, leftBottomBack },
-    Triangle { rightTopBack, rightBottomBack, leftBottomBack },
+    Triangle { rightTopBack, leftBottomBack, rightBottomBack },
   };
 }
 

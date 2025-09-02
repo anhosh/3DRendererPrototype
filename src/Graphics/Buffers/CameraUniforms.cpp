@@ -12,8 +12,8 @@ CameraUniforms CameraUniforms::fromPerspective(const CompCamera& camera, const C
     .view = transform.viewMatrix(),
     .projection = camera.perspective(),
     .position = transform.translation,
-    .near = camera.near,
-    .far = camera.far,
+    .near = camera.clipBox.min.z,
+    .far = camera.clipBox.max.z,
   };
 }
 
@@ -24,8 +24,8 @@ CameraUniforms CameraUniforms::fromOrthographic(const CompCamera& camera, const 
     .view = transform.viewMatrix(),
     .projection = camera.orthographic(),
     .position = transform.translation,
-    .near = camera.near,
-    .far = camera.far,
+    .near = camera.clipBox.min.z,
+    .far = camera.clipBox.max.z,
   };
 }
 
