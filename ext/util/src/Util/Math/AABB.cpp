@@ -7,6 +7,10 @@
 #include <array>
 #include <ranges>
 
+glm::vec3 AABB::center() const {
+  return (min + max) * 0.5f;
+}
+
 std::array<glm::vec3, 8> AABB::vertices(const glm::mat4& transform) const {
   return {
     transform * glm::vec4(min.x, min.y, min.z, 1.0f),

@@ -18,4 +18,5 @@ struct Frustum {
 
   [[nodiscard]] Frustum transform(const glm::mat4& transform) const;
   [[nodiscard]] std::array<glm::vec3, 8> asArray() const;
+  [[nodiscard]] AABB bounds() const;
 };

@@ -18,9 +18,11 @@ Frustum CompCamera::viewFrustumPerspective(const CompTransform& viewTransform) c
   const glm::vec3 lookDirection = viewTransform.forward();
   const glm::vec3 upDirection = viewTransform.up();
   const glm::vec3 rightDirection = viewTransform.right();
+
+  const float tanHalfFov = glm::tan(glm::radians(fov * 0.5f));
+  const float nearHeight = tanHalfFov * clipBox.min.z;
+  const float farHeight = tanHalfFov * clipBox.max.z;
   const float aspect = clipBox.width() / clipBox.height();
-  const float nearHeight = glm::tan(glm::radians(fov)) * clipBox.min.z;
-  const float farHeight = glm::tan(glm::radians(fov)) * clipBox.max.z;
   const float nearWidth = aspect * nearHeight;
   const float farWidth = aspect * farHeight;
 

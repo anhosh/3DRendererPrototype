@@ -280,9 +280,14 @@ void DemoBase::guiActors() {
         if (CompTransform* transform = mScene.ecs.try_get<CompTransform>(entity)) {
           ImGui::Text("Transform");
 
-          ImGui::DragFloat3(("Translation##" + name.name).c_str(), glm::value_ptr(transform->translation), 0.01f);
-          ImGui::DragFloat3(("Rotation##" + name.name).c_str(), transform->rotation.asFloatPtr(), 0.01f);
-          ImGui::DragFloat3(("Scale##" + name.name).c_str(), glm::value_ptr(transform->scale), 0.01f);
+          bool bChanged = false;
+          bChanged |= ImGui::DragFloat3(("Translation##" + name.name).c_str(), glm::value_ptr(transform->translation), 0.01f);
+          bChanged |= ImGui::DragFloat3(("Rotation##" + name.name).c_str(), transform->rotation.asFloatPtr(), 0.01f);
+          bChanged |= ImGui::DragFloat3(("Scale##" + name.name).c_str(), glm::value_ptr(transform->scale), 0.01f);
+
+          if (bChanged) {
+            mScene.ecs.patch<CompTransform>(entity);
+          }
 
           ImGui::Separator();
         }
@@ -290,9 +295,14 @@ void DemoBase::guiActors() {
         if (CompCamera* camera = mScene.ecs.try_get<CompCamera>(entity)) {
           ImGui::Text("Camera");
 
-          ImGui::DragFloat("FOV", &camera->fov, 0.1f, 10.0f, 120.0f);
-          ImGui::DragFloat("Near", &camera->clipBox.min.z, 0.01f, 0.01f, 10.0f);
-          ImGui::DragFloat("Far", &camera->clipBox.max.z, 0.01f, 10.0f, 1000.0f);
+          bool bChanged = false;
+          bChanged |= ImGui::DragFloat("FOV", &camera->fov, 0.1f, 10.0f, 120.0f);
+          bChanged |= ImGui::DragFloat("Near", &camera->clipBox.min.z, 0.01f, 0.01f, 10.0f);
+          bChanged |= ImGui::DragFloat("Far", &camera->clipBox.max.z, 0.01f, 10.0f, 1000.0f);
+
+          if (bChanged) {
+            mScene.ecs.patch<CompTransform>(entity);
+          }
 
           ImGui::Separator();
         }

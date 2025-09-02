@@ -10,6 +10,7 @@ struct AABB {
   [[nodiscard]] float height() const { return max.y - min.y; }
   [[nodiscard]] float depth() const { return max.z - min.z; }
   [[nodiscard]] glm::vec3 size() const { return max - min; }
+  [[nodiscard]] glm::vec3 center() const;
   [[nodiscard]] std::array<glm::vec3, 8> vertices(const glm::mat4& transform = glm::mat4(1.0f)) const;
   [[nodiscard]] std::array<Triangle, 12> triangulated(const glm::mat4& transform = glm::mat4(1.0f)) const;
 

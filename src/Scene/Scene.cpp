@@ -447,14 +447,7 @@ void Scene::onUpdateTransform(entt::registry&, const entt::entity enttTransform)
       spectator && camera && spectator->bDirectionalLightsFollowSpectator)
   {
     const Frustum frustum = camera->viewFrustumPerspective(transform);
-
-    const glm::vec3 specPos = transform.translation;
-    const glm::vec3 specDir = transform.forward();
-    const glm::vec3 midpoint = specPos + specDir * (camera->clipBox.min.z + camera->clipBox.max.z) * 0.5f;
-
     for (auto [enttLight, light, lightTransform, lightCamera] : ecs.view<const CompDirectionalLight, CompTransform, CompCamera>().each()) {
-      lightTransform.translation = midpoint;
-
       const glm::mat4 lightView = lightTransform.viewMatrix();
       const std::array<glm::vec3, 8> viewFrustumPointsLightSpace = frustum.transform(lightView).asArray();
       const std::array<Triangle, 12> sceneBoundsTrianglesLightSpace = mSceneBounds.triangulated(lightView);

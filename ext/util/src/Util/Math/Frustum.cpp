@@ -40,3 +40,11 @@ std::array<glm::vec3, 8> Frustum::asArray() const {
     nearTopRight,
   };
 }
+
+AABB Frustum::bounds() const {
+  AABB box;
+  for (const glm::vec3 point : this->asArray()) {
+    box.includePoint(point);
+  }
+  return box;
+}
