@@ -382,17 +382,12 @@ void Scene::onUpdateDirectionalLight(entt::registry&, const entt::entity enttLig
 
   const CompDirectionalLight& light = ecs.get<const CompDirectionalLight>(enttLight);
 
-  const glm::vec3 lightDirection = glm::normalize(light.direction);
-  const glm::vec3 lookAt = [&] {
-    for (auto [enttSpectator, spectator, transform, camera] : ecs.view<CompSpectator, const CompTransform, const CompCamera>().each()) {
-      return transform.translation + transform.forward() * (camera.near + camera.far) * 0.5f;
-    }
-    return glm::vec3(0.0f);
-  }();
-  ecs.emplace_or_replace<CompTransform>(enttLight, CompTransform {
-    .translation = lookAt - lightDirection * 50.0f,
-    .rotation = Rotation::fromDirection(lightDirection),
-  });
+  const Rotation lightRotation = Rotation::fromDirection(light.direction);
+  if (CompTransform* transform = ecs.try_get<CompTransform>(enttLight)) {
+    transform->rotation = lightRotation;
+  } else {
+    ecs.emplace<CompTransform>(enttLight, CompTransform { .rotation = lightRotation });
+  }
 
   if (CompGraphics* graphics = ecs.try_get<CompGraphics>(enttLight)) {
     for (RenderData& renderData : graphics->renderData) {
@@ -451,38 +446,38 @@ void Scene::onUpdateTransform(entt::registry&, const entt::entity enttTransform)
   if (const auto [spectator, camera] = ecs.try_get<const CompSpectator, const CompCamera>(enttTransform);
       spectator && camera && spectator->bDirectionalLightsFollowSpectator)
   {
-    if (spectator->bDirectionalLightsFollowSpectator) {
-      const Frustum frustum = camera->viewFrustumPerspective(transform);
+    const Frustum frustum = camera->viewFrustumPerspective(transform);
 
-      const glm::vec3 specPos = transform.translation;
-      const glm::vec3 specDir = transform.forward();
-      const glm::vec3 midpoint = specPos + specDir * (camera->near + camera->far) * 0.5f;
+    const glm::vec3 specPos = transform.translation;
+    const glm::vec3 specDir = transform.forward();
+    const glm::vec3 midpoint = specPos + specDir * (camera->near + camera->far) * 0.5f;
 
-      for (auto [_, light, lightTransform, lightCamera] : ecs.view<const CompDirectionalLight, CompTransform, CompCamera>().each()) {
-        lightTransform.translation = midpoint;
+    for (auto [enttLight, light, lightTransform, lightCamera] : ecs.view<const CompDirectionalLight, CompTransform, CompCamera>().each()) {
+      lightTransform.translation = midpoint;
 
-        const glm::mat4 lightView = lightTransform.viewMatrix();
-        const std::array<glm::vec3, 8> viewFrustumPointsLightSpace = frustum.transform(lightView).asArray();
-        const std::array<Triangle, 12> sceneBoundsTrianglesLightSpace = mSceneBounds.triangulated(lightView);
+      const glm::mat4 lightView = lightTransform.viewMatrix();
+      const std::array<glm::vec3, 8> viewFrustumPointsLightSpace = frustum.transform(lightView).asArray();
+      const std::array<Triangle, 12> sceneBoundsTrianglesLightSpace = mSceneBounds.triangulated(lightView);
 
-        const auto [minX, maxX] = std::ranges::minmax(viewFrustumPointsLightSpace, vecXLess<3, float>);
-        const auto [minY, maxY] = std::ranges::minmax(viewFrustumPointsLightSpace, vecYLess<3, float>);
-        lightCamera.screenSize = { maxX.x - minX.x, maxY.y - minY.y };
+      const auto [minX, maxX] = std::ranges::minmax(viewFrustumPointsLightSpace, vecXLess<3, float>);
+      const auto [minY, maxY] = std::ranges::minmax(viewFrustumPointsLightSpace, vecYLess<3, float>);
+      lightCamera.clipBox = { { minX.x, minY.y, 0.0f }, { maxX.x, maxY.y, glm::epsilon<float>() } };
 
-        const Rectangle lightViewRect = { .min = { minX.x, minY.y }, .max = { maxX.x, maxY.y } };
-        std::vector<float> clippedSceneBoundsDepths;
-        clippedSceneBoundsDepths.reserve(16);
-        for (const Triangle& triangle : sceneBoundsTrianglesLightSpace) {
-          const std::basic_string<Triangle> clippedTriangles = clipTriangleToRectanglePlanes(triangle, lightViewRect);
-          for (const Triangle& clippedTriangle : clippedTriangles) {
-            for (const glm::vec3 point : clippedTriangle.points) {
-              clippedSceneBoundsDepths.push_back(point.z);
-            }
+      std::vector<float> clippedSceneBoundsDepths;
+      clippedSceneBoundsDepths.reserve(16);
+      for (const Triangle& triangle : sceneBoundsTrianglesLightSpace) {
+        const std::vector<Triangle> clippedTriangles = clipTriangleToRectanglePlanes(triangle, lightCamera.screenBounds);
+        for (const Triangle& clippedTriangle : clippedTriangles) {
+          for (const glm::vec3 point : clippedTriangle.points) {
+            clippedSceneBoundsDepths.push_back(point.z);
           }
         }
+      }
+
+      if (!clippedSceneBoundsDepths.empty()) {
         const auto [minZ, maxZ] = std::ranges::minmax(clippedSceneBoundsDepths);
-        lightCamera.near = minZ;
-        lightCamera.far = maxZ;
+        lightCamera.clipBox.min.z = minZ;
+        lightCamera.clipBox.max.z = maxZ;
       }
     }
   }

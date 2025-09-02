@@ -191,7 +191,10 @@ CommandBuffer DemoBase::render() {
 void DemoBase::onWindowResize(GLFWwindow*, const glm::uvec2 newSize) {
   mWindowSize = newSize;
 
-  mScene.ecs.get<CompCamera>(mMainCamera).screenSize = newSize;
+  mScene.ecs.get<CompCamera>(mMainCamera).screenBounds = {
+    .min = glm::vec2(newSize) * -0.5f,
+    .max = glm::vec2(newSize) * 0.5f,
+  };
 
   mMainViewColorAttachment->destroy();
   mMainViewColorAttachment->init();

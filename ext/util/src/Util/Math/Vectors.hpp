@@ -1,4 +1,5 @@
 #pragma once
+
 #include <Util/Macros/Errors.hpp>
 
 inline constexpr glm::vec3 DIRECTION_RIGHT   = { 1.0f, 0.0f, 0.0f };

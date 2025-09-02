@@ -46,6 +46,8 @@ private:
   void sortTransparentMeshes(entt::entity enttCamera);
   void sortOutlines();
 
+  void updateDirectionalLightViews();
+
   void onConstructGraphics(entt::registry&, entt::entity enttOutline);
   void onConstructOutline(entt::registry&, entt::entity enttOutline);
   void onConstructDirectionalLight(entt::registry&, entt::entity enttLight);

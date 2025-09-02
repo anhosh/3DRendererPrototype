@@ -7,6 +7,12 @@
 #include <Util/Math/Vectors.hpp>
 
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/generators/catch_generators.hpp>
+#include <catch2/matchers/catch_matchers.hpp>
+#include <catch2/matchers/catch_matchers_container_properties.hpp>
+#include <catch2/matchers/catch_matchers_vector.hpp>
+
+using namespace Catch::Matchers;
 
 TEST_CASE("Segment-line intersections") {
   SECTION("Intersections of axes at origin") {
@@ -14,149 +20,155 @@ TEST_CASE("Segment-line intersections") {
     constexpr LineSegment3D yAxis = { -DIRECTION_UP, DIRECTION_UP };
     constexpr LineSegment3D zAxis = { -DIRECTION_FORWARD, DIRECTION_FORWARD };
 
-    REQUIRE(segmentIntersectionYZ(xAxis, 0.0f) == glm::vec3(0.0f));
-    REQUIRE(segmentIntersectionXZ(yAxis, 0.0f) == glm::vec3(0.0f));
-    REQUIRE(segmentIntersectionXY(zAxis, 0.0f) == glm::vec3(0.0f));
+    CHECK(segmentIntersectionYZ(xAxis, 0.0f) == glm::vec3(0.0f));
+    CHECK(segmentIntersectionXZ(yAxis, 0.0f) == glm::vec3(0.0f));
+    CHECK(segmentIntersectionXY(zAxis, 0.0f) == glm::vec3(0.0f));
   }
 
   SECTION("Diagonal intersections") {
     constexpr LineSegment3D segment0 = { glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec3(1.0f, 3.0f, 0.0f) };
-    REQUIRE(segmentIntersectionXZ(segment0, -1.0f) == glm::vec3(-1.0f, -1.0f, 0.0f));
-    REQUIRE(segmentIntersectionXZ(segment0, 0.0f) == glm::vec3(-0.5f, 0.0f, 0.0f));
-    REQUIRE(segmentIntersectionXZ(segment0, 1.0f) == glm::vec3(0.0f, 1.0f, 0.0f));
-    REQUIRE(segmentIntersectionXZ(segment0, 2.0f) == glm::vec3(0.5f, 2.0f, 0.0f));
-    REQUIRE(segmentIntersectionXZ(segment0, 3.0f) == glm::vec3(1.0f, 3.0f, 0.0f));
+    CHECK(segmentIntersectionXZ(segment0, -1.0f) == glm::vec3(-1.0f, -1.0f, 0.0f));
+    CHECK(segmentIntersectionXZ(segment0, 0.0f) == glm::vec3(-0.5f, 0.0f, 0.0f));
+    CHECK(segmentIntersectionXZ(segment0, 1.0f) == glm::vec3(0.0f, 1.0f, 0.0f));
+    CHECK(segmentIntersectionXZ(segment0, 2.0f) == glm::vec3(0.5f, 2.0f, 0.0f));
+    CHECK(segmentIntersectionXZ(segment0, 3.0f) == glm::vec3(1.0f, 3.0f, 0.0f));
+    CHECK(segmentIntersectionXZ(segment0, 3.0f) == glm::vec3(1.0f, 3.0f, 0.0f));
 
     constexpr LineSegment3D segment1 = { glm::vec3(-1.0f, 0.0f, 0.0f), glm::vec3(1.0f, 2.0f, 0.0f) };
-    REQUIRE(segmentIntersectionYZ(segment1, -1.0f) == glm::vec3(-1.0f, 0.0f, 0.0f));
-    REQUIRE(segmentIntersectionYZ(segment1, -0.5f) == glm::vec3(-0.5f, 0.5f, 0.0f));
-    REQUIRE(segmentIntersectionYZ(segment1, 0.0f) == glm::vec3(0.0f, 1.0f, 0.0f));
-    REQUIRE(segmentIntersectionYZ(segment1, 0.5f) == glm::vec3(0.5f, 1.5f, 0.0f));
-    REQUIRE(segmentIntersectionYZ(segment1, 1.0f) == glm::vec3(1.0f, 2.0f, 0.0f));
+    CHECK(segmentIntersectionYZ(segment1, -1.0f) == glm::vec3(-1.0f, 0.0f, 0.0f));
+    CHECK(segmentIntersectionYZ(segment1, -0.5f) == glm::vec3(-0.5f, 0.5f, 0.0f));
+    CHECK(segmentIntersectionYZ(segment1, 0.0f) == glm::vec3(0.0f, 1.0f, 0.0f));
+    CHECK(segmentIntersectionYZ(segment1, 0.5f) == glm::vec3(0.5f, 1.5f, 0.0f));
+    CHECK(segmentIntersectionYZ(segment1, 1.0f) == glm::vec3(1.0f, 2.0f, 0.0f));
   }
 
   SECTION("No intersections") {
     constexpr LineSegment3D straySegment = { glm::vec3(-1.0f, -1.0f, -1.0f), glm::vec3(-0.5f, -0.5f, -0.5f) };
-    REQUIRE_FALSE(segmentIntersectionYZ(straySegment, 0.0f));
-    REQUIRE_FALSE(segmentIntersectionXZ(straySegment, 0.0f));
-    REQUIRE_FALSE(segmentIntersectionXY(straySegment, 0.0f));
+    CHECK_FALSE(segmentIntersectionYZ(straySegment, 0.0f));
+    CHECK_FALSE(segmentIntersectionXZ(straySegment, 0.0f));
+    CHECK_FALSE(segmentIntersectionXY(straySegment, 0.0f));
   }
 }
 
 TEST_CASE("Triangle-plane clipping") {
   SECTION("Above plane") {
     constexpr Triangle allAbove = { glm::vec3(1.0f, 1.0f, 0.5f), glm::vec3(2.0f, 1.25f, 1.5f), glm::vec3(3.75f, 0.5f, -4.0f) };
-    REQUIRE(clipTriangleAbovePlane(allAbove, 0.0f) == std::basic_string<Triangle> { allAbove });
+    CHECK_THAT(clipTriangleAbovePlane(allAbove, 0.0f), UnorderedEquals(std::vector { allAbove }));
 
     constexpr Triangle twoPointsAbove = { glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec3(-1.0f, 1.0f, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f) };
-    REQUIRE(clipTriangleAbovePlane(twoPointsAbove, 0.0f) == std::basic_string<Triangle> {
+    CHECK_THAT(clipTriangleAbovePlane(twoPointsAbove, 0.0f), UnorderedEquals(std::vector {
       Triangle { glm::vec3(-1.0f, 0.0f, 0.0f), glm::vec3(-1.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f) },
       Triangle { glm::vec3(-1.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f) }
-    });
+    }));
 
     constexpr Triangle onePointAbove = { glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f), glm::vec3(1.0f, -1.0f, 0.0f) };
-    REQUIRE(clipTriangleAbovePlane(onePointAbove, 0.0f) == std::basic_string<Triangle> {
+    CHECK_THAT(clipTriangleAbovePlane(onePointAbove, 0.0f), UnorderedEquals(std::vector {
       Triangle { glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f), glm::vec3(1.0f, 0.0f, 0.0f) },
-    });
+    }));
 
     constexpr Triangle noneAbove = { glm::vec3(1.0f, -1.0f, 0.5f), glm::vec3(2.0f, -1.25f, 1.5f), glm::vec3(3.75f, -0.5f, -4.0f) };
-    REQUIRE(clipTriangleAbovePlane(noneAbove, 0.0f) == std::basic_string<Triangle> {});
+    CHECK_THAT(clipTriangleAbovePlane(noneAbove, 0.0f), IsEmpty());
   }
 
   SECTION("Below plane") {
     constexpr Triangle allBelow = { glm::vec3(1.0f, -1.0f, 0.5f), glm::vec3(2.0f, -1.25f, 1.5f), glm::vec3(3.75f, -0.5f, -4.0f) };
-    REQUIRE(clipTriangleBelowPlane(allBelow, 0.0f) == std::basic_string<Triangle> { allBelow });
+    CHECK_THAT(clipTriangleBelowPlane(allBelow, 0.0f), UnorderedEquals(std::vector { allBelow }));
 
     constexpr Triangle twoPointsBelow = { glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f), glm::vec3(1.0f, -1.0f, 0.0f) };
-    REQUIRE(clipTriangleBelowPlane(twoPointsBelow, 0.0f) == std::basic_string<Triangle> {
+    CHECK_THAT(clipTriangleBelowPlane(twoPointsBelow, 0.0f), UnorderedEquals(std::vector {
       Triangle { glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 0.0f, 0.0f) },
       Triangle { glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(1.0f, -1.0f, 0.0f) },
-    });
+    }));
 
     constexpr Triangle onePointBelow = { glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec3(-1.0f, 1.0f, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f) };
-    REQUIRE(clipTriangleBelowPlane(onePointBelow, 0.0f) == std::basic_string<Triangle> {
+    CHECK_THAT(clipTriangleBelowPlane(onePointBelow, 0.0f), UnorderedEquals(std::vector {
       Triangle { glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec3(-1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f) },
-    });
+    }));
 
     constexpr Triangle noneBelow = { glm::vec3(1.0f, 1.0f, 0.5f), glm::vec3(2.0f, 1.25f, 1.5f), glm::vec3(3.75f, 0.5f, -4.0f) };
-    REQUIRE(clipTriangleBelowPlane(noneBelow, 0.0f) == std::basic_string<Triangle> {});
+    CHECK_THAT(clipTriangleBelowPlane(noneBelow, 0.0f), IsEmpty());
   }
 
   SECTION("Right of plane") {
     constexpr Triangle allRightOf = { glm::vec3(1.0f, 1.0f, 0.5f), glm::vec3(1.25f, 2.0f, 1.5f), glm::vec3(0.5f, 3.75f, -4.0f) };
-    REQUIRE(clipTriangleRightOfPlane(allRightOf, 0.0f) == std::basic_string<Triangle> { allRightOf });
+    CHECK_THAT(clipTriangleRightOfPlane(allRightOf, 0.0f), UnorderedEquals(std::vector { allRightOf }));
 
     constexpr Triangle twoPointsRightOf = { glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec3(1.0f, -1.0f, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f) };
-    REQUIRE(clipTriangleRightOfPlane(twoPointsRightOf, 0.0f) == std::basic_string<Triangle> {
+    CHECK_THAT(clipTriangleRightOfPlane(twoPointsRightOf, 0.0f), UnorderedEquals(std::vector {
       Triangle { glm::vec3(0.0f, -1.0f, 0.0f), glm::vec3(1.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f) },
       Triangle { glm::vec3(1.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f) },
-    });
+    }));
 
     constexpr Triangle onePointRightOf = { glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f), glm::vec3(-1.0f, 1.0f, 0.0f) };
-    REQUIRE(clipTriangleRightOfPlane(onePointRightOf, 0.0f) == std::basic_string<Triangle> {
+    CHECK_THAT(clipTriangleRightOfPlane(onePointRightOf, 0.0f), UnorderedEquals(std::vector {
       Triangle { glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f) },
-    });
+    }));
 
     constexpr Triangle noneRightOf = { glm::vec3(-1.0f, 1.0f, 0.5f), glm::vec3(-1.25f, 2.0f, 1.5f), glm::vec3(-0.5f, 3.75f, -4.0f) };
-    REQUIRE(clipTriangleRightOfPlane(noneRightOf, 0.0f) == std::basic_string<Triangle> {});
+    CHECK_THAT(clipTriangleRightOfPlane(noneRightOf, 0.0f), IsEmpty());
   }
 
   SECTION("Left of plane") {
     constexpr Triangle allLeftOf = { glm::vec3(-1.0f, 1.0f, 0.5f), glm::vec3(-1.25f, 2.0f, 1.5f), glm::vec3(-0.5f, 3.75f, -4.0f) };
-    REQUIRE(clipTriangleLeftOfPlane(allLeftOf, 0.0f) == std::basic_string<Triangle> { allLeftOf });
+    CHECK_THAT(clipTriangleLeftOfPlane(allLeftOf, 0.0f), UnorderedEquals(std::vector { allLeftOf }));
 
     constexpr Triangle twoPointsLeftOf = { glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f), glm::vec3(-1.0f, 1.0f, 0.0f) };
-    REQUIRE(clipTriangleLeftOfPlane(twoPointsLeftOf, 0.0f) == std::basic_string<Triangle> {
+    CHECK_THAT(clipTriangleLeftOfPlane(twoPointsLeftOf, 0.0f), UnorderedEquals(std::vector {
       Triangle { glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f) },
       Triangle { glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(-1.0f, 1.0f, 0.0f) },
-    });
+    }));
 
     constexpr Triangle onePointLeftOf = { glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec3(1.0f, -1.0f, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f) };
-    REQUIRE(clipTriangleLeftOfPlane(onePointLeftOf, 0.0f) == std::basic_string<Triangle> {
+    CHECK_THAT(clipTriangleLeftOfPlane(onePointLeftOf, 0.0f), UnorderedEquals(std::vector {
       Triangle { glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f) },
-    });
+    }));
 
     constexpr Triangle noneLeftOf = { glm::vec3(1.0f, 1.0f, 0.5f), glm::vec3(1.25f, 2.0f, 1.5f), glm::vec3(0.5f, 3.75f, -4.0f) };
-    REQUIRE(clipTriangleLeftOfPlane(noneLeftOf, 0.0f) == std::basic_string<Triangle> {});
+    CHECK_THAT(clipTriangleLeftOfPlane(noneLeftOf, 0.0f), IsEmpty());
   }
 }
 
 TEST_CASE("Triangle-rectangle clipping") {
   SECTION("All outside") {
-    constexpr Rectangle rectangle  = { .min = glm::vec2(-1.0f), .max = glm::vec2(1.0f) };
-    constexpr Triangle top         = { glm::vec3(-0.5f, 2.0f, 0.0f),  glm::vec3(-0.5f, 1.5f, 0.0f),  glm::vec3(0.5f, 2.0f, 0.0f)   };
-    constexpr Triangle bottom      = { glm::vec3(-0.5f, -2.0f, 0.0f), glm::vec3(-0.5f, -1.5f, 0.0f), glm::vec3(0.5f, -2.0f, 0.0f)  };
-    constexpr Triangle right       = { glm::vec3(2.0f, -0.5f, 0.0f),  glm::vec3(1.5f, -0.5f, 0.0f),  glm::vec3(2.0f, 0.5f, 0.0f)   };
-    constexpr Triangle left        = { glm::vec3(-2.0f, -0.5f, 0.0f), glm::vec3(-1.5f, -0.5f, 0.0f), glm::vec3(-2.0f, 0.5f, 0.0f)  };
-    constexpr Triangle topLeft     = { glm::vec3(-2.0f, 2.0f, 0.0f),  glm::vec3(-2.0f, 1.5f, 0.0f),  glm::vec3(-1.5f, 2.0f, 0.0f)  };
-    constexpr Triangle bottomLeft  = { glm::vec3(-2.0f, -2.0f, 0.0f), glm::vec3(-2.0f, -1.5f, 0.0f), glm::vec3(-1.5f, -2.0f, 0.0f) };
-    constexpr Triangle topRight    = { glm::vec3(2.0f, 2.0f, 0.0f),   glm::vec3(2.0f, 1.5f, 0.0f),   glm::vec3(1.5f, 2.0f, 0.0f)   };
-    constexpr Triangle bottomRight = { glm::vec3(2.0f, -2.0f, 0.0f),  glm::vec3(2.0f, -1.5f, 0.0f),  glm::vec3(1.5f, -2.0f, 0.0f)  };
-    REQUIRE(clipTriangleToRectanglePlanes(top, rectangle) == std::basic_string<Triangle> {});
-    REQUIRE(clipTriangleToRectanglePlanes(bottom, rectangle) == std::basic_string<Triangle> {});
-    REQUIRE(clipTriangleToRectanglePlanes(right, rectangle) == std::basic_string<Triangle> {});
-    REQUIRE(clipTriangleToRectanglePlanes(left, rectangle) == std::basic_string<Triangle> {});
-    REQUIRE(clipTriangleToRectanglePlanes(topLeft, rectangle) == std::basic_string<Triangle> {});
-    REQUIRE(clipTriangleToRectanglePlanes(bottomLeft, rectangle) == std::basic_string<Triangle> {});
-    REQUIRE(clipTriangleToRectanglePlanes(topRight, rectangle) == std::basic_string<Triangle> {});
-    REQUIRE(clipTriangleToRectanglePlanes(bottomRight, rectangle) == std::basic_string<Triangle> {});
+    constexpr Rectangle rectangle = { .min = glm::vec2(-1.0f), .max = glm::vec2(1.0f) };
+    const auto triangles = GENERATE(
+      Triangle { glm::vec3(-0.5f, 2.0f, 0.0f),  glm::vec3(-0.5f, 1.5f, 0.0f),  glm::vec3(0.5f, 2.0f, 0.0f)   },
+      Triangle { glm::vec3(-0.5f, -2.0f, 0.0f), glm::vec3(-0.5f, -1.5f, 0.0f), glm::vec3(0.5f, -2.0f, 0.0f)  },
+      Triangle { glm::vec3(2.0f, -0.5f, 0.0f),  glm::vec3(1.5f, -0.5f, 0.0f),  glm::vec3(2.0f, 0.5f, 0.0f)   },
+      Triangle { glm::vec3(-2.0f, -0.5f, 0.0f), glm::vec3(-1.5f, -0.5f, 0.0f), glm::vec3(-2.0f, 0.5f, 0.0f)  },
+      Triangle { glm::vec3(-2.0f, 2.0f, 0.0f),  glm::vec3(-2.0f, 1.5f, 0.0f),  glm::vec3(-1.5f, 2.0f, 0.0f)  },
+      Triangle { glm::vec3(-2.0f, -2.0f, 0.0f), glm::vec3(-2.0f, -1.5f, 0.0f), glm::vec3(-1.5f, -2.0f, 0.0f) },
+      Triangle { glm::vec3(2.0f, 2.0f, 0.0f),   glm::vec3(2.0f, 1.5f, 0.0f),   glm::vec3(1.5f, 2.0f, 0.0f)   },
+      Triangle { glm::vec3(2.0f, -2.0f, 0.0f),  glm::vec3(2.0f, -1.5f, 0.0f),  glm::vec3(1.5f, -2.0f, 0.0f)  }
+    );
+    CHECK_THAT(clipTriangleToRectanglePlanes(triangles, rectangle), IsEmpty());
   }
 
   SECTION("All inside") {
     constexpr Rectangle rectangle = { .min = glm::vec2(-1.0f), .max = glm::vec2(1.0f) };
-    constexpr Triangle fullyIn = { glm::vec3(-0.5f, -0.5f, 0.0f), glm::vec3(0.5f, -0.5f, 0.0f), glm::vec3(0.0f, 0.5f, 0.0f) };
-    constexpr Triangle edgeOnEdge = { glm::vec3(-1.0f, -0.5f, 0.0f), glm::vec3(-1.0f, 0.5f, 0.0f), glm::vec3(0.0f, 0.5f, 0.0f) };
-    constexpr Triangle cornerOnCorner = { glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec3(-0.5f, 0.5f, 0.0f), glm::vec3(0.0f, 0.5f, 0.0f) };
-    constexpr Triangle cornerOnEdge = { glm::vec3(-0.5f, -1.0f, 0.0f), glm::vec3(-0.5f, 0.0f, 0.0f), glm::vec3(0.0f, 0.5f, 0.0f) };
-    constexpr Triangle edgesAndCorners = { glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec3(-1.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.5f, 0.0f) };
-    REQUIRE(clipTriangleToRectanglePlanes(fullyIn, rectangle) == std::basic_string<Triangle> { fullyIn });
-    REQUIRE(clipTriangleToRectanglePlanes(edgeOnEdge, rectangle) == std::basic_string<Triangle> { edgeOnEdge });
-    REQUIRE(clipTriangleToRectanglePlanes(cornerOnCorner, rectangle) == std::basic_string<Triangle> { cornerOnCorner });
-    REQUIRE(clipTriangleToRectanglePlanes(cornerOnEdge, rectangle) == std::basic_string<Triangle> { cornerOnEdge });
-    REQUIRE(clipTriangleToRectanglePlanes(edgesAndCorners, rectangle) == std::basic_string<Triangle> { edgesAndCorners });
+    const auto triangles = GENERATE(
+      Triangle { glm::vec3(-0.5f, -0.5f, 0.0f), glm::vec3(0.5f, -0.5f, 0.0f), glm::vec3(0.0f, 0.5f, 0.0f) },
+      Triangle { glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec3(-0.5f, 0.5f, 0.0f), glm::vec3(0.0f, 0.5f, 0.0f) },
+      Triangle { glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec3(-1.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.5f, 0.0f) },
+      Triangle { glm::vec3(-1.0f, -0.5f, 0.0f), glm::vec3(-1.0f, 0.5f, 0.0f), glm::vec3(0.0f, 0.5f, 0.0f) },
+      Triangle { glm::vec3(-0.5f, -1.0f, 0.0f), glm::vec3(-0.5f, 0.0f, 0.0f), glm::vec3(0.0f, 0.5f, 0.0f) }
+    );
+    CHECK_THAT(clipTriangleToRectanglePlanes(triangles, rectangle), UnorderedEquals(std::vector { triangles }));
   }
 
   SECTION("Partially inside") {
+    constexpr Rectangle rectangle = { .min = glm::vec2(-1.0f), .max = glm::vec2(1.0f) };
 
+    constexpr Triangle crossOneEdge = { glm::vec3(-2.0f, 0.0f, 0.0f), glm::vec3(-2.0f, 1.5f, 0.0f), glm::vec3(-0.5f, 0.0f, 0.0f) };
+    CHECK_THAT(clipTriangleToRectanglePlanes(crossOneEdge, rectangle), UnorderedEquals(std::vector {
+      Triangle { glm::vec3(-1.0f, 0.0f, 0.0f), glm::vec3(-1.0f, 0.5f, 0.0f), glm::vec3(-0.5f, 0.0f, 0.0f) },
+    }));
+
+    constexpr Triangle crossTwoEdges = { glm::vec3(-2.0f, 0.0f, 0.0f), glm::vec3(0.0f, -2.0f, 0.0f), glm::vec3(0.0, 0.0f, 0.0f) };
+    CHECK_THAT(clipTriangleToRectanglePlanes(crossTwoEdges, rectangle), UnorderedEquals(std::vector {
+      Triangle { glm::vec3(-1.0f, -0.5f, 0.0f), glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f) },
+      Triangle { glm::vec3(-1.0f, -0.5f, 0.0f), glm::vec3(-1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f) },
+      Triangle { glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(-1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f) },
+    }));
   }
 }

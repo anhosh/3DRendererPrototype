@@ -1,14 +1,15 @@
 #pragma once
 
+#include <Util/Math/AABB.hpp>
+
 struct CompTransform;
 struct Frustum;
 
 struct CompCamera {
-  glm::vec2 screenSize = glm::vec2(1.0f);
+  AABB clipBox = { glm::vec3(0.0f), glm::vec3(1.0f) };
   float fov = 45.0f;
-  float near = 0.1f;
-  float far = 300.0f;
 
+  [[nodiscard]] glm::vec2 screenSize() const { return screenBounds.min - screenBounds.max; }
   [[nodiscard]] glm::mat4 perspective() const;
   [[nodiscard]] glm::mat4 orthographic() const;
   [[nodiscard]] Frustum viewFrustumPerspective(const CompTransform& viewTransform) const;
