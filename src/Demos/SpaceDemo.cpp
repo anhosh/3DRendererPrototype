@@ -88,7 +88,7 @@ Expected<void> SpaceDemo::init(const std::shared_ptr<AssetManager>& assets, cons
   std::uniform_real_distribution displacementDistribution(-offset, offset);
   std::uniform_real_distribution rotationAngleDistribution(0.0f, 360.0f);
   std::uniform_real_distribution scaleDistribution(0.05f, 0.25f);
-  constexpr uint32_t numAsteroids = 10000;
+  constexpr uint32_t numAsteroids = 5000;
   for (uint32_t i = 0; i < numAsteroids; ++i) {
     constexpr float radius = 50.0f;
     const float angle = static_cast<float>(i) / static_cast<float>(numAsteroids) * 360.0f;

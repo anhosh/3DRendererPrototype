@@ -12,15 +12,20 @@ set(CMAKE_DEBUG_POSTFIX "-d")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG_ENABLED")
 set(BUILD_SHARED_LIBS OFF)
 
-# add 3DRendererPrototype::ext target
-add_subdirectory(ext)
+# add modules
+add_subdirectory(modules/engine)
+add_subdirectory(modules/ext)
+add_subdirectory(modules/tests)
+add_subdirectory(modules/util)
 
 # declare executable target
 add_executable(${PROJECT_NAME})
 
 # link to ext target
 target_link_libraries(${PROJECT_NAME} PRIVATE
+  3DRendererPrototype::engine
   3DRendererPrototype::ext
+  3DRendererPrototype::util
   tbb
 )
 
@@ -52,5 +57,3 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL MSVC)
     $<$<NOT:$<CONFIG:Debug>>:/WX> # warnings as errors if not Debug
   )
 endif()
-
-add_subdirectory(tests)
