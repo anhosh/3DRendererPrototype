@@ -472,6 +472,15 @@ void Scene::onUpdateTransform(entt::registry&, const entt::entity enttTransform)
         lightCamera.clipBox.min.z = minZ;
         lightCamera.clipBox.max.z = maxZ;
       }
+
+      // Reduce shimmering in shadow edges
+      const glm::vec2 unitsPerTexel = lightCamera.clipBox.size().xy() / static_cast<float>(SHADOW_MAP_SIZE);
+      lightCamera.clipBox.min /= glm::vec3(unitsPerTexel, 1.0f);
+      lightCamera.clipBox.max /= glm::vec3(unitsPerTexel, 1.0f);
+      lightCamera.clipBox.min = glm::floor(lightCamera.clipBox.min);
+      lightCamera.clipBox.max = glm::floor(lightCamera.clipBox.max);
+      lightCamera.clipBox.min *= glm::vec3(unitsPerTexel, 1.0f);
+      lightCamera.clipBox.max *= glm::vec3(unitsPerTexel, 1.0f);
     }
   }
 }

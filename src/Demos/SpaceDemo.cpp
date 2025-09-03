@@ -53,6 +53,12 @@ Expected<void> SpaceDemo::init(const std::shared_ptr<AssetManager>& assets, cons
   );
 
   // Create scene
+  mMainCamera = mScene.ecs.create();
+  mScene.ecs.emplace<CompCamera>(mMainCamera, CompCamera {
+    .clipBox.min.z = 0.001f,
+    .clipBox.max.z = 200.0f,
+  });
+
   mScene.skybox = Skybox {
     .cubeMesh = renderer->addMesh(skyboxCubeMesh),
     .texture = skyboxTexture,
@@ -88,7 +94,7 @@ Expected<void> SpaceDemo::init(const std::shared_ptr<AssetManager>& assets, cons
   std::uniform_real_distribution displacementDistribution(-offset, offset);
   std::uniform_real_distribution rotationAngleDistribution(0.0f, 360.0f);
   std::uniform_real_distribution scaleDistribution(0.05f, 0.25f);
-  constexpr uint32_t numAsteroids = 5000;
+  constexpr uint32_t numAsteroids = 3000;
   for (uint32_t i = 0; i < numAsteroids; ++i) {
     constexpr float radius = 50.0f;
     const float angle = static_cast<float>(i) / static_cast<float>(numAsteroids) * 360.0f;

@@ -58,7 +58,7 @@ Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const
     std::tuple(mScene.ecs.view<CompPointLight>().size(), std::ref(mPointLightShadowMaps), std::ref(mPointLightShadowFramebuffers)),
     std::tuple(mScene.ecs.view<CompSpotlight>().size(), std::ref(mSpotlightShadowMaps), std::ref(mSpotlightShadowFramebuffers)),
   }) {
-    constexpr auto shadowSize = glm::uvec2(4096);
+    constexpr auto shadowSize = glm::uvec2(SHADOW_MAP_SIZE);
     shadowMaps.get() = renderer->createEmptyTexture2DArray();
     shadowMaps.get()->allocate(shadowSize, glm::max(static_cast<int32_t>(numShadowMaps), 1), GL_DEPTH_COMPONENT32);
     for (uint32_t shadowMapIndex = 0; shadowMapIndex < numShadowMaps; ++shadowMapIndex) {

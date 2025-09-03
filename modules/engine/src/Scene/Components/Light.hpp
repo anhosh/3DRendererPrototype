@@ -1,5 +1,7 @@
 #pragma once
 
+inline constexpr uint32_t SHADOW_MAP_SIZE = 4096;
+
 struct LightColors {
   glm::vec3 ambient = glm::vec3(0.1f);
   glm::vec3 diffuse = glm::vec3(0.5f);
