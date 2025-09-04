@@ -47,20 +47,26 @@ float shadow(vec4 fragPosLightSpace, float cosTheta, in sampler2DArrayShadow sha
     return 0;
   }
 
-  float w = projectedPosition.z - max(0.005 * (1 - cosTheta), 0.001);
-//  return texture(shadowMap, vec4(projectedPosition.xy, lightIndex, w));
+  float bias = max(0.005 * (1 - cosTheta), 0.001);
+  float w = projectedPosition.z - bias;
   vec2 texelSize = 1.0 / textureSize(shadowMap, 0).xy;
   float ret = 0;
+  const mat3 falloffKernel = mat3(0.25, 0.50, 0.25,
+                                  0.50, 1.00, 0.50,
+                                  0.25, 0.50, 0.25) * 0.25;
   for (int x = -1; x <= 1; ++x) {
     for (int y = -1; y <= 1; ++y) {
-      ret += texture(shadowMap, vec4(projectedPosition.xy + vec2(x, y) * texelSize, lightIndex, w));
+      float fallOff = falloffKernel[x + 1][y + 1];
+      float shade = texture(shadowMap, vec4(projectedPosition.xy + vec2(x, y) * texelSize, lightIndex, w));
+      ret += fallOff * shade;
     }
   }
-  return ret / 9;
+  return ret;
 }
 
 LightColors directionalLight(uint lightIndex, vec3 normal) {
   DirectionalLight light = uDirectionalLights.sources[lightIndex];
+
   vec3 lightDirection = normalize(-light.direction);
   vec4 fragPosLightSpace = light.viewProjection * vec4(fsIn.position, 1);
   float visibility = 1 - shadow(fragPosLightSpace, dot(normal, lightDirection), uDirectionalLightShadowMaps, lightIndex);
@@ -74,6 +80,7 @@ LightColors directionalLight(uint lightIndex, vec3 normal) {
 
 LightColors pointLight(uint lightIndex, vec3 normal) {
   PointLight light = uPointLights.sources[lightIndex];
+
   vec3 lightDirection = normalize(light.position - fsIn.position);
   float distance = distance(light.position, fsIn.position);
   float attenuation = 1 / (light.constant +
@@ -89,17 +96,20 @@ LightColors pointLight(uint lightIndex, vec3 normal) {
 
 LightColors spotlight(uint lightIndex, vec3 normal) {
   Spotlight light = uSpotlights.sources[lightIndex];
+
   vec3 lightDirection = normalize(light.position - fsIn.position);
   vec4 fragPosLightSpace = light.viewProjection * vec4(fsIn.position, 1);
   float visibility = 1 - shadow(fragPosLightSpace, dot(normal, lightDirection), uSpotlightShadowMaps, lightIndex);
+
   float theta = dot(lightDirection, normalize(-light.direction));
+  visibility *= step(light.outerCutOff, theta);
   float epsilon = light.cutOff - light.outerCutOff;
-  float intensity = step(light.outerCutOff, theta) * clamp((theta - light.outerCutOff) / epsilon, 0, 1);
+  float intensity = clamp((theta - light.outerCutOff) / epsilon, 0, 1);
 
   LightColors colors;
-  colors.ambient = light.colors.ambient * intensity;
-  colors.diffuse = light.colors.diffuse * intensity * visibility * diffuse(normal, lightDirection);
-  colors.specular = light.colors.specular * intensity * visibility * specular(normal, lightDirection);
+  colors.ambient = light.colors.ambient * visibility * intensity;
+  colors.diffuse = light.colors.diffuse * visibility * intensity * diffuse(normal, lightDirection);
+  colors.specular = light.colors.specular * visibility * intensity * specular(normal, lightDirection);
   return colors;
 }
 

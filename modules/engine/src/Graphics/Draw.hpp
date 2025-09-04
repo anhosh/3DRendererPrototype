@@ -17,7 +17,7 @@ struct Draw {
   Texture2DHandle emissionMap = Texture2DHandle::null();
   TextureCubeMapHandle environmentMap = TextureCubeMapHandle::null();
 
-  bool bFaceCulling = true;
+  bool bBackfaceCulling = true;
   bool bWriteToStencil = false;
   bool bStencilTest = false;
   bool bWriteToDepth = true;

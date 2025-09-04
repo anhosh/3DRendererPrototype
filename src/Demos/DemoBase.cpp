@@ -55,7 +55,6 @@ Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const
   // Shadow maps
   for (auto& [numShadowMaps, shadowMaps, framebuffers] : std::array {
     std::tuple(mScene.ecs.view<CompDirectionalLight>().size(), std::ref(mDirectionalLightShadowMaps), std::ref(mDirectionalLightShadowFramebuffers)),
-    std::tuple(mScene.ecs.view<CompPointLight>().size(), std::ref(mPointLightShadowMaps), std::ref(mPointLightShadowFramebuffers)),
     std::tuple(mScene.ecs.view<CompSpotlight>().size(), std::ref(mSpotlightShadowMaps), std::ref(mSpotlightShadowFramebuffers)),
   }) {
     constexpr auto shadowSize = glm::uvec2(SHADOW_MAP_SIZE);
@@ -106,9 +105,14 @@ void DemoBase::update(double dt) {
 CommandBuffer DemoBase::render() {
   CommandBuffer commandBuffer;
   commandBuffer.commands.reserve(mDirectionalLightShadowFramebuffers.size() +
-                                 2 + // CmdCopyShadowMapsToArrayTexture, CmdRenderPass
-                                 static_cast<size_t>(mbDebugVisualiseVertexNormals)
-                                 + mPostProcessingFramebuffers.size());
+                                 mSpotlightShadowFramebuffers.size() +
+                                 mPointLightShadowFramebuffers.size() +
+                                 1 + // CmdRenderPass
+                                 mPostProcessingFramebuffers.size() +
+                                 static_cast<size_t>(mbDebugVisualiseVertexNormals) +
+                                 static_cast<size_t>(mbDrawDirectionalLightsViewFrusta) +
+                                 static_cast<size_t>(mbDrawSceneBoundingBoxes) +
+                                 static_cast<size_t>(mbDrawViewFrustum));
 
   for (const auto [shadowMapIndex, pack] : mScene.ecs.view<CompDirectionalLight, CompCamera>().each() | std::views::enumerate) {
     const auto [entity, light, camera] = pack;
@@ -118,6 +122,18 @@ CommandBuffer DemoBase::render() {
         .scene = &mScene,
         .entityCamera = entity,
         .mode = SceneRenderMode::DepthMap,
+      },
+    });
+  }
+
+  for (const auto [shadowMapIndex, pack] : mScene.ecs.view<CompSpotlight, CompCamera>().each() | std::views::enumerate) {
+    const auto [entity, light, camera] = pack;
+    commandBuffer.commands.emplace_back(CmdRenderPass {
+      .renderPass.dstFramebuffer = mSpotlightShadowFramebuffers[shadowMapIndex],
+      .renderPass.pass = RenderPassScene {
+        .scene = &mScene,
+        .entityCamera = entity,
+        .mode = SceneRenderMode::LinearizedDepthMap,
       },
     });
   }
@@ -301,7 +317,7 @@ void DemoBase::guiActors() {
           bChanged |= ImGui::DragFloat("Far", &camera->clipBox.max.z, 0.01f, 10.0f, 1000.0f);
 
           if (bChanged) {
-            mScene.ecs.patch<CompTransform>(entity);
+            mScene.ecs.patch<CompCamera>(entity);
           }
 
           ImGui::Separator();

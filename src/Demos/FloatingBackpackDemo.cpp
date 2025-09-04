@@ -1,3 +1,4 @@
+#include <imgui.h>
 #include <Demos/FloatingBackpackDemo.hpp>
 
 #include <Scene/Components/Graphics.hpp>
@@ -64,9 +65,9 @@ Expected<void> FloatingBackpackDemo::init(const std::shared_ptr<AssetManager>& a
     .shader = renderer->createShaderProgramInstance(ShaderProgramType::Skybox),
   };
 
-  const entt::entity entitySun = mScene.ecs.create();
-  mScene.ecs.emplace<CompName>(entitySun, "Sun");
-  mScene.ecs.emplace<CompDirectionalLight>(entitySun, CompDirectionalLight {
+  const entt::entity enttSun = mScene.ecs.create();
+  mScene.ecs.emplace<CompName>(enttSun, "Sun");
+  mScene.ecs.emplace<CompDirectionalLight>(enttSun, CompDirectionalLight {
     .colors =  LightColors {
       .ambient = glm::vec3(0.01f),
       .diffuse = glm::vec3(1.0f),
@@ -75,18 +76,46 @@ Expected<void> FloatingBackpackDemo::init(const std::shared_ptr<AssetManager>& a
     .direction = glm::vec3(0.166f, -0.2f, 0.161f),
   });
 
-  const entt::entity entityBackpack = mScene.ecs.create();
-  mScene.ecs.emplace<CompName>(entityBackpack, "Backpack");
-  mScene.ecs.emplace<CompTransform>(entityBackpack);
-  mScene.ecs.emplace<CompGraphics>(entityBackpack, std::move(backpackMeshes));
+  mEnttFlashlight = mScene.ecs.create();
+  mScene.ecs.emplace<CompName>(mEnttFlashlight, "Flashlight");
+  mScene.ecs.emplace<CompSpotlight>(mEnttFlashlight);
+  mScene.ecs.emplace<CompTransform>(mEnttFlashlight);
 
-  const entt::entity entityFloor = mScene.ecs.create();
-  mScene.ecs.emplace<CompName>(entityFloor, "Floor");
-  mScene.ecs.emplace<CompTransform>(entityFloor, CompTransform {
+  const entt::entity enttBackpack = mScene.ecs.create();
+  mScene.ecs.emplace<CompName>(enttBackpack, "Backpack");
+  mScene.ecs.emplace<CompTransform>(enttBackpack);
+  mScene.ecs.emplace<CompGraphics>(enttBackpack, backpackMeshes);
+
+  const entt::entity enttBackpack2 = mScene.ecs.create();
+  mScene.ecs.emplace<CompName>(enttBackpack2, "Backpack 2");
+  mScene.ecs.emplace<CompTransform>(enttBackpack2, CompTransform { .translation = { 0.0f, -5.0f, 0.0f} });
+  mScene.ecs.emplace<CompGraphics>(enttBackpack2, std::move(backpackMeshes));
+
+  const entt::entity enttFloor = mScene.ecs.create();
+  mScene.ecs.emplace<CompName>(enttFloor, "Floor");
+  mScene.ecs.emplace<CompTransform>(enttFloor, CompTransform {
     .translation = glm::vec3(0.0f, -1.75f, 0.0f),
     .rotation = Rotation(90.0f, 0.0f, 0.0f),
   });
-  mScene.ecs.emplace<CompGraphics>(entityFloor, std::vector { floorRenderData });
+  mScene.ecs.emplace<CompGraphics>(enttFloor, std::vector { floorRenderData });
 
   return FlyCamDemoBase::init(assets, renderer);
+}
+
+void FloatingBackpackDemo::update(const double deltaTime) {
+  FlyCamDemoBase::update(deltaTime);
+
+  if (mbFlashlightFollowsCamera) {
+    mScene.ecs.patch<CompTransform>(mEnttFlashlight, [this](CompTransform& lightTransform) {
+      lightTransform = mScene.ecs.get<CompTransform>(mMainCamera);
+    });
+  }
+}
+
+void FloatingBackpackDemo::gui(AppState& state) {
+  FlyCamDemoBase::gui(state);
+
+  if (ImGui::CollapsingHeader("Floating Backpack Demo")) {
+    ImGui::Checkbox("Flashlight follows camera", &mbFlashlightFollowsCamera);
+  }
 }

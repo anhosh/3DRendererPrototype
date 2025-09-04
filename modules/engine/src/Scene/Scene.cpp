@@ -139,7 +139,7 @@ std::span<const Draw> Scene::draw(const entt::entity entityCamera, RenderingEngi
         .shaderProgramInstance = skybox->shader,
         .mesh = skybox->cubeMesh,
         .environmentMap = skybox->texture,
-        .bFaceCulling = false,
+        .bBackfaceCulling = false,
         .bSkybox = true,
       });
     }
@@ -183,7 +183,7 @@ std::span<const Draw> Scene::draw(const entt::entity entityCamera, RenderingEngi
           .mesh = firstInstanceRD.mesh,
           .instanceOffset = firstOutlineIndex + firstInstanceIndex,
           .instanceCount = instanceCount,
-          .bFaceCulling = true,
+          .bBackfaceCulling = true,
           .bStencilTest = true,
         });
 
@@ -242,7 +242,7 @@ void Scene::drawMeshes(const std::span<const MeshDataReference> meshes, Instance
       .specularMap = firstInstanceRD.specularMap,
       .emissionMap = firstInstanceRD.emissionMap,
       .environmentMap = firstInstanceRD.environmentMap,
-      .bFaceCulling = firstInstanceRD.renderOptions.bBackfaceCulling,
+      .bBackfaceCulling = firstInstanceRD.renderOptions.bBackfaceCulling,
       .bWriteToStencil = meshes[firstInstanceIndex].bHasOutline,
     });
 

@@ -16,6 +16,7 @@ enum class SceneRenderMode : int32_t {
   SurfaceNormal,
   SurfaceDepth,
   DepthMap,
+  LinearizedDepthMap,
   VertexNormals,
 };
 

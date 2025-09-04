@@ -46,7 +46,8 @@ struct LightSourceBuffer {
 struct DirectionalLightShaderData {
   LightColorUniforms colors;
   glm::mat4 viewProjection;
-  glm::vec4 direction;
+  glm::vec3 direction;
+  float _padding0 = 0.0f;
 
   static DirectionalLightShaderData from(const CompDirectionalLight& light, const CompCamera& camera, const CompTransform& transform) {
     ZoneScoped;
@@ -54,25 +55,26 @@ struct DirectionalLightShaderData {
     return DirectionalLightShaderData {
       .colors = LightColorUniforms::from(light.colors),
       .viewProjection = camera.orthographic() * transform.viewMatrix(),
-      .direction = glm::vec4(glm::normalize(light.direction), 0.0f),
+      .direction = glm::normalize(light.direction),
     };
   }
 };
 
 struct PointLightShaderData {
   LightColorUniforms colors;
-  glm::vec4 position;
+  glm::vec3 position;
+  float _padding0 = 0.0f;
   float constant;
   float linear;
   float quadratic;
-  float _padding0 = 0.0f;
+  float _padding1 = 0.0f;
 
   static PointLightShaderData from(const CompPointLight& light, const CompTransform& transform) {
     ZoneScoped;
 
     return PointLightShaderData {
       .colors = LightColorUniforms::from(light.colors),
-      .position = glm::vec4(transform.translation, 0.0f),
+      .position = transform.translation,
       .constant = light.constant,
       .linear = light.linear,
       .quadratic = light.quadratic,
@@ -83,12 +85,12 @@ struct PointLightShaderData {
 struct SpotlightShaderData {
   LightColorUniforms colors;
   glm::mat4 viewProjection;
-  glm::vec4 position;
-  glm::vec4 direction;
+  glm::vec3 position;
+  float _padding0 = 0.0f;
+  glm::vec3 direction;
   float cutOff;
   float outerCutOff;
-  float _padding0 = 0.0f;
-  float _padding1 = 0.0f;
+  float _padding1 = 0.0f, _padding2 = 0.0f, _padding3 = 0.0f;
 
   static SpotlightShaderData from(const CompSpotlight& light, const CompCamera& camera, const CompTransform& transform) {
     ZoneScoped;
@@ -96,8 +98,8 @@ struct SpotlightShaderData {
     return SpotlightShaderData {
       .colors = LightColorUniforms::from(light.colors),
       .viewProjection = camera.perspective() * transform.viewMatrix(),
-      .position = glm::vec4(transform.translation, 0.0f),
-      .direction = glm::vec4(light.direction, 0.0f),
+      .position = transform.translation, 0.0f,
+      .direction = light.direction, 0.0f,
       .cutOff = glm::cos(glm::radians(light.cutOff)),
       .outerCutOff = glm::cos(glm::radians(light.outerCutOff)),
     };

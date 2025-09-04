@@ -13,6 +13,7 @@ public:
   void destroy();
 
   [[nodiscard]] GLuint id() const { return mID; }
+  [[nodiscard]] GLint uniformLocation(std::string_view uniformName) const;
 
 protected:
   GLuint mID = 0;

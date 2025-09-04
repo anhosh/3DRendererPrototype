@@ -43,11 +43,11 @@ protected:
   FramebufferHandle mMainViewFramebuffer = FramebufferHandle::null();
 
   Texture2DArrayHandle mDirectionalLightShadowMaps = Texture2DArrayHandle::null();
-  Texture2DArrayHandle mPointLightShadowMaps = Texture2DArrayHandle::null();
   Texture2DArrayHandle mSpotlightShadowMaps = Texture2DArrayHandle::null();
+  // TextureCubeMapArrayHandle mPointLightShadowMaps = TextureCubeMapArrayHandle::null();
   std::vector<FramebufferHandle> mDirectionalLightShadowFramebuffers;
-  std::vector<FramebufferHandle> mPointLightShadowFramebuffers;
   std::vector<FramebufferHandle> mSpotlightShadowFramebuffers;
+  std::vector<FramebufferHandle> mPointLightShadowFramebuffers;
 
   std::vector<Texture2DHandle> mPostProcessingColorAttachments;
   std::vector<FramebufferHandle> mPostProcessingFramebuffers;

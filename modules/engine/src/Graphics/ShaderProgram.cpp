@@ -24,3 +24,7 @@ void ShaderProgram::destroy() {
   glDeleteProgram(mID);
   mID = 0;
 }
+
+GLint ShaderProgram::uniformLocation(const std::string_view uniformName) const {
+  return glGetUniformLocation(mID, uniformName.data());
+}

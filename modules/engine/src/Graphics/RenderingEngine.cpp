@@ -479,14 +479,14 @@ void RenderingEngine::cmdDrawDebugFrustum(const CmdDrawDebugFrustum& cmd) {
   TracyGpuZone("Draw debug frustum");
 
   glUseProgram(mDebugFrustum->id());
-  glUniform3fv(glGetUniformLocation(mDebugFrustum->id(), "uFrustum.nearBottomLeft"), 1, glm::value_ptr(cmd.frustum.nearBottomLeft));
-  glUniform3fv(glGetUniformLocation(mDebugFrustum->id(), "uFrustum.nearBottomRight"), 1, glm::value_ptr(cmd.frustum.nearBottomRight));
-  glUniform3fv(glGetUniformLocation(mDebugFrustum->id(), "uFrustum.nearTopLeft"), 1, glm::value_ptr(cmd.frustum.nearTopLeft));
-  glUniform3fv(glGetUniformLocation(mDebugFrustum->id(), "uFrustum.nearTopRight"), 1, glm::value_ptr(cmd.frustum.nearTopRight));
-  glUniform3fv(glGetUniformLocation(mDebugFrustum->id(), "uFrustum.farBottomLeft"), 1, glm::value_ptr(cmd.frustum.farBottomLeft));
-  glUniform3fv(glGetUniformLocation(mDebugFrustum->id(), "uFrustum.farBottomRight"), 1, glm::value_ptr(cmd.frustum.farBottomRight));
-  glUniform3fv(glGetUniformLocation(mDebugFrustum->id(), "uFrustum.farTopLeft"), 1, glm::value_ptr(cmd.frustum.farTopLeft));
-  glUniform3fv(glGetUniformLocation(mDebugFrustum->id(), "uFrustum.farTopRight"), 1, glm::value_ptr(cmd.frustum.farTopRight));
+  glUniform3fv(mDebugFrustum->uniformLocation("uFrustum.nearBottomLeft"), 1, glm::value_ptr(cmd.frustum.nearBottomLeft));
+  glUniform3fv(mDebugFrustum->uniformLocation("uFrustum.nearBottomRight"), 1, glm::value_ptr(cmd.frustum.nearBottomRight));
+  glUniform3fv(mDebugFrustum->uniformLocation("uFrustum.nearTopLeft"), 1, glm::value_ptr(cmd.frustum.nearTopLeft));
+  glUniform3fv(mDebugFrustum->uniformLocation("uFrustum.nearTopRight"), 1, glm::value_ptr(cmd.frustum.nearTopRight));
+  glUniform3fv(mDebugFrustum->uniformLocation("uFrustum.farBottomLeft"), 1, glm::value_ptr(cmd.frustum.farBottomLeft));
+  glUniform3fv(mDebugFrustum->uniformLocation("uFrustum.farBottomRight"), 1, glm::value_ptr(cmd.frustum.farBottomRight));
+  glUniform3fv(mDebugFrustum->uniformLocation("uFrustum.farTopLeft"), 1, glm::value_ptr(cmd.frustum.farTopLeft));
+  glUniform3fv(mDebugFrustum->uniformLocation("uFrustum.farTopRight"), 1, glm::value_ptr(cmd.frustum.farTopRight));
   glUniform3f(4, cmd.color.x, cmd.color.y, cmd.color.z);
 
   glBindVertexArray(mDebugShapesVAO);
@@ -588,8 +588,8 @@ void RenderingEngine::renderSceneFull(const std::span<const Draw> draws, const V
                               currDraw.instanceOffset * sizeof(InstanceData),
                               currDraw.instanceCount * sizeof(InstanceData));
 
-    if (drawIdx == 0 || currDraw.bFaceCulling != lastDraw->bFaceCulling) [[unlikely]] {
-      if (currDraw.bFaceCulling) {
+    if (drawIdx == 0 || currDraw.bBackfaceCulling != lastDraw->bBackfaceCulling) [[unlikely]] {
+      if (currDraw.bBackfaceCulling) {
         glEnable(GL_CULL_FACE);
       } else {
         glDisable(GL_CULL_FACE);
@@ -708,6 +708,12 @@ void RenderingEngine::renderSceneSimple(const std::span<const Draw> draws, const
 
     case SceneRenderMode::DepthMap:
       glUseProgram(mShadowMapShaderProgram->id());
+      glUniform1i(mShadowMapShaderProgram->uniformLocation("ubPerspective"), GL_FALSE);
+      break;
+
+    case SceneRenderMode::LinearizedDepthMap:
+      glUseProgram(mShadowMapShaderProgram->id());
+      glUniform1i(mShadowMapShaderProgram->uniformLocation("ubPerspective"), GL_TRUE);
       break;
 
     case SceneRenderMode::VertexNormals:
@@ -717,9 +723,9 @@ void RenderingEngine::renderSceneSimple(const std::span<const Draw> draws, const
 
   for (const Draw& currDraw : draws) {
     if (!currDraw.bSkybox) {
-      if (currDraw.bFaceCulling) {
+      if (currDraw.bBackfaceCulling) {
         glEnable(GL_CULL_FACE);
-        glCullFace(GL_FRONT);
+        glCullFace(GL_BACK);
       } else {
         glDisable(GL_CULL_FACE);
       }
@@ -802,7 +808,7 @@ void RenderingEngine::present(const glm::uvec2 windowSize, FramebufferHandle src
   glClear(GL_COLOR_BUFFER_BIT);
 
   glUseProgram(mPostProcessCopyShaderProgram->id());
-  glUniform1i(glGetUniformLocation(mPostProcessCopyShaderProgram->id(), "uScreenTexture"), BINDING_SAMPLER_SCREEN);
+  glUniform1i(mPostProcessCopyShaderProgram->uniformLocation("uScreenTexture"), BINDING_SAMPLER_SCREEN);
   srcFramebuffer->colorAttachments().front().texture->bind(BINDING_SAMPLER_SCREEN);
   mColorAttachmentSampler->bind(BINDING_SAMPLER_SCREEN);
 
