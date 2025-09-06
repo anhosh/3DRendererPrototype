@@ -7,9 +7,16 @@ struct LightColors {
   vec3 specular;
 };
 
+struct LightView {
+  mat4 view;
+  mat4 projection;
+  float zMin;
+  float zMax;
+};
+
 struct DirectionalLight {
   LightColors colors;
-  mat4 viewProjection;
+  LightView view;
   vec3 direction;
 };
 
@@ -23,7 +30,7 @@ struct PointLight {
 
 struct Spotlight {
   LightColors colors;
-  mat4 viewProjection;
+  LightView view;
   vec3 position;
   vec3 direction;
   float cutOff;

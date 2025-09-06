@@ -839,7 +839,7 @@ void RenderingEngine::updateCameraData(const Scene& scene, const entt::entity en
 
   const auto [camera, cameraTransform] = scene.ecs.get<const CompCamera, const CompTransform>(enttCamera);
   CameraUniforms cameraUniforms;
-  if (scene.ecs.all_of<CompDirectionalLight>(enttCamera)) {
+  if (scene.ecs.any_of<CompDirectionalLight>(enttCamera)) {
     cameraUniforms = CameraUniforms::fromOrthographic(camera, cameraTransform);
   } else {
     cameraUniforms = CameraUniforms::fromPerspective(camera, cameraTransform);

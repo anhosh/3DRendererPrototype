@@ -11,4 +11,6 @@ public:
 private:
   bool mbFlashlightFollowsCamera = true;
   entt::entity mEnttFlashlight = entt::null;
+
+  ShaderProgramInstanceHandle mLitSurfaceShader = ShaderProgramInstanceHandle::null();
 };

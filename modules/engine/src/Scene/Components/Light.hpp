@@ -25,4 +25,5 @@ struct CompSpotlight {
   glm::vec3 direction = glm::vec3(0.0f, 0.0f, 1.0f);
   float cutOff = 12.5f;
   float outerCutOff = 17.5f;
+  float debugZOffset = 0.0f;
 };

@@ -9,6 +9,15 @@
 
 #include <vector>
 
+struct LightViewUniforms {
+  glm::mat4 view;
+  glm::mat4 projection;
+  float zMin;
+  float zMax;
+  float _padding0 = 0.0f;
+  float _padding1 = 0.0f;
+};
+
 struct LightColorUniforms {
   glm::vec4 ambient;
   glm::vec4 diffuse;
@@ -45,7 +54,7 @@ struct LightSourceBuffer {
 
 struct DirectionalLightShaderData {
   LightColorUniforms colors;
-  glm::mat4 viewProjection;
+  LightViewUniforms view;
   glm::vec3 direction;
   float _padding0 = 0.0f;
 
@@ -54,7 +63,10 @@ struct DirectionalLightShaderData {
 
     return DirectionalLightShaderData {
       .colors = LightColorUniforms::from(light.colors),
-      .viewProjection = camera.orthographic() * transform.viewMatrix(),
+      .view.view = transform.viewMatrix(),
+      .view.projection = camera.orthographic(),
+      .view.zMin = camera.clipBox.min.z,
+      .view.zMax = camera.clipBox.max.z,
       .direction = glm::normalize(light.direction),
     };
   }
@@ -84,7 +96,7 @@ struct PointLightShaderData {
 
 struct SpotlightShaderData {
   LightColorUniforms colors;
-  glm::mat4 viewProjection;
+  LightViewUniforms view;
   glm::vec3 position;
   float _padding0 = 0.0f;
   glm::vec3 direction;
@@ -95,11 +107,16 @@ struct SpotlightShaderData {
   static SpotlightShaderData from(const CompSpotlight& light, const CompCamera& camera, const CompTransform& transform) {
     ZoneScoped;
 
+    CompTransform transformCopy = transform;
+    transformCopy.translation -= transformCopy.forward() * light.debugZOffset;
     return SpotlightShaderData {
       .colors = LightColorUniforms::from(light.colors),
-      .viewProjection = camera.perspective() * transform.viewMatrix(),
-      .position = transform.translation, 0.0f,
-      .direction = light.direction, 0.0f,
+      .view.view = transformCopy.viewMatrix(),
+      .view.projection = camera.perspective(),
+      .view.zMin = camera.clipBox.min.z,
+      .view.zMax = camera.clipBox.max.z,
+      .position = transform.translation,
+      .direction = light.direction,
       .cutOff = glm::cos(glm::radians(light.cutOff)),
       .outerCutOff = glm::cos(glm::radians(light.outerCutOff)),
     };

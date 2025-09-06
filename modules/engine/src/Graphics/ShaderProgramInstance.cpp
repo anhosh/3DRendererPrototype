@@ -13,7 +13,7 @@ void ShaderProgramInstance::use() const {
 void ShaderProgramInstance::bindUniforms() const {
   ZoneScoped;
 
-  for (const ShaderUniform& uniform : std::ranges::views::values(uniforms)) {
+  for (const ShaderUniform& uniform : uniforms | std::views::values) {
     uniform.value.visit(Visitor {
       [&](const bool value)       { glUniform1i(uniform.location, value ? GL_TRUE : GL_FALSE); },
       [&](const GLint value)      { glUniform1i(uniform.location, value); },

@@ -145,6 +145,7 @@ CommandBuffer DemoBase::render() {
       .entityCamera = mMainCamera,
       .mode = mSceneRenderMode,
       .shadowMaps.directionalShadowMaps = mDirectionalLightShadowMaps,
+      .shadowMaps.spotlightShadowMaps = mSpotlightShadowMaps,
     }
   });
 

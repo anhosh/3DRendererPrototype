@@ -29,10 +29,12 @@ Expected<void> FloatingBackpackDemo::init(const std::shared_ptr<AssetManager>& a
   RETURN_ERROR_IF_UNEXPECTED(bitmapSkyboxFront);
 
   const AssetHandle<MeshData> skyboxCubeMesh = assets->addMesh(MeshData::createCube(glm::vec3(2.0f)));
-  const AssetHandle<MeshData> floorMeshData = assets->addMesh(MeshData::createQuad(glm::vec2(15.0f)));
+  const AssetHandle<MeshData> floorMeshData = assets->addMesh(MeshData::createCube(glm::vec3(15.0f, 0.05f, 15.0f)));
 
   // Get shader instances
   const ShaderProgramInstanceHandle litSurfaceShader = renderer->createShaderProgramInstance(ShaderProgramType::LitSurface);
+  mLitSurfaceShader = litSurfaceShader;
+  mLitSurfaceShader->setUniform("uDebugBiasMultiplier", 0.0f);
 
   // Upload assets to GPU
   std::vector<RenderData> backpackMeshes = renderer->addModel(modelBackpack.value(), litSurfaceShader);
@@ -43,7 +45,7 @@ Expected<void> FloatingBackpackDemo::init(const std::shared_ptr<AssetManager>& a
     .mesh = floorMesh,
     .shader = litSurfaceShader,
     .diffuseMap = floorTexture,
-    .renderOptions = { .bBackfaceCulling = false, },
+    .renderOptions = { .bBackfaceCulling = false },
   };
 
   TextureCubeMapHandle skyboxTexture = renderer->addTextureCubeMap(
@@ -95,7 +97,6 @@ Expected<void> FloatingBackpackDemo::init(const std::shared_ptr<AssetManager>& a
   mScene.ecs.emplace<CompName>(enttFloor, "Floor");
   mScene.ecs.emplace<CompTransform>(enttFloor, CompTransform {
     .translation = glm::vec3(0.0f, -1.75f, 0.0f),
-    .rotation = Rotation(90.0f, 0.0f, 0.0f),
   });
   mScene.ecs.emplace<CompGraphics>(enttFloor, std::vector { floorRenderData });
 
@@ -117,5 +118,9 @@ void FloatingBackpackDemo::gui(AppState& state) {
 
   if (ImGui::CollapsingHeader("Floating Backpack Demo")) {
     ImGui::Checkbox("Flashlight follows camera", &mbFlashlightFollowsCamera);
+    if (ImGui::DragFloat("[Debug] Flashlight Z Offset", &mScene.ecs.get<CompSpotlight>(mEnttFlashlight).debugZOffset, 0.01f)) {
+      mScene.ecs.patch<CompSpotlight>(mEnttFlashlight);
+    }
+    ImGui::DragFloat("[Debug] uDebugBiasMultiplier", mLitSurfaceShader->uniforms["uDebugBiasMultiplier"].getPtr<GLfloat>(), 0.001f);
   }
 }

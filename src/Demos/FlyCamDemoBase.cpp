@@ -30,9 +30,9 @@ void FlyCamDemoBase::processKeyboard(GLFWwindow* window) {
     mbFreeCursorPressed = false;
   }
 
+  mCameraVelocity = glm::vec3(0.0f);
   if (!mbFreeCursor) {
     auto [camera, cameraTransform] = mScene.ecs.get<CompCamera, CompTransform>(mMainCamera);
-    mCameraVelocity = glm::vec3(0.0f);
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
       mCameraVelocity += mCameraSpeed * cameraTransform.forward();
     }
