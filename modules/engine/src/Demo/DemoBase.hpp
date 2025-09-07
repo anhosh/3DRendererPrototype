@@ -47,7 +47,7 @@ protected:
   // TextureCubeMapArrayHandle mPointLightShadowMaps = TextureCubeMapArrayHandle::null();
   std::vector<FramebufferHandle> mDirectionalLightShadowFramebuffers;
   std::vector<FramebufferHandle> mSpotlightShadowFramebuffers;
-  std::vector<FramebufferHandle> mPointLightShadowFramebuffers;
+  // std::vector<FramebufferHandle> mPointLightShadowFramebuffers;
 
   std::vector<Texture2DHandle> mPostProcessingColorAttachments;
   std::vector<FramebufferHandle> mPostProcessingFramebuffers;
@@ -59,6 +59,6 @@ private:
 
   entt::entity mViewFrustum = entt::null;
   bool mbDrawViewFrustum = false;
-  bool mbDrawDirectionalLightsViewFrusta = false;
+  bool mbDrawDirectionalLightsViewFrustums = false;
   bool mbViewFrustumFollowsMainView = true;
 };

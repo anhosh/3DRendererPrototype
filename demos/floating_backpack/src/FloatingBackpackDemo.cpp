@@ -1,9 +1,10 @@
-#include <imgui.h>
-#include <Demos/FloatingBackpackDemo.hpp>
+#include <FloatingBackpackDemo.hpp>
 
 #include <Scene/Components/Graphics.hpp>
 #include <Scene/Components/Name.hpp>
 #include <Util/Macros/Errors.hpp>
+
+#include <imgui.h>
 
 Expected<void> FloatingBackpackDemo::init(const std::shared_ptr<AssetManager>& assets, const std::shared_ptr<RenderingEngine>& renderer) {
   ZoneScoped;

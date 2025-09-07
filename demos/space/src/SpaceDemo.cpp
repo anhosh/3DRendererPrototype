@@ -1,4 +1,4 @@
-#include <Demos/SpaceDemo.hpp>
+#include <SpaceDemo.hpp>
 
 #include <Scene/Components/Graphics.hpp>
 #include <Scene/Components/Name.hpp>

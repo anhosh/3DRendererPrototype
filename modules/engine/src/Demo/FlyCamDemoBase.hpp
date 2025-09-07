@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Demos/DemoBase.hpp>
+#include <Demo/DemoBase.hpp>
 
 class FlyCamDemoBase : public DemoBase {
 public:

@@ -1,4 +1,4 @@
-#include <Demos/DemoBase.hpp>
+#include <Demo/DemoBase.hpp>
 
 #include <AppState.hpp>
 #include <Graphics/RenderPass.hpp>
@@ -106,11 +106,10 @@ CommandBuffer DemoBase::render() {
   CommandBuffer commandBuffer;
   commandBuffer.commands.reserve(mDirectionalLightShadowFramebuffers.size() +
                                  mSpotlightShadowFramebuffers.size() +
-                                 mPointLightShadowFramebuffers.size() +
                                  1 + // CmdRenderPass
                                  mPostProcessingFramebuffers.size() +
                                  static_cast<size_t>(mbDebugVisualiseVertexNormals) +
-                                 static_cast<size_t>(mbDrawDirectionalLightsViewFrusta) +
+                                 static_cast<size_t>(mbDrawDirectionalLightsViewFrustums) +
                                  static_cast<size_t>(mbDrawSceneBoundingBoxes) +
                                  static_cast<size_t>(mbDrawViewFrustum));
 
@@ -192,7 +191,7 @@ CommandBuffer DemoBase::render() {
     commandBuffer.commands.emplace_back(command);
   }
 
-  if (mbDrawDirectionalLightsViewFrusta) {
+  if (mbDrawDirectionalLightsViewFrustums) {
     for (const auto [enttLight, lightTransform, light, lightCamera] : mScene.ecs.view<const CompTransform,
                                                                                       const CompDirectionalLight,
                                                                                       const CompCamera>().each())
@@ -272,7 +271,7 @@ void DemoBase::guiDebug() {
 
     ImGui::Checkbox("Draw vertex normals", &mbDebugVisualiseVertexNormals);
     ImGui::Checkbox("Draw scene bounding boxes", &mbDrawSceneBoundingBoxes);
-    ImGui::Checkbox("Draw directional light view frusta", &mbDrawDirectionalLightsViewFrusta);
+    ImGui::Checkbox("Draw directional light view frusta", &mbDrawDirectionalLightsViewFrustums);
     ImGui::Checkbox("Draw view frustum", &mbDrawViewFrustum);
     ImGui::Checkbox("View frustum follows camera", &mbViewFrustumFollowsMainView);
     ImGui::Checkbox("Directional lights follow camera", &mScene.ecs.get<CompSpectator>(mMainCamera).bDirectionalLightsFollowSpectator);

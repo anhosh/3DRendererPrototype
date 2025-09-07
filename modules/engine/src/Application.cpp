@@ -1,10 +1,9 @@
 #include <Application.hpp>
 
 #include <GUI.hpp>
-#include <Demos/FloatingBackpackDemo.hpp>
-#include <Demos/SpaceDemo.hpp>
+#include <../../../demos/floating_backpack/src/FloatingBackpackDemo.hpp>
+#include <../../../demos/space/src/SpaceDemo.hpp>
 #include <Graphics/RenderingEngine.hpp>
-#include <Graphics/RenderPass.hpp>
 #include <Util/Macros/Errors.hpp>
 #include <Util/NotNull.hpp>
 #include <Util/Timers/TimedBlock.hpp>
@@ -26,7 +25,7 @@ Application::Application(Application&& other) noexcept {
   other.mState.window = nullptr;
 }
 
-Expected<Application> Application::create(const std::string_view title, const glm::uvec2 initialWindowSize) {
+Expected<Application> Application::create(const std::string_view title, const glm::uvec2 initialWindowSize, std::unique_ptr<DemoBase> demo) {
   ZoneScoped;
   static constexpr std::string_view markerName [[maybe_unused]] = "Application init";
   FrameMarkStart(markerName.data());
@@ -40,8 +39,7 @@ Expected<Application> Application::create(const std::string_view title, const gl
   app.mState.renderingEngine = std::make_shared<RenderingEngine>();
   RETURN_ERROR_IF_UNEXPECTED(app.mState.renderingEngine->init(*app.mState.assetManager));
 
-  // app.mState.currentDemo = std::make_unique<SpaceDemo>();
-  app.mState.currentDemo = std::make_unique<FloatingBackpackDemo>();
+  app.mState.currentDemo = std::move(demo);
   RETURN_ERROR_IF_UNEXPECTED(app.mState.currentDemo->init(app.mState.assetManager, app.mState.renderingEngine));
   FrameMarkEnd(markerName.data());
   return app;

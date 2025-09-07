@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 3.24)
 
-project(3DRendererPrototype-engine)
+project(3DRendererPrototype-Engine)
 
 add_library(${PROJECT_NAME})
-add_library(3DRendererPrototype::engine ALIAS ${PROJECT_NAME})
+add_library(3DRendererPrototype::Engine ALIAS ${PROJECT_NAME})
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
-    3DRendererPrototype::ext
-    3DRendererPrototype::util
+    3DRendererPrototype::Ext
+    3DRendererPrototype::Util
     glm::glm
     Catch2::Catch2WithMain
     TracyClient

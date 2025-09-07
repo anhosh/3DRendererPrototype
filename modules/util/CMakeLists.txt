@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 3.24)
 
-project(3DRendererPrototype-util)
+project(3DRendererPrototype-Util)
 
 add_library(${PROJECT_NAME})
-add_library(3DRendererPrototype::util ALIAS ${PROJECT_NAME})
+add_library(3DRendererPrototype::Util ALIAS ${PROJECT_NAME})
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
   glm::glm

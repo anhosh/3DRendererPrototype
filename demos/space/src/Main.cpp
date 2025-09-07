@@ -1,9 +1,10 @@
 #include <Application.hpp>
+#include <SpaceDemo.hpp>
 
 #include <Util/Log.hpp>
 
 int32_t main() {
-  Expected engine = Application::create("3D Renderer Prototype", glm::uvec2(1920, 1080));
+  Expected engine = Application::create("3D Renderer Prototype", glm::uvec2(1920, 1080), std::make_unique<SpaceDemo>());
   if (engine.has_value()) {
     engine->run();
     engine->shutDown();

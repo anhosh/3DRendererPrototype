@@ -42,6 +42,7 @@ private:
   std::unordered_map<std::filesystem::path, AssetHandle<Bitmap>> mLoadedBitmaps;
   std::unordered_map<std::filesystem::path, AssetHandle<Model>> mLoadedModels;
 
-  std::filesystem::path mModelsDir = "models";
-  std::filesystem::path mTexturesDir = "textures";
+  std::filesystem::path mAssetsDir = "assets";
+  std::filesystem::path mModelsDir = mAssetsDir / "models";
+  std::filesystem::path mTexturesDir = mAssetsDir / "textures";
 };

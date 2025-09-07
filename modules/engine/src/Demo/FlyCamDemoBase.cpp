@@ -1,4 +1,4 @@
-#include <Demos/FlyCamDemoBase.hpp>
+#include <Demo/FlyCamDemoBase.hpp>
 
 #include <Scene/Components/Camera.hpp>
 #include <Scene/Components/Graphics.hpp>

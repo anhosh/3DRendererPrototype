@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Demos/FlyCamDemoBase.hpp>
+#include <Demo/FlyCamDemoBase.hpp>
 
 class FloatingBackpackDemo final : public FlyCamDemoBase {
 public:

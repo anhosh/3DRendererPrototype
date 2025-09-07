@@ -1,7 +1,7 @@
 #pragma once
 
 #include <Assets/AssetManager.hpp>
-#include <Demos/DemoBase.hpp>
+#include <Demo/DemoBase.hpp>
 #include <Graphics/RenderingEngine.hpp>
 
 #include <memory>

@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 3.24)
 
-project(3DRendererPrototype-tests)
+project(3DRendererPrototype-Tests)
 
 add_executable(${PROJECT_NAME})
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
-  3DRendererPrototype::util
+  3DRendererPrototype::Util
   Catch2::Catch2WithMain
 )
 
