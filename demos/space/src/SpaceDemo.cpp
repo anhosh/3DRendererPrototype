@@ -1,11 +1,17 @@
 #include <SpaceDemo.hpp>
 
+#include <Components/Orbit.hpp>
+
 #include <Scene/Components/Graphics.hpp>
 #include <Scene/Components/Name.hpp>
 #include <Util/Macros/Errors.hpp>
 
+#include <glm/gtx/optimum_pow.hpp>
+
 #include <imgui.h>
 
+#include <algorithm>
+#include <execution>
 #include <random>
 
 Expected<void> SpaceDemo::init(const std::shared_ptr<AssetManager>& assets, const std::shared_ptr<RenderingEngine>& renderer) {
@@ -76,41 +82,63 @@ Expected<void> SpaceDemo::init(const std::shared_ptr<AssetManager>& assets, cons
     .direction = glm::vec3(0.3f, -1.0f, -0.3f),
   });
 
-  const entt::entity entityPlanet = mScene.ecs.create();
-  mScene.ecs.emplace<CompName>(entityPlanet, "Planet Mars");
-  mScene.ecs.emplace<CompTransform>(entityPlanet);
-  mScene.ecs.emplace<CompGraphics>(entityPlanet, planetMeshes);
+  mEnttMars = mScene.ecs.create();
+  mScene.ecs.emplace<CompName>(mEnttMars, "Planet Mars");
+  mScene.ecs.emplace<CompTransform>(mEnttMars, CompTransform { .rotation.pitch = 90.0f });
+  mScene.ecs.emplace<CompGraphics>(mEnttMars, planetMeshes);
 
-  const entt::entity entityPlanet2 = mScene.ecs.create();
-  mScene.ecs.emplace<CompName>(entityPlanet2, "Planet Mars 2");
-  mScene.ecs.emplace<CompTransform>(entityPlanet2, CompTransform {
-    .translation = glm::vec3(0.0f, -7.0f, 0.0f),
-  });
-  mScene.ecs.emplace<CompGraphics>(entityPlanet2, planetMeshes);
-
+  // Generate asteroids
   std::random_device rd;
   std::mt19937 gen(rd());
+
   constexpr float offset = 25.0f;
   std::uniform_real_distribution displacementDistribution(-offset, offset);
   std::uniform_real_distribution rotationAngleDistribution(0.0f, 360.0f);
   std::uniform_real_distribution scaleDistribution(0.05f, 0.25f);
+  std::uniform_real_distribution orbitSpeedDistribution(40.0f, 80.0f);
+
   constexpr uint32_t numAsteroids = 3000;
+  mAsteroidAngles.reserve(numAsteroids);
   for (uint32_t i = 0; i < numAsteroids; ++i) {
+    const entt::entity enttAsteroid = mScene.ecs.create();
+    mScene.ecs.emplace<CompName>(enttAsteroid, std::format("Asteroid {}", i));
+    mScene.ecs.emplace<CompGraphics>(enttAsteroid, rockMeshes);
+
     constexpr float radius = 50.0f;
     const float angle = static_cast<float>(i) / static_cast<float>(numAsteroids) * 360.0f;
-    const entt::entity entityAsteroid = mScene.ecs.create();
-    mScene.ecs.emplace<CompName>(entityAsteroid, std::format("Asteroid {}", i));
-    mScene.ecs.emplace<CompTransform>(entityAsteroid, CompTransform {
+    const float distanceFromCentre = radius + displacementDistribution(gen);
+
+    mScene.ecs.emplace<CompOrbit>(enttAsteroid, glm::vec3(0.0f), distanceFromCentre, 100.0f * orbitSpeedDistribution(gen) / glm::pow2(distanceFromCentre));
+    mScene.ecs.emplace<CompTransform>(enttAsteroid, CompTransform {
       .translation = {
-        glm::sin(glm::radians(angle)) * radius + displacementDistribution(gen),
+        glm::sin(glm::radians(angle)) * distanceFromCentre,
         0.4f * displacementDistribution(gen),
-        glm::cos(glm::radians(angle)) * radius + displacementDistribution(gen),
+        glm::cos(glm::radians(angle)) * distanceFromCentre,
       },
       .rotation = rotationAngleDistribution(gen) * Rotation(0.4f, 0.6f, 0.8f),
       .scale = glm::vec3(scaleDistribution(gen)),
     });
-    mScene.ecs.emplace<CompGraphics>(entityAsteroid, rockMeshes);
+
+    mAsteroidAngles.push_back(std::make_pair(enttAsteroid, angle));
   }
 
   return FlyCamDemoBase::init(assets, renderer);
+}
+
+void SpaceDemo::update(const double deltaTime) {
+  FlyCamDemoBase::update(deltaTime);
+
+  std::for_each(std::execution::par_unseq, mAsteroidAngles.begin(), mAsteroidAngles.end(),
+    [=, this](std::pair<entt::entity, float>& asteroidAngle) {
+      const CompOrbit& orbit = mScene.ecs.get<CompOrbit>(asteroidAngle.first);
+      asteroidAngle.second += orbit.angularVelocity * static_cast<float>(deltaTime);
+      mScene.ecs.patch<CompTransform>(asteroidAngle.first, [&](CompTransform& transform) {
+        transform.translation.x = glm::sin(glm::radians(asteroidAngle.second)) * orbit.radius;
+        transform.translation.z = glm::cos(glm::radians(asteroidAngle.second)) * orbit.radius;
+      });
+    });
+
+  mScene.ecs.patch<CompTransform>(mEnttMars, [=, this](CompTransform& transform) {
+    transform.rotation.yaw = glm::mod(transform.rotation.yaw + mMarsRotationSpeed * static_cast<float>(deltaTime), 360.0f);
+  });
 }

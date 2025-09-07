@@ -289,10 +289,6 @@ void Scene::sortOutlines() {
 }
 
 void Scene::onConstructGraphics(entt::registry&, entt::entity enttOutline) {
-  const auto [graphics, transform] = ecs.get<const CompGraphics, const CompTransform>(enttOutline);
-  for (const RenderData& renderData : graphics.renderData) {
-    mSceneBounds.includeAABB(renderData.mesh->boundingBox().transformed(transform.modelMatrix()));
-  }
 }
 
 void Scene::onConstructOutline(entt::registry&, const entt::entity enttOutline) {
@@ -441,6 +437,12 @@ void Scene::onUpdateTransform(entt::registry&, const entt::entity enttTransform)
 
   if (CompSpotlight* light = ecs.try_get<CompSpotlight>(enttTransform)) {
     light->direction = transform.forward();
+  }
+
+  if (CompGraphics* graphics = ecs.try_get<CompGraphics>(enttTransform)) {
+    for (const RenderData& renderData : graphics->renderData) {
+      mSceneBounds.includeAABB(renderData.mesh->boundingBox().transformed(transform.modelMatrix()));
+    }
   }
 
   if (const auto [spectator, camera] = ecs.try_get<const CompSpectator, const CompCamera>(enttTransform);
