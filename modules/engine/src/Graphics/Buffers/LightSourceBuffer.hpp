@@ -75,7 +75,6 @@ struct DirectionalLightShaderData {
 struct PointLightShaderData {
   LightColorUniforms colors;
   glm::vec3 position;
-  float _padding0 = 0.0f;
   float constant;
   float linear;
   float quadratic;

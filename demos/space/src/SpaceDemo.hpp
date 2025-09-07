@@ -9,8 +9,8 @@ public:
   virtual void update(double deltaTime) override;
 
 private:
-  entt::entity mEnttMars = entt::null;
+  entt::entity mEnttSun = entt::null;
 
   std::vector<std::pair<entt::entity, float>> mAsteroidAngles;
-  float mMarsRotationSpeed = 40.0f;
+  float mMarsRotationSpeed = 10.0f;
 };

@@ -18,15 +18,15 @@ Expected<void> SpaceDemo::init(const std::shared_ptr<AssetManager>& assets, cons
   ZoneScoped;
 
   // Load assets
-  const Expected modelPlanet = assets->loadModel("planet/planet.obj");
+  const Expected modelPlanet = assets->loadModel("sphere/sphere.obj");
   const Expected modelRock = assets->loadModel("rock/rock.obj");
 
-  Expected bitmapSkyboxRight  = assets->loadBitmap("skybox/space/right.png", false);
-  Expected bitmapSkyboxLeft   = assets->loadBitmap("skybox/space/left.png", false);
-  Expected bitmapSkyboxTop    = assets->loadBitmap("skybox/space/top.png", false);
-  Expected bitmapSkyboxBottom = assets->loadBitmap("skybox/space/bottom.png", false);
-  Expected bitmapSkyboxBack   = assets->loadBitmap("skybox/space/back.png", false);
-  Expected bitmapSkyboxFront  = assets->loadBitmap("skybox/space/front.png", false);
+  Expected bitmapSkyboxRight  = assets->loadBitmap("skybox/px.png", false);
+  Expected bitmapSkyboxLeft   = assets->loadBitmap("skybox/nx.png", false);
+  Expected bitmapSkyboxTop    = assets->loadBitmap("skybox/py.png", false);
+  Expected bitmapSkyboxBottom = assets->loadBitmap("skybox/ny.png", false);
+  Expected bitmapSkyboxFront  = assets->loadBitmap("skybox/pz.png", false);
+  Expected bitmapSkyboxBack   = assets->loadBitmap("skybox/nz.png", false);
 
   const AssetHandle<MeshData> skyboxCubeMesh = assets->addMesh(MeshData::createCube(glm::vec3(2.0f)));
 
@@ -52,8 +52,8 @@ Expected<void> SpaceDemo::init(const std::shared_ptr<AssetManager>& assets, cons
       bitmapSkyboxLeft.value(),
       bitmapSkyboxTop.value(),
       bitmapSkyboxBottom.value(),
-      bitmapSkyboxBack.value(),
       bitmapSkyboxFront.value(),
+      bitmapSkyboxBack.value(),
       .bSRGB = true,
     }
   );
@@ -61,8 +61,8 @@ Expected<void> SpaceDemo::init(const std::shared_ptr<AssetManager>& assets, cons
   // Create scene
   mMainCamera = mScene.ecs.create();
   mScene.ecs.emplace<CompCamera>(mMainCamera, CompCamera {
-    .clipBox.min.z = 0.001f,
-    .clipBox.max.z = 200.0f,
+    .clipBox.min.z = 0.01f,
+    .clipBox.max.z = 400.0f,
   });
 
   mScene.skybox = Skybox {
@@ -71,21 +71,18 @@ Expected<void> SpaceDemo::init(const std::shared_ptr<AssetManager>& assets, cons
     .shader = renderer->createShaderProgramInstance(ShaderProgramType::Skybox),
   };
 
-  const entt::entity entitySun = mScene.ecs.create();
-  mScene.ecs.emplace<CompName>(entitySun, "Sun");
-  mScene.ecs.emplace<CompDirectionalLight>(entitySun, CompDirectionalLight {
-    .colors =  LightColors {
-      .ambient = glm::vec3(0.01f),
-      .diffuse = glm::vec3(1.0f),
-      .specular = glm::vec3(2.0f),
-    },
-    .direction = glm::vec3(0.3f, -1.0f, -0.3f),
+  mEnttSun = mScene.ecs.create();
+  mScene.ecs.emplace<CompName>(mEnttSun, "Sun");
+  mScene.ecs.emplace<CompTransform>(mEnttSun, CompTransform { .rotation.pitch = 90.0f, .scale = glm::vec3(0.01f) });
+  mScene.ecs.emplace<CompGraphics>(mEnttSun, planetMeshes);
+  mScene.ecs.emplace<CompPointLight>(mEnttSun, CompPointLight {
+    .colors.ambient = glm::vec3(0.01f),
+    .colors.diffuse = glm::vec3(1000.0f),
+    .colors.specular = glm::vec3(1500.0f),
+    .constant = 1.0f,
+    .linear = 6.35f,
+    .quadratic = 0.01f,
   });
-
-  mEnttMars = mScene.ecs.create();
-  mScene.ecs.emplace<CompName>(mEnttMars, "Planet Mars");
-  mScene.ecs.emplace<CompTransform>(mEnttMars, CompTransform { .rotation.pitch = 90.0f });
-  mScene.ecs.emplace<CompGraphics>(mEnttMars, planetMeshes);
 
   // Generate asteroids
   std::random_device rd;
@@ -138,7 +135,7 @@ void SpaceDemo::update(const double deltaTime) {
       });
     });
 
-  mScene.ecs.patch<CompTransform>(mEnttMars, [=, this](CompTransform& transform) {
+  mScene.ecs.patch<CompTransform>(mEnttSun, [=, this](CompTransform& transform) {
     transform.rotation.yaw = glm::mod(transform.rotation.yaw + mMarsRotationSpeed * static_cast<float>(deltaTime), 360.0f);
   });
 }

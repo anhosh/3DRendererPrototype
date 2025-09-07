@@ -160,7 +160,7 @@ void GltfTestHelper::AddBoxMetaStructuralMetadata(Scene *scene) {
   // "schema": {
   //   "id": "galaxy",
   //   "classes": {
-  //     "planet": {
+  //     "sphere": {
   //       "properties": {
   //         "color": {
   //           "componentType": "UINT8",
@@ -232,9 +232,9 @@ void GltfTestHelper::AddBoxMetaStructuralMetadata(Scene *scene) {
   json.SetObjects().emplace_back("id", "galaxy");
   json.SetObjects().emplace_back("classes");
 
-  // Add class "planet" to schema.
+  // Add class "sphere" to schema.
   {
-    json.SetObjects().back().SetObjects().emplace_back("planet");
+    json.SetObjects().back().SetObjects().emplace_back("sphere");
     Object &planet = json.SetObjects().back().SetObjects().back();
     planet.SetObjects().emplace_back("properties");
     Object &properties = planet.SetObjects().back();
@@ -319,10 +319,10 @@ void GltfTestHelper::AddBoxMetaStructuralMetadata(Scene *scene) {
   // Add structural metadata property table.
   std::unique_ptr<PropertyTable> table(new PropertyTable());
   table->SetName("Galaxy far far away.");
-  table->SetClass("planet");
+  table->SetClass("sphere");
   table->SetCount(16);
 
-  // Add property describing RGB color components of the planet class.
+  // Add property describing RGB color components of the sphere class.
   {
     std::unique_ptr<PropertyTable::Property> property(
         new PropertyTable::Property());
@@ -347,7 +347,7 @@ void GltfTestHelper::AddBoxMetaStructuralMetadata(Scene *scene) {
     table->AddProperty(std::move(property));
   }
 
-  // Add property that describes names of the planet class.
+  // Add property that describes names of the sphere class.
   {
     std::unique_ptr<PropertyTable::Property> property(
         new PropertyTable::Property());
@@ -393,7 +393,7 @@ void GltfTestHelper::AddBoxMetaStructuralMetadata(Scene *scene) {
     table->AddProperty(std::move(property));
   }
 
-  // Add property that contains variable-length number sequence of the planet
+  // Add property that contains variable-length number sequence of the sphere
   // class.
   {
     std::unique_ptr<PropertyTable::Property> property(
@@ -765,10 +765,10 @@ void GltfTestHelper::CheckBoxMetaStructuralMetadata(
       ASSERT_EQ(mag.GetObjects()[3].GetString(), "SCALAR");
     }
 
-    // Check class "planet".
+    // Check class "sphere".
     {
       const auto item = json.GetObjects()[0].GetObjects()[1];
-      ASSERT_EQ(item.GetName(), "planet");
+      ASSERT_EQ(item.GetName(), "sphere");
       ASSERT_EQ(item.GetObjects().size(), 1);
 
       const auto &properties = item.GetObjects()[0];
@@ -850,11 +850,11 @@ void GltfTestHelper::CheckBoxMetaStructuralMetadata(
   ASSERT_EQ(structural_metadata.NumPropertyTables(), 1);
   const PropertyTable &table = structural_metadata.GetPropertyTable(0);
   ASSERT_EQ(table.GetName(), "Galaxy far far away.");
-  ASSERT_EQ(table.GetClass(), "planet");
+  ASSERT_EQ(table.GetClass(), "sphere");
   ASSERT_EQ(table.GetCount(), kRows);
   ASSERT_EQ(table.NumProperties(), 3);
 
-  // Check property that describes RGB color components of the planet class.
+  // Check property that describes RGB color components of the sphere class.
   {
     const PropertyTable::Property &property = table.GetProperty(0);
     ASSERT_EQ(property.GetName(), "color");
@@ -880,7 +880,7 @@ void GltfTestHelper::CheckBoxMetaStructuralMetadata(
     ASSERT_EQ(property.GetStringOffsets().data.target, 0);
   }
 
-  // Check property that describes names of the planet class.
+  // Check property that describes names of the sphere class.
   {
     const PropertyTable::Property &property = table.GetProperty(1);
     ASSERT_EQ(property.GetName(), "name");
@@ -929,7 +929,7 @@ void GltfTestHelper::CheckBoxMetaStructuralMetadata(
     ASSERT_EQ(property.GetArrayOffsets().data.target, 0);
   }
 
-  // Check property that describes number sequence of the planet class.
+  // Check property that describes number sequence of the sphere class.
   {
     const PropertyTable::Property &property = table.GetProperty(2);
     ASSERT_EQ(property.GetName(), "sequence");

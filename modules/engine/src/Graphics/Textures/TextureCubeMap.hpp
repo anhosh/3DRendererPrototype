@@ -11,8 +11,8 @@ struct TextureCubeMapBitmaps {
   AssetHandle<Bitmap> left;
   AssetHandle<Bitmap> top;
   AssetHandle<Bitmap> bottom;
-  AssetHandle<Bitmap> back;
   AssetHandle<Bitmap> front;
+  AssetHandle<Bitmap> back;
   bool bSRGB = false;
 };
 

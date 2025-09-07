@@ -490,7 +490,7 @@ TEST(MeshTest, MeshCopyWithMeshFeatures) {
   // Add feature ID set referring to an attribute.
   const draco::MeshFeaturesIndex index_0 = mesh->AddMeshFeatures(
       std::unique_ptr<draco::MeshFeatures>(new draco::MeshFeatures()));
-  mesh->GetMeshFeatures(index_0).SetLabel("planet");
+  mesh->GetMeshFeatures(index_0).SetLabel("sphere");
   mesh->GetMeshFeatures(index_0).SetFeatureCount(2);
   mesh->GetMeshFeatures(index_0).SetAttributeIndex(1);
 
@@ -550,7 +550,7 @@ TEST(MeshTest, TestMeshFeaturesAttributeDeletion) {
   // Add feature ID set referring to an attribute.
   const draco::MeshFeaturesIndex index_0 = mesh->AddMeshFeatures(
       std::unique_ptr<draco::MeshFeatures>(new draco::MeshFeatures()));
-  mesh->GetMeshFeatures(index_0).SetLabel("planet");
+  mesh->GetMeshFeatures(index_0).SetLabel("sphere");
   mesh->GetMeshFeatures(index_0).SetFeatureCount(2);
   mesh->GetMeshFeatures(index_0).SetAttributeIndex(1);
 
@@ -575,7 +575,7 @@ TEST(MeshTest, TestAttributeUsedByMeshFeatures) {
   // Add feature ID set referring to an attribute.
   const draco::MeshFeaturesIndex index_0 = mesh->AddMeshFeatures(
       std::unique_ptr<draco::MeshFeatures>(new draco::MeshFeatures()));
-  mesh->GetMeshFeatures(index_0).SetLabel("planet");
+  mesh->GetMeshFeatures(index_0).SetLabel("sphere");
   mesh->GetMeshFeatures(index_0).SetFeatureCount(2);
   mesh->GetMeshFeatures(index_0).SetAttributeIndex(1);
 
