@@ -1,7 +1,6 @@
 #pragma once
 
 #include <Assets/AssetManager.hpp>
-#include <Graphics/Buffers/Buffer.hpp>
 #include <Graphics/Buffers/MultiBuffer.hpp>
 #include <Graphics/Command.hpp>
 #include <Graphics/Draw.hpp>
@@ -9,25 +8,33 @@
 #include <Graphics/Mesh.hpp>
 #include <Graphics/RenderData.hpp>
 #include <Graphics/RenderPass.hpp>
-#include <Graphics/Sampler.hpp>
-#include <Graphics/ShaderProgramInstance.hpp>
-#include <Graphics/Textures/Texture2D.hpp>
-#include <Graphics/Textures/Texture2DArray.hpp>
-#include <Graphics/Textures/TextureCubeMap.hpp>
 #include <Util/Registry.hpp>
 
 #include <unordered_map>
 #include <vector>
 
+class ShaderProgram;
+class ShaderProgramInstance;
+class Mesh;
+class Sampler;
+class SamplerOptions;
+class Texture2D;
+class Texture2DArray;
+class TextureCubeMap;
+class Framebuffer;
+class Buffer;
 struct InstanceBuffer;
 struct RenderData;
 struct RenderPass;
 class Scene;
 struct Viewport;
 
+using SamplerHandle = Registry<Sampler>::Handle;
+
 class RenderingEngine {
 public:
-  ~RenderingEngine() { this->destroy(); }
+  RenderingEngine();
+  ~RenderingEngine();
 
   Expected<void> init(AssetManager& assets);
   void destroy();

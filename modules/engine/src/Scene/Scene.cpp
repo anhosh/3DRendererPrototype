@@ -288,7 +288,13 @@ void Scene::sortOutlines() {
     });
 }
 
-void Scene::onConstructGraphics(entt::registry&, entt::entity enttOutline) {
+void Scene::onConstructGraphics(entt::registry&, const entt::entity enttOutline) {
+  const CompGraphics& graphics = ecs.get<const CompGraphics>(enttOutline);
+  if (const CompTransform* transform = ecs.try_get<const CompTransform>(enttOutline)) {
+    for (const RenderData& renderData : graphics.renderData) {
+      mSceneBounds.includeAABB(renderData.mesh->boundingBox().transformed(transform->modelMatrix()));
+    }
+  }
 }
 
 void Scene::onConstructOutline(entt::registry&, const entt::entity enttOutline) {

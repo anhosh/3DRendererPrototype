@@ -95,6 +95,8 @@ Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const
 }
 
 void DemoBase::update(double dt) {
+  ZoneScopedN("DemoBase::update");
+
   if (mbViewFrustumFollowsMainView) {
     mScene.ecs.patch<CompTransform>(mViewFrustum, [&](CompTransform& frustumTransform) {
       frustumTransform = mScene.ecs.get<CompTransform>(mMainCamera);

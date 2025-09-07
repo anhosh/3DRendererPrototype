@@ -1,8 +1,9 @@
 #pragma once
 
-#include <Assets/MeshData.hpp>
 #include <Util/Math/AABB.hpp>
 #include <Util/Registry.hpp>
+
+struct MeshData;
 
 class Mesh {
 public:

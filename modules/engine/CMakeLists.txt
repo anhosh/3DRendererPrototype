@@ -24,5 +24,5 @@ target_precompile_headers(${PROJECT_NAME} PRIVATE
 
 target_include_directories(${PROJECT_NAME} PUBLIC src)
 
-file(GLOB_RECURSE sources LIST_DIRECTORIES false "src/*.[hc]pp")
+file(GLOB_RECURSE sources CONFIGURE_DEPENDS LIST_DIRECTORIES false "src/*.[hc]pp")
 target_sources(${PROJECT_NAME} PRIVATE ${sources})

@@ -80,6 +80,8 @@ void FlyCamDemoBase::processMouse(const glm::vec2 mousePosition) {
 }
 
 void FlyCamDemoBase::update(const double dt) {
+  ZoneScopedN("FlyCamDemoBase::update");
+
   if (mCameraVelocity != glm::vec3(0.0f)) {
     mScene.ecs.patch<CompTransform>(mMainCamera, [&](CompTransform& cameraTransform) {
       cameraTransform.translation += mCameraVelocity * static_cast<float>(dt);

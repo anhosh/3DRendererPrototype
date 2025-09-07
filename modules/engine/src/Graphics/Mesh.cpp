@@ -1,5 +1,7 @@
 #include <Graphics/Mesh.hpp>
 
+#include <Assets/MeshData.hpp>
+#include <Graphics/Vertex.hpp>
 #include <Util/Memory.hpp>
 
 #include <cassert>

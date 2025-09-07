@@ -1,5 +1,6 @@
 #include <FloatingBackpackDemo.hpp>
 
+#include <Assets/MeshData.hpp>
 #include <Scene/Components/Graphics.hpp>
 #include <Scene/Components/Name.hpp>
 #include <Util/Macros/Errors.hpp>
@@ -16,8 +17,8 @@ Expected<void> FloatingBackpackDemo::init(const std::shared_ptr<AssetManager>& a
   Expected bitmapSkyboxLeft   = assets->loadBitmap("skybox/sea_afternoon/left.jpg", false);
   Expected bitmapSkyboxTop    = assets->loadBitmap("skybox/sea_afternoon/top.jpg", false);
   Expected bitmapSkyboxBottom = assets->loadBitmap("skybox/sea_afternoon/bottom.jpg", false);
-  Expected bitmapSkyboxBack   = assets->loadBitmap("skybox/sea_afternoon/back.jpg", false);
   Expected bitmapSkyboxFront  = assets->loadBitmap("skybox/sea_afternoon/front.jpg", false);
+  Expected bitmapSkyboxBack   = assets->loadBitmap("skybox/sea_afternoon/back.jpg", false);
 
   AssetHandle<Bitmap> floorBitmap = assets->addBitmap(Bitmap::fromMemory(asBytes("\xFF\xFF\xFF"), glm::uvec2(1), 3).value());
 
@@ -26,8 +27,8 @@ Expected<void> FloatingBackpackDemo::init(const std::shared_ptr<AssetManager>& a
   RETURN_ERROR_IF_UNEXPECTED(bitmapSkyboxLeft);
   RETURN_ERROR_IF_UNEXPECTED(bitmapSkyboxTop);
   RETURN_ERROR_IF_UNEXPECTED(bitmapSkyboxBottom);
-  RETURN_ERROR_IF_UNEXPECTED(bitmapSkyboxBack);
   RETURN_ERROR_IF_UNEXPECTED(bitmapSkyboxFront);
+  RETURN_ERROR_IF_UNEXPECTED(bitmapSkyboxBack);
 
   const AssetHandle<MeshData> skyboxCubeMesh = assets->addMesh(MeshData::createCube(glm::vec3(2.0f)));
   const AssetHandle<MeshData> floorMeshData = assets->addMesh(MeshData::createCube(glm::vec3(15.0f, 0.05f, 15.0f)));
@@ -55,8 +56,8 @@ Expected<void> FloatingBackpackDemo::init(const std::shared_ptr<AssetManager>& a
       bitmapSkyboxLeft.value(),
       bitmapSkyboxTop.value(),
       bitmapSkyboxBottom.value(),
-      bitmapSkyboxBack.value(),
       bitmapSkyboxFront.value(),
+      bitmapSkyboxBack.value(),
       .bSRGB = true,
     }
   );

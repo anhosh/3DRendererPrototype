@@ -111,12 +111,13 @@ LightColors spotlight(uint lightIndex, vec3 normal) {
 
   // TODO - fix spotlight shadows
   vec4 fragPosLightSpace = light.view.projection * light.view.view * vec4(fsIn.position, 1);
-//  fragPosLightSpace.xyz /= fragPosLightSpace.w;
+  fragPosLightSpace.xyz /= fragPosLightSpace.w;
 //  fragPosLightSpace.z = 1 - fragPosLightSpace.z;
 //  fragPosLightSpace.z = linearizeDepth(fragPosLightSpace.z) / light.view.zMax;
-  if (visibility == 1) {
-    visibility *= 1 - shadow(fragPosLightSpace, dot(normal, lightDirection), uSpotlightShadowMaps, lightIndex);
-  }
+  fragPosLightSpace.z += uDebugBiasMultiplier;
+//  if (visibility == 1) {
+//    visibility *= 1 - shadow(fragPosLightSpace, dot(normal, lightDirection), uSpotlightShadowMaps, lightIndex);
+//  }
 
   LightColors colors;
   colors.ambient = light.colors.ambient * visibility * intensity;

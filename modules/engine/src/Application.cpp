@@ -1,8 +1,8 @@
 #include <Application.hpp>
 
+#include <Assets/AssetManager.hpp>
+#include <Assets/MeshData.hpp>
 #include <GUI.hpp>
-#include <../../../demos/floating_backpack/src/FloatingBackpackDemo.hpp>
-#include <../../../demos/space/src/SpaceDemo.hpp>
 #include <Graphics/RenderingEngine.hpp>
 #include <Util/Macros/Errors.hpp>
 #include <Util/NotNull.hpp>

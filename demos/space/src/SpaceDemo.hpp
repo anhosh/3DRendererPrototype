@@ -11,6 +11,6 @@ public:
 private:
   entt::entity mEnttSun = entt::null;
 
-  std::vector<std::pair<entt::entity, float>> mAsteroidAngles;
+  std::vector<std::pair<entt::entity, float>> mCelestialBodyAngles;
   float mMarsRotationSpeed = 10.0f;
 };

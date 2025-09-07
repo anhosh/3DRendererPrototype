@@ -3,13 +3,19 @@
 #include <Assets/MeshData.hpp>
 #include <Assets/Model.hpp>
 #include <Graphics/Draw.hpp>
+#include <Graphics/Buffers/Buffer.hpp>
+#include <Graphics/Buffers/BindPoints.hpp>
+#include <Graphics/Buffers/CameraUniforms.hpp>
+#include <Graphics/Buffers/InstanceBuffer.hpp>
 #include <Graphics/Framebuffer.hpp>
 #include <Graphics/RenderData.hpp>
 #include <Graphics/RenderPass.hpp>
 #include <Graphics/ShaderProgram.hpp>
-#include <Graphics/Buffers/BindPoints.hpp>
-#include <Graphics/Buffers/CameraUniforms.hpp>
-#include <Graphics/Buffers/InstanceBuffer.hpp>
+#include <Graphics/Sampler.hpp>
+#include <Graphics/ShaderProgramInstance.hpp>
+#include <Graphics/Textures/Texture2D.hpp>
+#include <Graphics/Textures/Texture2DArray.hpp>
+#include <Graphics/Textures/TextureCubeMap.hpp>
 #include <Graphics/Viewport.hpp>
 #include <Scene/Components/Camera.hpp>
 #include <Scene/Scene.hpp>
@@ -22,6 +28,12 @@
 
 #include <ranges>
 #include <unordered_set>
+
+RenderingEngine::RenderingEngine() {}
+
+RenderingEngine::~RenderingEngine() {
+  this->destroy();
+}
 
 Expected<void> RenderingEngine::init(AssetManager& assets) {
   ZoneScoped;
