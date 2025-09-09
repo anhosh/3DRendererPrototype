@@ -79,10 +79,10 @@ Expected<void> FloatingBackpackDemo::init(const std::shared_ptr<AssetManager>& a
     .direction = glm::vec3(0.166f, -0.2f, 0.161f),
   });
 
-  mEnttFlashlight = mScene.ecs.create();
-  mScene.ecs.emplace<CompName>(mEnttFlashlight, "Flashlight");
-  mScene.ecs.emplace<CompSpotlight>(mEnttFlashlight);
-  mScene.ecs.emplace<CompTransform>(mEnttFlashlight);
+  // mEnttFlashlight = mScene.ecs.create();
+  // mScene.ecs.emplace<CompName>(mEnttFlashlight, "Flashlight");
+  // mScene.ecs.emplace<CompSpotlight>(mEnttFlashlight);
+  // mScene.ecs.emplace<CompTransform>(mEnttFlashlight);
 
   const entt::entity enttBackpack = mScene.ecs.create();
   mScene.ecs.emplace<CompName>(enttBackpack, "Backpack");
@@ -107,21 +107,21 @@ Expected<void> FloatingBackpackDemo::init(const std::shared_ptr<AssetManager>& a
 void FloatingBackpackDemo::update(const double deltaTime) {
   FlyCamDemoBase::update(deltaTime);
 
-  if (mbFlashlightFollowsCamera) {
-    mScene.ecs.patch<CompTransform>(mEnttFlashlight, [this](CompTransform& lightTransform) {
-      lightTransform = mScene.ecs.get<CompTransform>(mMainCamera);
-    });
-  }
+  // if (mbFlashlightFollowsCamera) {
+  //   mScene.ecs.patch<CompTransform>(mEnttFlashlight, [this](CompTransform& lightTransform) {
+  //     lightTransform = mScene.ecs.get<CompTransform>(mMainCamera);
+  //   });
+  // }
 }
 
 void FloatingBackpackDemo::gui(AppState& state) {
   FlyCamDemoBase::gui(state);
 
   if (ImGui::CollapsingHeader("Floating Backpack Demo")) {
-    ImGui::Checkbox("Flashlight follows camera", &mbFlashlightFollowsCamera);
-    if (ImGui::DragFloat("[Debug] Flashlight Z Offset", &mScene.ecs.get<CompSpotlight>(mEnttFlashlight).debugZOffset, 0.01f)) {
-      mScene.ecs.patch<CompSpotlight>(mEnttFlashlight);
-    }
+    // ImGui::Checkbox("Flashlight follows camera", &mbFlashlightFollowsCamera);
+    // if (ImGui::DragFloat("[Debug] Flashlight Z Offset", &mScene.ecs.get<CompSpotlight>(mEnttFlashlight).debugZOffset, 0.01f)) {
+    //   mScene.ecs.patch<CompSpotlight>(mEnttFlashlight);
+    // }
     ImGui::DragFloat("[Debug] uDebugBiasMultiplier", mLitSurfaceShader->uniforms["uDebugBiasMultiplier"].getPtr<GLfloat>(), 0.001f);
   }
 }

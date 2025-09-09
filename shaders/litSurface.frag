@@ -171,14 +171,15 @@ void main() {
   // Blend lighting with material
   vec4 result = vec4(0);
 
+  vec4 materialDiffuse = vec4(0);
   if (uMaterial.bUseDiffuse) {
-    vec4 materialDiffuse = texture(uMaterial.diffuse, fsIn.texCoord);
-    if (uMaterial.bUseDiffuseOverlay) {
-      vec4 overlayDiffuse = texture(uMaterial.diffuseOverlay, fsIn.texCoord);
-      materialDiffuse = vec4(overlayDiffuse.rgb * overlayDiffuse.a + materialDiffuse.rgb * (1 - overlayDiffuse.a), 1);
-    }
-    result += materialDiffuse * (vec4(combinedAmbient, 1) + vec4(combinedDiffuse, 1));
+    materialDiffuse = texture(uMaterial.diffuse, fsIn.texCoord);
   }
+  if (uMaterial.bUseDiffuseOverlay) {
+    vec4 overlayDiffuse = texture(uMaterial.diffuseOverlay, fsIn.texCoord);
+    materialDiffuse = vec4(overlayDiffuse.rgb * overlayDiffuse.a + materialDiffuse.rgb * (1 - overlayDiffuse.a), 1);
+  }
+  result += materialDiffuse * (vec4(combinedAmbient, 1) + vec4(combinedDiffuse, 1));
 
   if (uMaterial.bUseSpecular) {
     vec3 materialSpecular = texture(uMaterial.specular, fsIn.texCoord).rgb;

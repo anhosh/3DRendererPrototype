@@ -649,7 +649,9 @@ void RenderingEngine::renderSceneFull(const std::span<Draw> draws, const Viewpor
       currShader.bindUniforms();
     }
 
-    const auto bindTexture = [&](const auto currTexture, const auto lastTexture, const auto defaultTexture, const GLuint unit, const GLchar* uniformName) {
+    const auto bindTexture = [&](const auto currTexture, const auto lastTexture, const auto defaultTexture,
+                                 const GLuint unit, const GLchar* uniformName)
+    {
       if (drawIdx == 0 || currTexture != lastTexture) {
         currTexture.getOrDefault(defaultTexture).bind(unit);
         boundTextureSlots.insert(unit);

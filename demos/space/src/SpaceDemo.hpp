@@ -19,7 +19,7 @@ private:
   entt::entity mEnttMoon = entt::null;
 
   std::vector<std::pair<entt::entity, float>> mCelestialBodyAngles;
-  float mMarsRotationSpeed = 10.0f;
 
+  float mSunRotationSpeed = 10.0f;
   float mMoonAngle = 0.0f;
 };

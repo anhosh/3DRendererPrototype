@@ -225,7 +225,8 @@ void SpaceDemo::update(const double deltaTime) {
     });
 
   mScene.ecs.patch<CompTransform>(mEnttSun, [=, this](CompTransform& transform) {
-    transform.rotation.yaw = glm::mod(transform.rotation.yaw + mMarsRotationSpeed * static_cast<float>(deltaTime), 360.0f);
+    transform.rotation.yaw += mSunRotationSpeed * static_cast<float>(deltaTime);
+    transform.rotation.yaw = glm::mod(transform.rotation.yaw, 360.0f);
   });
 }
 

@@ -9,8 +9,8 @@ public:
   virtual void gui(AppState& state) override;
 
 private:
-  bool mbFlashlightFollowsCamera = true;
-  entt::entity mEnttFlashlight = entt::null;
+  // bool mbFlashlightFollowsCamera = true;
+  // entt::entity mEnttFlashlight = entt::null;
 
   ShaderProgramInstanceHandle mLitSurfaceShader = ShaderProgramInstanceHandle::null();
 };
