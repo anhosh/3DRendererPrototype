@@ -300,14 +300,21 @@ void Scene::onConstructGraphics(entt::registry&, const entt::entity enttOutline)
 void Scene::onConstructOutline(entt::registry&, const entt::entity enttOutline) {
   ZoneScoped;
 
-  const auto meshHasSameEntity = [=](const MeshDataReference& mesh) { return mesh.entity == enttOutline; };
-  auto meshesRange = std::views::concat(mCachedSortedOpaqueMeshes, mCachedSortedTransparentMeshes);
-  if (const auto mesh = std::find_if(meshesRange.begin(), meshesRange.end(), meshHasSameEntity); mesh != meshesRange.end()) {
-    (*mesh).bHasOutline = true;
-    mCachedSortedOutlines.push_back(*mesh);
+  const auto addOutline = [this](MeshDataReference& mesh) {
+    mesh.bHasOutline = true;
+    mCachedSortedOutlines.push_back(mesh);
     this->sortOutlines();
-  }
-}
+  };
+  const auto meshHasSameEntity = [=](const MeshDataReference& mesh) { return mesh.entity == enttOutline; };
+  if (const auto mesh = std::ranges::find_if(mCachedSortedOpaqueMeshes, meshHasSameEntity);
+      mesh != mCachedSortedOpaqueMeshes.end())
+  {
+    addOutline(*mesh);
+  } else if (const auto mesh = std::ranges::find_if(mCachedSortedTransparentMeshes, meshHasSameEntity);
+             mesh != mCachedSortedTransparentMeshes.end())
+  {
+    addOutline(*mesh);
+  }}
 
 void Scene::onConstructDirectionalLight(entt::registry&, const entt::entity enttLight) {
   ZoneScoped;
@@ -361,9 +368,14 @@ void Scene::onDestroyOutline(entt::registry&, const entt::entity enttOutline) {
   ZoneScoped;
 
   const auto meshHasSameEntity = [=](const MeshDataReference& mesh) { return mesh.entity == enttOutline; };
-  auto meshesRange = std::views::concat(mCachedSortedOpaqueMeshes, mCachedSortedTransparentMeshes);
-  if (const auto mesh = std::find_if(meshesRange.begin(), meshesRange.end(), meshHasSameEntity); mesh != meshesRange.end()) {
-    (*mesh).bHasOutline = false;
+  if (const auto mesh = std::ranges::find_if(mCachedSortedOpaqueMeshes, meshHasSameEntity);
+      mesh != mCachedSortedOpaqueMeshes.end())
+  {
+    mesh->bHasOutline = false;
+  } else if (const auto mesh = std::ranges::find_if(mCachedSortedTransparentMeshes, meshHasSameEntity);
+             mesh != mCachedSortedTransparentMeshes.end())
+  {
+    mesh->bHasOutline = false;
   }
   auto removedOutlines = std::ranges::remove_if(mCachedSortedOutlines, meshHasSameEntity);
   mCachedSortedOutlines.erase(removedOutlines.begin(), removedOutlines.end());

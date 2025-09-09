@@ -110,11 +110,11 @@ LightColors spotlight(uint lightIndex, vec3 normal) {
   float intensity = clamp((theta - light.outerCutOff) / epsilon, 0, 1);
 
   // TODO - fix spotlight shadows
-  vec4 fragPosLightSpace = light.view.projection * light.view.view * vec4(fsIn.position, 1);
-  fragPosLightSpace.xyz /= fragPosLightSpace.w;
-//  fragPosLightSpace.z = 1 - fragPosLightSpace.z;
-//  fragPosLightSpace.z = linearizeDepth(fragPosLightSpace.z) / light.view.zMax;
-  fragPosLightSpace.z += uDebugBiasMultiplier;
+//  vec4 fragPosLightSpace = light.view.projection * light.view.view * vec4(fsIn.position, 1);
+//  fragPosLightSpace.xyz /= fragPosLightSpace.w;
+////  fragPosLightSpace.z = 1 - fragPosLightSpace.z;
+////  fragPosLightSpace.z = linearizeDepth(fragPosLightSpace.z) / light.view.zMax;
+////  fragPosLightSpace.z += uDebugBiasMultiplier;
 //  if (visibility == 1) {
 //    visibility *= 1 - shadow(fragPosLightSpace, dot(normal, lightDirection), uSpotlightShadowMaps, lightIndex);
 //  }

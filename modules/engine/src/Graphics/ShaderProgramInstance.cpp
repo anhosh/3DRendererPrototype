@@ -14,7 +14,7 @@ void ShaderProgramInstance::bindUniforms() const {
   ZoneScoped;
 
   for (const ShaderUniform& uniform : uniforms | std::views::values) {
-    uniform.value.visit(Visitor {
+    std::visit(Visitor {
       [&](const bool value)       { glUniform1i(uniform.location, value ? GL_TRUE : GL_FALSE); },
       [&](const GLint value)      { glUniform1i(uniform.location, value); },
       [&](const GLuint value)     { glUniform1ui(uniform.location, value); },
@@ -26,7 +26,7 @@ void ShaderProgramInstance::bindUniforms() const {
       [&](const glm::mat2& value) { glUniformMatrix2fv(uniform.location, 1, GL_FALSE, glm::value_ptr(value)); },
       [&](const glm::mat3& value) { glUniformMatrix3fv(uniform.location, 1, GL_FALSE, glm::value_ptr(value)); },
       [&](const glm::mat4& value) { glUniformMatrix4fv(uniform.location, 1, GL_FALSE, glm::value_ptr(value)); },
-    });
+    }, uniform.value);
   }
 }
 

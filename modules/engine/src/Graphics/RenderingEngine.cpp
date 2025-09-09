@@ -463,13 +463,13 @@ FramebufferHandle RenderingEngine::submitCommands(CommandBuffer&& commandBuffer)
   FramebufferHandle lastFramebuffer = FramebufferHandle::null();
 
   for (CommandBuffer::Command& command : commandBuffer.commands) {
-    command.visit(Visitor {
+    std::visit(Visitor {
       [&](CmdRenderPass& cmd) {
         lastFramebuffer = cmd.renderPass.dstFramebuffer;
         this->cmdRenderPass(cmd, lastCamera, lastScene, draws);
       },
       [&](const CmdDrawDebugFrustum& cmd) { this->cmdDrawDebugFrustum(cmd); },
-    });
+    }, command);
   }
 
   this->swapBuffers();
@@ -480,10 +480,10 @@ FramebufferHandle RenderingEngine::submitCommands(CommandBuffer&& commandBuffer)
 void RenderingEngine::cmdRenderPass(CmdRenderPass& cmd, entt::entity& lastCamera, Scene const*& lastScene, std::span<const Draw>& draws) {
   using namespace std::placeholders;
   auto& [viewport, dstFramebuffer, pass] = cmd.renderPass;
-  pass.visit(Visitor {
+  std::visit(Visitor {
     [&](RenderPassScene& p) { this->renderPassScene(p, viewport, dstFramebuffer, lastCamera, lastScene, draws); },
     [&](const PostProcessingPass& p) { this->postProcess(viewport, dstFramebuffer, p.srcFramebuffer, p.postProcessingShader); },
-  });
+  }, pass);
 }
 
 void RenderingEngine::cmdDrawDebugFrustum(const CmdDrawDebugFrustum& cmd) {

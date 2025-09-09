@@ -31,7 +31,7 @@ Expected<void> SpaceDemo::init(const std::shared_ptr<AssetManager>& assets, cons
   Expected bitmapMercury       = assets->loadBitmap("spheres/2k_mercury.jpg", false);
   Expected bitmapVenus         = assets->loadBitmap("spheres/2k_venus_atmosphere.jpg", false);
   Expected bitmapEarthDayMap   = assets->loadBitmap("spheres/2k_earth_daymap.jpg", false);
-  // Expected bitmapEarthSpecular = assets->loadBitmap("spheres/2k_earth_specular_map.tiff", false);
+  Expected bitmapEarthSpecular = assets->loadBitmap("spheres/2k_earth_specular_map.png", false);
   Expected bitmapMars          = assets->loadBitmap("spheres/2k_mars.jpg", false);
 
   const AssetHandle<MeshData> skyboxCubeMesh = assets->addMesh(MeshData::createCube(glm::vec3(2.0f)));
@@ -47,7 +47,7 @@ Expected<void> SpaceDemo::init(const std::shared_ptr<AssetManager>& assets, cons
   RETURN_ERROR_IF_UNEXPECTED(bitmapMercury);
   RETURN_ERROR_IF_UNEXPECTED(bitmapVenus);
   RETURN_ERROR_IF_UNEXPECTED(bitmapEarthDayMap);
-  // RETURN_ERROR_IF_UNEXPECTED(bitmapEarthSpecular);
+  RETURN_ERROR_IF_UNEXPECTED(bitmapEarthSpecular);
   RETURN_ERROR_IF_UNEXPECTED(bitmapMars);
 
   // Get shader instances
@@ -72,7 +72,7 @@ Expected<void> SpaceDemo::init(const std::shared_ptr<AssetManager>& assets, cons
   Texture2DHandle textureMercury = renderer->addTexture2D(bitmapMercury.value());
   Texture2DHandle textureVenus = renderer->addTexture2D(bitmapVenus.value());
   Texture2DHandle textureEarthDayMap = renderer->addTexture2D(bitmapEarthDayMap.value());
-  // Texture2DHandle textureEarthSpecular = renderer->addTexture2D(bitmapEarthSpecular.value());
+  Texture2DHandle textureEarthSpecular = renderer->addTexture2D(bitmapEarthSpecular.value());
   Texture2DHandle textureMars = renderer->addTexture2D(bitmapMars.value());
 
   // Create scene
@@ -134,7 +134,7 @@ Expected<void> SpaceDemo::init(const std::shared_ptr<AssetManager>& assets, cons
   const entt::entity enttEarth = mScene.ecs.create();
   mScene.ecs.emplace<CompName>(enttEarth, "Earth");
   planetMeshes[0].diffuseMap = textureEarthDayMap;
-  // planetMeshes[0].specularMap = textureEarthSpecular;
+  planetMeshes[0].specularMap = textureEarthSpecular;
   mScene.ecs.emplace<CompGraphics>(enttEarth, planetMeshes);
   mScene.ecs.emplace<CompOrbit>(enttEarth, glm::vec3(0.0f), 60.0f, 100.0f / 90.0f);
   mScene.ecs.emplace<CompTransform>(enttEarth, CompTransform { .rotation.pitch = -90.0f, .scale = glm::vec3(0.004f) });
@@ -143,6 +143,7 @@ Expected<void> SpaceDemo::init(const std::shared_ptr<AssetManager>& assets, cons
   const entt::entity enttMars = mScene.ecs.create();
   mScene.ecs.emplace<CompName>(enttMars, "Mars");
   planetMeshes[0].diffuseMap = textureMars;
+  planetMeshes[0].specularMap = Texture2DHandle::null();
   mScene.ecs.emplace<CompGraphics>(enttMars, planetMeshes);
   mScene.ecs.emplace<CompOrbit>(enttMars, glm::vec3(0.0f), 80.0f, 100.0f / 160.0f);
   mScene.ecs.emplace<CompTransform>(enttMars, CompTransform { .rotation.pitch = -90.0f, .scale = glm::vec3(0.003f) });
