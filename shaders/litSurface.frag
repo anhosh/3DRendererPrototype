@@ -102,7 +102,6 @@ LightColors pointLight(uint lightIndex, vec3 normal) {
 LightColors spotlight(uint lightIndex, vec3 normal) {
   Spotlight light = uSpotlights.sources[lightIndex];
 
-  float distance = distance(light.position, fsIn.position);
   vec3 lightDirection = normalize(light.position - fsIn.position);
   float theta = dot(lightDirection, normalize(-light.direction));
   float visibility = step(light.outerCutOff, theta);
@@ -112,9 +111,15 @@ LightColors spotlight(uint lightIndex, vec3 normal) {
   // TODO - fix spotlight shadows
 //  vec4 fragPosLightSpace = light.view.projection * light.view.view * vec4(fsIn.position, 1);
 //  fragPosLightSpace.xyz /= fragPosLightSpace.w;
+//
 ////  fragPosLightSpace.z = 1 - fragPosLightSpace.z;
 ////  fragPosLightSpace.z = linearizeDepth(fragPosLightSpace.z) / light.view.zMax;
-////  fragPosLightSpace.z += uDebugBiasMultiplier;
+//
+////  float lightFragmentDistance = distance(light.position, fsIn.position);
+////  fragPosLightSpace.z = lightFragmentDistance / light.view.zMax;
+//
+//  fragPosLightSpace.z += uDebugBiasMultiplier;
+//
 //  if (visibility == 1) {
 //    visibility *= 1 - shadow(fragPosLightSpace, dot(normal, lightDirection), uSpotlightShadowMaps, lightIndex);
 //  }
@@ -122,8 +127,6 @@ LightColors spotlight(uint lightIndex, vec3 normal) {
   LightColors colors;
   colors.ambient = light.colors.ambient * visibility * intensity;
   colors.diffuse = light.colors.diffuse * visibility * intensity * diffuse(normal, lightDirection);
-//  colors.diffuse = fragPosLightSpace.zzz * 0.1;
-//  colors.diffuse = normal * 0.5 + 0.5;
   colors.specular = light.colors.specular * visibility * intensity * specular(normal, lightDirection);
   return colors;
 }
