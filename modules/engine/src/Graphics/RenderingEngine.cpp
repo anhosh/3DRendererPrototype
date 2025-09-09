@@ -296,15 +296,18 @@ MeshData RenderingEngine::mergeMeshes(const std::span<const NotNull<const MeshDa
 
   MeshData mergedMeshData;
   for (size_t accumulatedVertices = 0; NotNull mesh : meshes) {
-    mergedMeshData.vertices.append_range(mesh->vertices);
-    mergedMeshData.indices.append_range(mesh->indices |
-      std::views::transform([=](const uint32_t index) { return index + accumulatedVertices; }));
+    mergedMeshData.vertices.insert(mergedMeshData.vertices.end(), mesh->vertices.cbegin(), mesh->vertices.cend());
+    const auto offsetIndices = mesh->indices |
+      std::views::transform([=](const uint32_t index) { return index + accumulatedVertices; });
+    mergedMeshData.indices.insert(mergedMeshData.indices.end(), offsetIndices.begin(), offsetIndices.end());
     accumulatedVertices += mesh->vertices.size();
   }
   return mergedMeshData;
 }
 
-const std::vector<RenderData>& RenderingEngine::addModel(AssetHandle<Model> model, ShaderProgramInstanceHandle initialShader) {
+const std::vector<RenderData>& RenderingEngine::addModel(const AssetHandle<Model> model,
+                                                         const ShaderProgramInstanceHandle initialShader)
+{
   ZoneScoped;
 
   if (mUploadedModels.contains(model.itemID())) {

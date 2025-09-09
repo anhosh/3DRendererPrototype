@@ -7,6 +7,7 @@
 
 #include <tracy/TracyOpenGL.hpp>
 
+#include <span>
 #include <vector>
 
 struct LightViewUniforms {

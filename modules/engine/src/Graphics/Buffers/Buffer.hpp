@@ -4,6 +4,7 @@
 #include <Util/Registry.hpp>
 
 #include <concepts>
+#include <span>
 
 template <typename BufferData>
 concept BufferObject = requires (BufferData t, std::span<uint8_t> buffer, size_t offset) {

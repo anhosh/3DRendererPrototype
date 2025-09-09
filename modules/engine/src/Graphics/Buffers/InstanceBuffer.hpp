@@ -2,6 +2,7 @@
 
 #include <Graphics/Buffers/InstanceBuffer.hpp>
 
+#include <span>
 #include <vector>
 
 struct InstanceData {

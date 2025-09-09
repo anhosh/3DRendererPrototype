@@ -95,17 +95,20 @@ std::vector<Triangle> clipTriangleToRectanglePlanes(const Triangle& triangle, co
 
   std::vector<Triangle> secondPass;
   for (const Triangle& tri : firstPass) {
-    secondPass.append_range(clipTriangleBelowPlane(tri, rectangle.max.y));
+    const std::vector<Triangle> clipped = clipTriangleBelowPlane(tri, rectangle.max.y);
+    secondPass.insert(secondPass.end(), clipped.cbegin(), clipped.cend());
   }
 
   std::vector<Triangle> thirdPass;
   for (const Triangle& tri : secondPass) {
-    thirdPass.append_range(clipTriangleRightOfPlane(tri, rectangle.min.x));
+    const std::vector<Triangle> clipped = clipTriangleRightOfPlane(tri, rectangle.min.x);
+    thirdPass.insert(thirdPass.end(), clipped.cbegin(), clipped.cend());
   }
 
   std::vector<Triangle> fourthPass;
   for (const Triangle& tri : thirdPass) {
-    fourthPass.append_range(clipTriangleLeftOfPlane(tri, rectangle.max.x));
+    const std::vector<Triangle> clipped = clipTriangleLeftOfPlane(tri, rectangle.max.x);
+    fourthPass.insert(fourthPass.end(), clipped.cbegin(), clipped.cend());
   }
 
   return fourthPass;

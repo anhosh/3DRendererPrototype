@@ -3,6 +3,7 @@
 #include <Graphics/Textures/Texture2D.hpp>
 #include <Util/Registry.hpp>
 
+#include <span>
 #include <vector>
 
 struct FramebufferAttachment {

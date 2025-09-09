@@ -3,6 +3,7 @@
 #include <stb_image.h>
 
 #include <filesystem>
+#include <format>
 
 namespace fs = std::filesystem;
 
@@ -35,7 +36,7 @@ Expected<Bitmap> Bitmap::fromMemory(std::span<const uint8_t> bytes, const glm::u
   Bitmap ret;
   ret.mSize = size;
   ret.mChannels = channels;
-  ret.mData.assign_range(bytes);
+  ret.mData.assign(bytes.cbegin(), bytes.cend());
   return ret;
 }
 
