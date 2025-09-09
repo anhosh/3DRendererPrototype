@@ -107,7 +107,7 @@ SpotlightSourceBuffer Scene::createSpotlightBufferData() const {
   return buffer;
 }
 
-std::span<const Draw> Scene::draw(const entt::entity entityCamera, RenderingEngine& renderingEngine) {
+std::span<Draw> Scene::draw(const entt::entity entityCamera, RenderingEngine& renderingEngine) {
   ZoneScoped;
 
   mCachedDraws.clear();
@@ -210,7 +210,8 @@ void Scene::drawMeshes(const std::span<const MeshDataReference> meshes, Instance
     ++instanceCount;
     if (meshIndex < meshes.size() &&
         (meshIndex == firstInstanceIndex ||
-         (firstInstance.bHasOutline == meshes[meshIndex].bHasOutline && firstInstanceRD == meshes[meshIndex].renderData())))
+         (firstInstance.bHasOutline == meshes[meshIndex].bHasOutline &&
+          firstInstanceRD == meshes[meshIndex].renderData())))
     {
       continue;
     }
@@ -239,6 +240,7 @@ void Scene::drawMeshes(const std::span<const MeshDataReference> meshes, Instance
       .instanceOffset = firstInstanceIndex,
       .instanceCount = instanceCount,
       .diffuseMap = firstInstanceRD.diffuseMap,
+      .diffuseOverlayMap = firstInstanceRD.diffuseOverlayMap,
       .specularMap = firstInstanceRD.specularMap,
       .emissionMap = firstInstanceRD.emissionMap,
       .environmentMap = firstInstanceRD.environmentMap,

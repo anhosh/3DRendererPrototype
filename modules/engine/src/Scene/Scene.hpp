@@ -31,7 +31,7 @@ public:
   [[nodiscard]] PointLightSourceBuffer createPointLightBufferData() const;
   [[nodiscard]] SpotlightSourceBuffer createSpotlightBufferData() const;
 
-  [[nodiscard]] std::span<const Draw> draw(entt::entity enttCamera, RenderingEngine& renderingEngine);
+  [[nodiscard]] std::span<Draw> draw(entt::entity enttCamera, RenderingEngine& renderingEngine);
 
 public:
   entt::registry ecs;

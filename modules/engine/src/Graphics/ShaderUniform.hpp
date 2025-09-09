@@ -57,4 +57,6 @@ struct ShaderUniform {
     value = v;
     return *this;
   }
+
+  void bind() const;
 };

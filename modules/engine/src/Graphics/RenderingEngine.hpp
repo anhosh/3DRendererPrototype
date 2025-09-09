@@ -79,12 +79,12 @@ private:
 
   static GLint textureInternalFormat(bool bSRGB, uint32_t channels);
 
-  void cmdRenderPass(CmdRenderPass& cmd, entt::entity& lastCamera, Scene const*& lastScene, std::span<const Draw>& draws);
+  void cmdRenderPass(CmdRenderPass& cmd, entt::entity& lastCamera, Scene const*& lastScene, std::span<Draw>& draws);
   void cmdDrawDebugFrustum(const CmdDrawDebugFrustum& cmd);
 
-  void renderPassScene(RenderPassScene& renderScenePass, const Viewport& viewport, FramebufferHandle dstFramebuffer, entt::entity& lastCamera, Scene const*& lastScene, std::span<const Draw>& draws);
-  void renderSceneFull(std::span<const Draw> draws, const Viewport& viewport, FramebufferHandle dstFramebuffer, const ShadowMaps& shadowMaps, bool bClearFramebuffer = true);
-  void renderSceneSimple(std::span<const Draw> draws, const Viewport& viewport, FramebufferHandle dstFramebuffer, SceneRenderMode mode, bool bClearFramebuffer = true);
+  void renderPassScene(RenderPassScene& renderScenePass, const Viewport& viewport, FramebufferHandle dstFramebuffer, entt::entity& lastCamera, Scene const*& lastScene, std::span<Draw>& draws);
+  void renderSceneFull(std::span<Draw> draws, const Viewport& viewport, FramebufferHandle dstFramebuffer, const ShadowMaps& shadowMaps, bool bClearFramebuffer = true);
+  void renderSceneSimple(std::span<Draw> draws, const Viewport& viewport, FramebufferHandle dstFramebuffer, SceneRenderMode mode, bool bClearFramebuffer = true);
   void postProcess(const Viewport& viewport, FramebufferHandle dstFramebuffer, FramebufferHandle srcFramebuffer, ShaderProgramInstanceHandle postProcessingShader) const;
 
   void updateCameraData(const Scene& scene, entt::entity enttCamera);
@@ -130,6 +130,7 @@ private:
   ShaderProgramHandle mDebugFrustum = ShaderProgramHandle::null();
 
   SamplerHandle mDiffuseTextureSampler = SamplerHandle::null();
+  SamplerHandle mDiffuseOverlayTextureSampler = SamplerHandle::null();
   SamplerHandle mSpecularTextureSampler = SamplerHandle::null();
   SamplerHandle mEmissionTextureSampler = SamplerHandle::null();
   SamplerHandle mEnvironmentTextureSampler = SamplerHandle::null();
@@ -140,6 +141,7 @@ private:
 
   Texture2DHandle mWhiteTexture = Texture2DHandle::null();
   Texture2DHandle mBlackTexture = Texture2DHandle::null();
+  Texture2DHandle mTransparentTexture = Texture2DHandle::null();
   Texture2DHandle mFlatNormalMap = Texture2DHandle::null();
   Texture2DArrayHandle mEmptyDepthMaps = Texture2DArrayHandle::null();
   TextureCubeMapHandle mBlackCubeMap = TextureCubeMapHandle::null();

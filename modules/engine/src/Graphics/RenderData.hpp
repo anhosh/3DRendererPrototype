@@ -21,6 +21,7 @@ struct RenderData {
   ShaderProgramInstanceHandle shader;
 
   Texture2DHandle diffuseMap = Texture2DHandle::null();
+  Texture2DHandle diffuseOverlayMap = Texture2DHandle::null();
   Texture2DHandle specularMap = Texture2DHandle::null();
   Texture2DHandle emissionMap = Texture2DHandle::null();
   TextureCubeMapHandle environmentMap = TextureCubeMapHandle::null();
@@ -31,6 +32,7 @@ struct RenderData {
   bool eqIgnoreMainShader(const RenderData& other) const {
     return mesh == other.mesh &&
            diffuseMap == other.diffuseMap &&
+           diffuseOverlayMap == other.diffuseOverlayMap &&
            specularMap == other.specularMap &&
            emissionMap == other.emissionMap &&
            environmentMap == other.environmentMap &&

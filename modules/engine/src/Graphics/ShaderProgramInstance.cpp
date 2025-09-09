@@ -1,8 +1,6 @@
 #include <Graphics/ShaderProgramInstance.hpp>
 
 #include <Graphics/Buffers/BindPoints.hpp>
-#include <Util/Macros/Errors.hpp>
-#include <Util/Visitor.hpp>
 
 #include <ranges>
 
@@ -14,19 +12,7 @@ void ShaderProgramInstance::bindUniforms() const {
   ZoneScoped;
 
   for (const ShaderUniform& uniform : uniforms | std::views::values) {
-    std::visit(Visitor {
-      [&](const bool value)       { glUniform1i(uniform.location, value ? GL_TRUE : GL_FALSE); },
-      [&](const GLint value)      { glUniform1i(uniform.location, value); },
-      [&](const GLuint value)     { glUniform1ui(uniform.location, value); },
-      [&](const GLfloat value)    { glUniform1f(uniform.location, value); },
-      [&](const GLdouble value)   { glUniform1d(uniform.location, value); },
-      [&](const glm::vec2& value) { glUniform2f(uniform.location, value.x, value.y); },
-      [&](const glm::vec3& value) { glUniform3f(uniform.location, value.x, value.y, value.z); },
-      [&](const glm::vec4& value) { glUniform4f(uniform.location, value.x, value.y, value.z, value.w); },
-      [&](const glm::mat2& value) { glUniformMatrix2fv(uniform.location, 1, GL_FALSE, glm::value_ptr(value)); },
-      [&](const glm::mat3& value) { glUniformMatrix3fv(uniform.location, 1, GL_FALSE, glm::value_ptr(value)); },
-      [&](const glm::mat4& value) { glUniformMatrix4fv(uniform.location, 1, GL_FALSE, glm::value_ptr(value)); },
-    }, uniform.value);
+    uniform.bind();
   }
 }
 
@@ -50,6 +36,7 @@ ShaderProgramInstance ShaderProgramInstance::create<ShaderProgramType::LitExplod
   instance.setUniform("uExplosionDistance", 0.0f);
 
   instance.setUniform("uMaterial.diffuse", BINDING_SAMPLER_DIFFUSE);
+  instance.setUniform("uMaterial.diffuseOverlay", BINDING_SAMPLER_DIFFUSE_OVERLAY);
   instance.setUniform("uMaterial.specular", BINDING_SAMPLER_SPECULAR);
   instance.setUniform("uMaterial.emission", BINDING_SAMPLER_EMISSION);
   instance.setUniform("uMaterial.shininess", 128.0f);
@@ -64,6 +51,7 @@ ShaderProgramInstance ShaderProgramInstance::create<ShaderProgramType::LitSurfac
   ShaderProgramInstance instance(program, ShaderProgramType::LitSurface);
 
   instance.setUniform("uMaterial.diffuse", BINDING_SAMPLER_DIFFUSE);
+  instance.setUniform("uMaterial.diffuseOverlay", BINDING_SAMPLER_DIFFUSE_OVERLAY);
   instance.setUniform("uMaterial.specular", BINDING_SAMPLER_SPECULAR);
   instance.setUniform("uMaterial.emission", BINDING_SAMPLER_EMISSION);
   instance.setUniform("uMaterial.shininess", 128.0f);

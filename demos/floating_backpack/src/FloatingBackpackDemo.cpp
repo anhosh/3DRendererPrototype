@@ -47,7 +47,6 @@ Expected<void> FloatingBackpackDemo::init(const std::shared_ptr<AssetManager>& a
     .mesh = floorMesh,
     .shader = litSurfaceShader,
     .diffuseMap = floorTexture,
-    .renderOptions = { .bBackfaceCulling = false },
   };
 
   TextureCubeMapHandle skyboxTexture = renderer->addTextureCubeMap(

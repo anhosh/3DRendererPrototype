@@ -13,6 +13,7 @@ struct Draw {
   size_t instanceCount = 1;
 
   Texture2DHandle diffuseMap = Texture2DHandle::null();
+  Texture2DHandle diffuseOverlayMap = Texture2DHandle::null();
   Texture2DHandle specularMap = Texture2DHandle::null();
   Texture2DHandle emissionMap = Texture2DHandle::null();
   TextureCubeMapHandle environmentMap = TextureCubeMapHandle::null();

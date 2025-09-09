@@ -83,10 +83,12 @@ Expected<void> RenderingEngine::init(AssetManager& assets) {
   glCreateVertexArrays(1, &mMeshesVAO);
   glCreateVertexArrays(1, &mScreenQuadVAO);
   glCreateVertexArrays(1, &mDebugShapesVAO);
+
   Vertex::setupVertexAttributes(mMeshesVAO);
 
   // Samplers
   mDiffuseTextureSampler = this->addSampler({});
+  mDiffuseOverlayTextureSampler = this->addSampler({});
   mSpecularTextureSampler = this->addSampler({});
   mEmissionTextureSampler = this->addSampler({});
   mEnvironmentTextureSampler = this->addSampler({});
@@ -109,10 +111,12 @@ Expected<void> RenderingEngine::init(AssetManager& assets) {
   // Textures
   const AssetHandle<Bitmap> whiteBitmap = assets.addBitmap(Bitmap::fromMemory(asBytes('\xFF'), glm::uvec2(1), 1).value());
   const AssetHandle<Bitmap> blackBitmap = assets.addBitmap(Bitmap::fromMemory(asBytes('\x00'), glm::uvec2(1), 1).value());
+  const AssetHandle<Bitmap> transparentBitmap = assets.addBitmap(Bitmap::fromMemory(asBytes("\x00\x00\x00\x00"), glm::uvec2(1), 4).value());
   const AssetHandle<Bitmap> flatNormalBitmap = assets.addBitmap(Bitmap::fromMemory(asBytes("\x88\x88\xFF"), glm::uvec2(1), 3).value());
 
   mWhiteTexture = this->addTexture2D(whiteBitmap);
   mBlackTexture = this->addTexture2D(blackBitmap);
+  mTransparentTexture = this->addTexture2D(transparentBitmap);
   mFlatNormalMap = this->addTexture2D(flatNormalBitmap);
   mEmptyDepthMaps = this->createEmptyTexture2DArray();
   mBlackCubeMap = this->addTextureCubeMap({blackBitmap, blackBitmap, blackBitmap, blackBitmap, blackBitmap, blackBitmap});
@@ -187,6 +191,7 @@ void RenderingEngine::destroy() {
 
   mColorAttachmentSampler = SamplerHandle::null();
   mDiffuseTextureSampler = SamplerHandle::null();
+  mDiffuseOverlayTextureSampler = SamplerHandle::null();
   mSpecularTextureSampler = SamplerHandle::null();
   mEmissionTextureSampler = SamplerHandle::null();
   mEnvironmentTextureSampler = SamplerHandle::null();
@@ -462,7 +467,7 @@ FramebufferHandle RenderingEngine::submitCommands(CommandBuffer&& commandBuffer)
 
   entt::entity lastCamera = entt::null;
   const Scene* lastScene = nullptr;
-  std::span<const Draw> draws;
+  std::span<Draw> draws;
   FramebufferHandle lastFramebuffer = FramebufferHandle::null();
 
   for (CommandBuffer::Command& command : commandBuffer.commands) {
@@ -480,7 +485,7 @@ FramebufferHandle RenderingEngine::submitCommands(CommandBuffer&& commandBuffer)
   return lastFramebuffer;
 }
 
-void RenderingEngine::cmdRenderPass(CmdRenderPass& cmd, entt::entity& lastCamera, Scene const*& lastScene, std::span<const Draw>& draws) {
+void RenderingEngine::cmdRenderPass(CmdRenderPass& cmd, entt::entity& lastCamera, Scene const*& lastScene, std::span<Draw>& draws) {
   using namespace std::placeholders;
   auto& [viewport, dstFramebuffer, pass] = cmd.renderPass;
   std::visit(Visitor {
@@ -510,7 +515,7 @@ void RenderingEngine::cmdDrawDebugFrustum(const CmdDrawDebugFrustum& cmd) {
 }
 
 void RenderingEngine::renderPassScene(RenderPassScene& renderScenePass, const Viewport& viewport, FramebufferHandle dstFramebuffer,
-                                      entt::entity& lastCamera, Scene const*& lastScene, std::span<const Draw>& draws)
+                                      entt::entity& lastCamera, Scene const*& lastScene, std::span<Draw>& draws)
 {
   const bool bSceneChanged = lastScene != renderScenePass.scene;
   const bool bCameraChanged = lastCamera != renderScenePass.entityCamera;
@@ -547,7 +552,7 @@ void RenderingEngine::renderPassScene(RenderPassScene& renderScenePass, const Vi
   }
 }
 
-void RenderingEngine::renderSceneFull(const std::span<const Draw> draws, const Viewport& viewport, FramebufferHandle dstFramebuffer,
+void RenderingEngine::renderSceneFull(const std::span<Draw> draws, const Viewport& viewport, FramebufferHandle dstFramebuffer,
                                       const ShadowMaps& shadowMaps, const bool bClearFramebuffer) {
   ZoneScoped;
   TracyGpuZone("Render scene (full)");
@@ -581,6 +586,7 @@ void RenderingEngine::renderSceneFull(const std::span<const Draw> draws, const V
   glBindVertexArray(mMeshesVAO);
 
   mDiffuseTextureSampler->bind(BINDING_SAMPLER_DIFFUSE);
+  mDiffuseOverlayTextureSampler->bind(BINDING_SAMPLER_DIFFUSE_OVERLAY);
   mSpecularTextureSampler->bind(BINDING_SAMPLER_SPECULAR);
   mEmissionTextureSampler->bind(BINDING_SAMPLER_EMISSION);
   mEnvironmentTextureSampler->bind(BINDING_SAMPLER_ENVIRONMENT);
@@ -597,8 +603,8 @@ void RenderingEngine::renderSceneFull(const std::span<const Draw> draws, const V
   boundTextureSlots.emplace(BINDING_SAMPLER_POINT_SHADOWS);
   boundTextureSlots.emplace(BINDING_SAMPLER_SPOTLIGHT_SHADOWS);
 
-  const Draw* lastDraw = &draws.front();
-  for (const auto [drawIdx, currDraw] : draws | std::views::enumerate) {
+  Draw* lastDraw = &draws.front();
+  for (auto [drawIdx, currDraw] : draws | std::views::enumerate) {
     mInstanceBuffer.bindRange(BINDING_SSBO_INSTANCES,
                               currDraw.instanceOffset * sizeof(InstanceData),
                               currDraw.instanceCount * sizeof(InstanceData));
@@ -643,16 +649,18 @@ void RenderingEngine::renderSceneFull(const std::span<const Draw> draws, const V
       currShader.bindUniforms();
     }
 
-    const auto bindTexture = [&](const auto currTexture, const auto lastTexture, const auto defaultTexture, const GLuint unit) {
+    const auto bindTexture = [&](const auto currTexture, const auto lastTexture, const auto defaultTexture, const GLuint unit, const GLchar* uniformName) {
       if (drawIdx == 0 || currTexture != lastTexture) {
         currTexture.getOrDefault(defaultTexture).bind(unit);
         boundTextureSlots.insert(unit);
+        currDraw.shaderProgramInstance->setAndBindUniform(uniformName, !currTexture.isNull());
       }
     };
-    bindTexture(currDraw.diffuseMap, lastDraw->diffuseMap, mBlackTexture, BINDING_SAMPLER_DIFFUSE);
-    bindTexture(currDraw.specularMap, lastDraw->specularMap, mBlackTexture, BINDING_SAMPLER_SPECULAR);
-    bindTexture(currDraw.emissionMap, lastDraw->emissionMap, mBlackTexture, BINDING_SAMPLER_EMISSION);
-    bindTexture(currDraw.environmentMap, lastDraw->environmentMap, mBlackCubeMap, BINDING_SAMPLER_ENVIRONMENT);
+    bindTexture(currDraw.diffuseMap, lastDraw->diffuseMap, mBlackTexture, BINDING_SAMPLER_DIFFUSE, "uMaterial.bUseDiffuse");
+    bindTexture(currDraw.diffuseOverlayMap, lastDraw->diffuseOverlayMap, mTransparentTexture, BINDING_SAMPLER_DIFFUSE_OVERLAY, "uMaterial.bUseDiffuseOverlay");
+    bindTexture(currDraw.specularMap, lastDraw->specularMap, mBlackTexture, BINDING_SAMPLER_SPECULAR, "uMaterial.bUseSpecular");
+    bindTexture(currDraw.emissionMap, lastDraw->emissionMap, mBlackTexture, BINDING_SAMPLER_EMISSION, "uMaterial.bUseEmission");
+    bindTexture(currDraw.environmentMap, lastDraw->environmentMap, mBlackCubeMap, BINDING_SAMPLER_ENVIRONMENT, "uMaterial.bUseEnvironment");
 
     currDraw.mesh->bind();
     {
@@ -674,7 +682,7 @@ void RenderingEngine::renderSceneFull(const std::span<const Draw> draws, const V
   }
 }
 
-void RenderingEngine::renderSceneSimple(const std::span<const Draw> draws, const Viewport& viewport,
+void RenderingEngine::renderSceneSimple(const std::span<Draw> draws, const Viewport& viewport,
                                         const FramebufferHandle dstFramebuffer, const SceneRenderMode mode,
                                         const bool bClearFramebuffer)
 {

@@ -80,8 +80,8 @@ Expected<GLuint> createShaderProgram(const ShaderProgramPaths& shaderPaths) {
     return {};
   };
 
-#define NEW_DEFINE(name) std::format("#define " #name " {}\n", name)
-  const auto HAS_GEOMETRY_SHADER = static_cast<uint32_t>(shaderPaths.geometry.has_value());
+#define NEW_DEFINE(name) std::format("#define " #name " {}\n", static_cast<int32_t>(name))
+  const auto HAS_GEOMETRY_SHADER = static_cast<int32_t>(shaderPaths.geometry.has_value());
   const std::string defines = NEW_DEFINE(BINDING_UBO_CAMERA) +
                               NEW_DEFINE(BINDING_SSBO_INSTANCES) +
                               NEW_DEFINE(BINDING_SSBO_DIRECTIONAL_LIGHTS) +

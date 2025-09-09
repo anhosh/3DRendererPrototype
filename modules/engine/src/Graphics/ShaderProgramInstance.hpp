@@ -50,10 +50,17 @@ public:
   void setUniform(const GLchar* name, const UniformType& value) {
     ZoneScoped;
 
-    this->uniforms[name] = ShaderUniform {
-      .location = glGetUniformLocation(mShaderProgram->id(), name),
-      .value = value,
-    };
+    if (auto uniform = this->uniforms.find(name); uniform != this->uniforms.end()) {
+      uniform->second = value;
+    } else {
+      this->uniforms.emplace(name, ShaderUniform { glGetUniformLocation(mShaderProgram->id(), name), value });
+    }
+  }
+
+  template <typename UniformType>
+  void setAndBindUniform(const GLchar* name, const UniformType& value) {
+    this->setUniform(name, value);
+    this->uniforms[name].bind();
   }
 
   void use() const;
