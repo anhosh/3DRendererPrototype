@@ -12,8 +12,10 @@ public:
 
   virtual void gui(AppState& state) override;
 
-private:
+protected:
   float mCameraSpeed = 5.0f;
+
+private:
   glm::vec3 mCameraVelocity = glm::vec3(0.0f);
   glm::vec2 mLastMousePosition = glm::vec2(0);
 
