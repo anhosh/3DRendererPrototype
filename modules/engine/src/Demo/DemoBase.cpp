@@ -59,7 +59,7 @@ Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const
   }) {
     constexpr auto shadowSize = glm::uvec2(SHADOW_MAP_SIZE);
     shadowMaps.get() = renderer->createEmptyTexture2DArray();
-    shadowMaps.get()->allocate(shadowSize, glm::max(static_cast<int32_t>(numShadowMaps), 1), GL_DEPTH_COMPONENT32);
+    shadowMaps.get()->allocate(shadowSize, glm::max(static_cast<int32_t>(numShadowMaps), 1), GL_DEPTH_COMPONENT16);
     for (uint32_t shadowMapIndex = 0; shadowMapIndex < numShadowMaps; ++shadowMapIndex) {
       framebuffers.get().push_back(renderer->addFramebuffer(FramebufferCreateInfo {
         .size = shadowSize,

@@ -213,7 +213,7 @@ void SpaceDemo::update(const double deltaTime) {
     [=, this](std::pair<entt::entity, float>& celestialBodyAngle) {
       auto& [enttBody, angle] = celestialBodyAngle;
       const CompOrbit& orbit = mScene.ecs.get<CompOrbit>(enttBody);
-      const float deltaAngle = orbit.angularVelocity * static_cast<float>(deltaTime);
+      const float deltaAngle = orbit.angularVelocity * mOrbitSpeedMultiplier * static_cast<float>(deltaTime);
       angle = glm::mod(angle + deltaAngle, 360.0f);
       const float angleRadians = glm::radians(angle);
       mScene.ecs.patch<CompTransform>(enttBody, [&](CompTransform& transform) {
@@ -227,6 +227,14 @@ void SpaceDemo::update(const double deltaTime) {
   mScene.ecs.patch<CompTransform>(mEnttSun, [=, this](CompTransform& transform) {
     transform.rotation.yaw = glm::mod(transform.rotation.yaw + mMarsRotationSpeed * static_cast<float>(deltaTime), 360.0f);
   });
+}
+
+void SpaceDemo::gui(AppState& state) {
+  FlyCamDemoBase::gui(state);
+
+  if (ImGui::CollapsingHeader("Space demo")) {
+    ImGui::DragFloat("Orbit speed multiplier", &mOrbitSpeedMultiplier, 0.01f, 0.0f, 5.0f);
+  }
 }
 
 void SpaceDemo::onTransformUpdate(entt::registry&, const entt::entity entity) {
