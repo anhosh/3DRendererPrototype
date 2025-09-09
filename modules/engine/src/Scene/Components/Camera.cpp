@@ -7,7 +7,8 @@
 #include <glm/ext/matrix_transform.hpp>
 
 glm::mat4 CompCamera::perspective() const {
-  return glm::perspective(glm::radians(fov), clipBox.width() / clipBox.height(), clipBox.min.z, clipBox.max.z);
+  const float aspect = clipBox.height() == 0.0f ? 1.0f : clipBox.width() / clipBox.height();
+  return glm::perspective(glm::radians(fov), aspect, clipBox.min.z, clipBox.max.z);
 }
 
 glm::mat4 CompCamera::orthographic() const {

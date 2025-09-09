@@ -11,7 +11,7 @@ struct CompCamera {
   float fov = 45.0f;
 
   [[nodiscard]] Rectangle screenBounds() const { return { clipBox.min.xy(), clipBox.max.xy() }; }
-  [[nodiscard]] glm::vec2 screenSize() const { return clipBox.min.xy() - clipBox.max.xy(); }
+  [[nodiscard]] glm::vec2 screenSize() const { return clipBox.max.xy() - clipBox.min.xy(); }
   [[nodiscard]] glm::mat4 perspective() const;
   [[nodiscard]] glm::mat4 orthographic() const;
   [[nodiscard]] Frustum viewFrustumPerspective(const CompTransform& viewTransform) const;

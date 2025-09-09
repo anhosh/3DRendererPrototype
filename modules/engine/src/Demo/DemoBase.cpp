@@ -210,10 +210,10 @@ void DemoBase::onWindowResize(GLFWwindow*, const glm::uvec2 newSize) {
   mWindowSize = newSize;
 
   auto& [clipBox, fov] = mScene.ecs.get<CompCamera>(mMainCamera);
-  clipBox.min.x = static_cast<float>(newSize.x) * -0.5f;
-  clipBox.min.y = static_cast<float>(newSize.y) * -0.5f;
-  clipBox.max.x = static_cast<float>(newSize.x) * 0.5f;
-  clipBox.max.y = static_cast<float>(newSize.y) * 0.5f;
+  clipBox.min.x = 0.0f;
+  clipBox.min.y = 0.0f;
+  clipBox.max.x = static_cast<float>(newSize.x);
+  clipBox.max.y = static_cast<float>(newSize.y);
 
   mMainViewColorAttachment->destroy();
   mMainViewColorAttachment->init();
