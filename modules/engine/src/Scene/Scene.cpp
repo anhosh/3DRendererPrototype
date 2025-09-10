@@ -243,6 +243,7 @@ void Scene::drawMeshes(const std::span<const MeshDataReference> meshes, Instance
       .diffuseOverlayMap = firstInstanceRD.diffuseOverlayMap,
       .specularMap = firstInstanceRD.specularMap,
       .emissionMap = firstInstanceRD.emissionMap,
+      .normalMap = firstInstanceRD.normalMap,
       .environmentMap = firstInstanceRD.environmentMap,
       .bBackfaceCulling = firstInstanceRD.renderOptions.bBackfaceCulling,
       .bWriteToStencil = meshes[firstInstanceIndex].bHasOutline,

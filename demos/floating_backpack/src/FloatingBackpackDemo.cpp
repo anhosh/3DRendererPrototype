@@ -13,12 +13,12 @@ Expected<void> FloatingBackpackDemo::init(const std::shared_ptr<AssetManager>& a
   // Load assets
   const Expected modelBackpack = assets->loadModel("backpack/backpack.obj");
 
-  Expected bitmapSkyboxRight  = assets->loadBitmap("skybox/sea_afternoon/right.jpg", false);
-  Expected bitmapSkyboxLeft   = assets->loadBitmap("skybox/sea_afternoon/left.jpg", false);
-  Expected bitmapSkyboxTop    = assets->loadBitmap("skybox/sea_afternoon/top.jpg", false);
-  Expected bitmapSkyboxBottom = assets->loadBitmap("skybox/sea_afternoon/bottom.jpg", false);
-  Expected bitmapSkyboxFront  = assets->loadBitmap("skybox/sea_afternoon/front.jpg", false);
-  Expected bitmapSkyboxBack   = assets->loadBitmap("skybox/sea_afternoon/back.jpg", false);
+  Expected bitmapSkyboxRight  = assets->loadBitmap("skybox/right.jpg", false);
+  Expected bitmapSkyboxLeft   = assets->loadBitmap("skybox/left.jpg", false);
+  Expected bitmapSkyboxTop    = assets->loadBitmap("skybox/top.jpg", false);
+  Expected bitmapSkyboxBottom = assets->loadBitmap("skybox/bottom.jpg", false);
+  Expected bitmapSkyboxFront  = assets->loadBitmap("skybox/front.jpg", false);
+  Expected bitmapSkyboxBack   = assets->loadBitmap("skybox/back.jpg", false);
 
   AssetHandle<Bitmap> floorBitmap = assets->addBitmap(Bitmap::fromMemory(asBytes("\xFF\xFF\xFF"), glm::uvec2(1), 3).value());
 

@@ -16,6 +16,7 @@ struct Draw {
   Texture2DHandle diffuseOverlayMap = Texture2DHandle::null();
   Texture2DHandle specularMap = Texture2DHandle::null();
   Texture2DHandle emissionMap = Texture2DHandle::null();
+  Texture2DHandle normalMap = Texture2DHandle::null();
   TextureCubeMapHandle environmentMap = TextureCubeMapHandle::null();
 
   bool bBackfaceCulling = true;

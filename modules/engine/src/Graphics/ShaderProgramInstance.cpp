@@ -39,6 +39,7 @@ ShaderProgramInstance ShaderProgramInstance::create<ShaderProgramType::LitExplod
   instance.setUniform("uMaterial.diffuseOverlay", BINDING_SAMPLER_DIFFUSE_OVERLAY);
   instance.setUniform("uMaterial.specular", BINDING_SAMPLER_SPECULAR);
   instance.setUniform("uMaterial.emission", BINDING_SAMPLER_EMISSION);
+  instance.setUniform("uMaterial.normal", BINDING_SAMPLER_NORMAL);
   instance.setUniform("uMaterial.shininess", 128.0f);
 
   return instance;
@@ -54,6 +55,7 @@ ShaderProgramInstance ShaderProgramInstance::create<ShaderProgramType::LitSurfac
   instance.setUniform("uMaterial.diffuseOverlay", BINDING_SAMPLER_DIFFUSE_OVERLAY);
   instance.setUniform("uMaterial.specular", BINDING_SAMPLER_SPECULAR);
   instance.setUniform("uMaterial.emission", BINDING_SAMPLER_EMISSION);
+  instance.setUniform("uMaterial.normal", BINDING_SAMPLER_NORMAL);
   instance.setUniform("uMaterial.shininess", 128.0f);
 
   instance.setUniform("uDirectionalLightShadowMaps", BINDING_SAMPLER_DIRECTIONAL_SHADOWS);

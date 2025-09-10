@@ -124,7 +124,7 @@ Expected<void> SpaceDemo::init(const std::shared_ptr<AssetManager>& assets, cons
   std::uniform_real_distribution scaleDistribution(0.05f, 0.25f);
   std::uniform_real_distribution orbitSpeedDistribution(40.0f, 80.0f);
 
-  constexpr uint32_t numAsteroids = 8000;
+  constexpr uint32_t numAsteroids = 6000;
   mCelestialBodyAngles.reserve(numAsteroids + 5);
 
   const entt::entity enttMercury = mScene.ecs.create();

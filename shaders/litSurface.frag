@@ -6,11 +6,13 @@ struct Material {
   sampler2D diffuseOverlay;
   sampler2D specular;
   sampler2D emission;
+  sampler2D normal;
   float shininess;
   bool bUseDiffuse;
   bool bUseDiffuseOverlay;
   bool bUseSpecular;
   bool bUseEmission;
+  bool bUseNormal;
 };
 
 uniform Material uMaterial;
@@ -24,12 +26,16 @@ uniform sampler2DArrayShadow uSpotlightShadowMaps;
 in GS_OUT {
   vec3 position;
   vec3 normal;
+  vec3 tangent;
+  vec3 bitangent;
   vec2 texCoord;
 } fsIn;
 #else
 in VS_OUT {
   vec3 position;
   vec3 normal;
+  vec3 tangent;
+  vec3 bitangent;
   vec2 texCoord;
 } fsIn;
 #endif
@@ -137,12 +143,36 @@ LightColors spotlight(uint lightIndex, vec3 normal) {
 }
 
 void main() {
+  // Albedo
+  vec4 materialDiffuse = vec4(0);
+
+  if (uMaterial.bUseDiffuse) {
+    materialDiffuse = texture(uMaterial.diffuse, fsIn.texCoord);
+  }
+
+  if (uMaterial.bUseDiffuseOverlay) {
+    vec4 overlayDiffuse = texture(uMaterial.diffuseOverlay, fsIn.texCoord);
+    materialDiffuse = vec4(overlayDiffuse.rgb * overlayDiffuse.a + materialDiffuse.rgb * (1 - overlayDiffuse.a), 1);
+  }
+
+  if (materialDiffuse.a < 0.01) {
+    discard;
+  }
+
+  // Surface normal
   vec3 normal = normalize(fsIn.normal);
   if (!gl_FrontFacing) {
     normal *= -1;
   }
 
-  // Compute lighting
+  if (uMaterial.bUseNormal) {
+    mat3 tbn = mat3(fsIn.tangent, fsIn.bitangent, normal);
+    vec3 mappedNormal = texture(uMaterial.normal, fsIn.texCoord).rgb;
+    mappedNormal = mappedNormal * 2 - 1;
+    normal = normalize(tbn * mappedNormal);
+  }
+
+  // Lighting
   vec3 combinedAmbient = vec3(0);
   vec3 combinedDiffuse = vec3(0);
   vec3 combinedSpecular = vec3(0);
@@ -169,17 +199,7 @@ void main() {
   }
 
   // Blend lighting with material
-  vec4 result = vec4(0);
-
-  vec4 materialDiffuse = vec4(0);
-  if (uMaterial.bUseDiffuse) {
-    materialDiffuse = texture(uMaterial.diffuse, fsIn.texCoord);
-  }
-  if (uMaterial.bUseDiffuseOverlay) {
-    vec4 overlayDiffuse = texture(uMaterial.diffuseOverlay, fsIn.texCoord);
-    materialDiffuse = vec4(overlayDiffuse.rgb * overlayDiffuse.a + materialDiffuse.rgb * (1 - overlayDiffuse.a), 1);
-  }
-  result += materialDiffuse * (vec4(combinedAmbient, 1) + vec4(combinedDiffuse, 1));
+  vec4 result = materialDiffuse * vec4(combinedAmbient + combinedDiffuse, 1);
 
   if (uMaterial.bUseSpecular) {
     vec3 materialSpecular = texture(uMaterial.specular, fsIn.texCoord).rgb;

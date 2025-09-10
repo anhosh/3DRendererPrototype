@@ -24,6 +24,7 @@ struct RenderData {
   Texture2DHandle diffuseOverlayMap = Texture2DHandle::null();
   Texture2DHandle specularMap = Texture2DHandle::null();
   Texture2DHandle emissionMap = Texture2DHandle::null();
+  Texture2DHandle normalMap = Texture2DHandle::null();
   TextureCubeMapHandle environmentMap = TextureCubeMapHandle::null();
 
   RenderOptions renderOptions = {};
@@ -35,6 +36,7 @@ struct RenderData {
            diffuseOverlayMap == other.diffuseOverlayMap &&
            specularMap == other.specularMap &&
            emissionMap == other.emissionMap &&
+           normalMap == other.normalMap &&
            environmentMap == other.environmentMap &&
            renderOptions == other.renderOptions;
   }

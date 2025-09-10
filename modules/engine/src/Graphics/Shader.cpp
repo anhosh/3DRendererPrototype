@@ -9,6 +9,7 @@
 
 #include <array>
 #include <filesystem>
+#include <format>
 #include <vector>
 
 static fs::path sShadersDir = "shaders";
@@ -118,7 +119,18 @@ Expected<GLuint> createShaderProgram(const ShaderProgramPaths& shaderPaths) {
     glGetProgramInfoLog(program, static_cast<GLint>(infoLog.size()), &infoLogLength, infoLog.data());
     infoLog.resize(static_cast<size_t>(infoLogLength));
 
-    return std::unexpected(std::format("Failed to link shader program:\n{}", infoLog));
+    std::string shaderList = std::format("VS: {}", shaderPaths.vertex.c_str());
+    if (shaderPaths.tesselationControl.has_value()) {
+      shaderList += std::format(", TC: {}", shaderPaths.tesselationControl->c_str());
+    }
+    if (shaderPaths.tesselationEvaluation.has_value()) {
+      shaderList += std::format(", TE: {}", shaderPaths.tesselationEvaluation->c_str());
+    }
+    if (shaderPaths.geometry.has_value()) {
+      shaderList += std::format(", GS: {}", shaderPaths.geometry->c_str());
+    }
+    shaderList += std::format(", FS: {}", shaderPaths.fragment.c_str());
+    return std::unexpected(std::format("Failed to link shader program ({}):\n{}", shaderList, infoLog));
   }
 
   for (const Shader shader : shaders) {

@@ -5,6 +5,7 @@
 #include <Assets/Model.hpp>
 #include <Graphics/Vertex.hpp>
 #include <Util/Macros/Errors.hpp>
+#include <Util/Math/Rotation.hpp>
 #include <Util/Paths.hpp>
 #include <Util/Timers/ScopedTimer.hpp>
 
@@ -12,6 +13,7 @@
 #include <assimp/mesh.h>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
+#include <glm/gtx/quaternion.hpp>
 
 AssetManager::AssetManager() {
   ZoneScoped;
@@ -56,7 +58,7 @@ Expected<AssetHandle<Model>> AssetManager::loadModel(const std::filesystem::path
   }
 
   Assimp::Importer importer;
-  const aiScene* scene = importer.ReadFile(fullPath.string(), aiProcess_Triangulate | aiProcess_FlipUVs);
+  const aiScene* scene = importer.ReadFile(fullPath.string(), aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
 
   if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
     return std::unexpected(std::format("Assimp: {}", importer.GetErrorString()));
@@ -64,7 +66,7 @@ Expected<AssetHandle<Model>> AssetManager::loadModel(const std::filesystem::path
 
   ScopedTimer timer(std::format("Load model {}", filePath.string()));
   Model model;
-  RETURN_ERROR_IF_UNEXPECTED(this->processNode(model, scene->mRootNode, scene));
+  RETURN_ERROR_IF_UNEXPECTED(this->processNode(model, scene->mRootNode, scene, filePath.string().ends_with("obj")));
   const AssetHandle<Model> handle = mModels.add(std::move(model));
   mLoadedModels.emplace(fullPath, handle);
   return handle;
@@ -90,22 +92,22 @@ Expected<void> AssetManager::locateTextures() {
   return std::unexpected("Could not locate texture directory");
 }
 
-Expected<void> AssetManager::processNode(Model& model, const aiNode* node, const aiScene* scene) {
+Expected<void> AssetManager::processNode(Model& model, const aiNode* node, const aiScene* scene, const bool bUsesHeightForNormal) {
   ZoneScoped;
 
   for (size_t i = 0; i < node->mNumMeshes; ++i) {
     aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-    RETURN_ERROR_IF_UNEXPECTED(this->processMesh(model, mesh, scene));
+    RETURN_ERROR_IF_UNEXPECTED(this->processMesh(model, mesh, scene, bUsesHeightForNormal));
   }
 
   for (size_t i = 0; i < node->mNumChildren; ++i) {
-    RETURN_ERROR_IF_UNEXPECTED(this->processNode(model, node->mChildren[i], scene));
+    RETURN_ERROR_IF_UNEXPECTED(this->processNode(model, node->mChildren[i], scene, bUsesHeightForNormal));
   }
 
   return {};
 }
 
-Expected<void> AssetManager::processMesh(Model& model, const aiMesh* mesh, const aiScene* scene) {
+Expected<void> AssetManager::processMesh(Model& model, const aiMesh* mesh, const aiScene* scene, const bool bUsesHeightForNormal) {
   ZoneScoped;
 
   std::vector<Vertex> vertices;
@@ -115,12 +117,16 @@ Expected<void> AssetManager::processMesh(Model& model, const aiMesh* mesh, const
   indices.reserve(mesh->mNumFaces * 3);
 
   for (size_t v = 0; v < mesh->mNumVertices; ++v) {
-    const aiVector3D& vertex = mesh->mVertices[v];
-    vertices[v].position = glm::vec3(vertex.x, vertex.y, vertex.z);
+    const aiVector3D& position = mesh->mVertices[v];
+    vertices[v].position = glm::vec3(position.x, position.y, position.z);
   }
   for (size_t v = 0; v < mesh->mNumVertices; ++v) {
     const aiVector3D& normal = mesh->mNormals[v];
     vertices[v].normal = glm::vec3(normal.x, normal.y, normal.z);
+  }
+  for (size_t v = 0; v < mesh->mNumVertices; ++v) {
+    const aiVector3D& tangent = mesh->mTangents[v];
+    vertices[v].tangent = glm::vec3(tangent.x, tangent.y, tangent.z);
   }
   for (size_t v = 0; v < mesh->mNumVertices; ++v) {
     const aiVector3D& texCoord = mesh->mTextureCoords[0] ? mesh->mTextureCoords[0][v] : aiVector3D(0.0f);
@@ -142,9 +148,11 @@ Expected<void> AssetManager::processMesh(Model& model, const aiMesh* mesh, const
     model.diffuseMaps.emplace_back(AssetHandle<Bitmap>::null());
     model.specularMaps.emplace_back(AssetHandle<Bitmap>::null());
     model.emissionMaps.emplace_back(AssetHandle<Bitmap>::null());
+    model.normalMaps.emplace_back(AssetHandle<Bitmap>::null());
     ASSIGN_EXPECTED_OR_IGNORE(model.diffuseMaps[meshIndex], processTexture(material, aiTextureType_DIFFUSE));
     ASSIGN_EXPECTED_OR_IGNORE(model.specularMaps[meshIndex], processTexture(material, aiTextureType_SPECULAR));
     ASSIGN_EXPECTED_OR_IGNORE(model.emissionMaps[meshIndex], processTexture(material, aiTextureType_EMISSIVE));
+    ASSIGN_EXPECTED_OR_IGNORE(model.normalMaps[meshIndex], processTexture(material, bUsesHeightForNormal ? aiTextureType_HEIGHT : aiTextureType_NORMALS));
   }
 
   return {};

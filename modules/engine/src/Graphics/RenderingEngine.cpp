@@ -91,6 +91,7 @@ Expected<void> RenderingEngine::init(AssetManager& assets) {
   mDiffuseOverlayTextureSampler = this->addSampler({});
   mSpecularTextureSampler = this->addSampler({});
   mEmissionTextureSampler = this->addSampler({});
+  mNormalTextureSampler = this->addSampler({});
   mEnvironmentTextureSampler = this->addSampler({});
 
   constexpr SamplerOptions shadowSamplerOptions = {
@@ -194,6 +195,7 @@ void RenderingEngine::destroy() {
   mDiffuseOverlayTextureSampler = SamplerHandle::null();
   mSpecularTextureSampler = SamplerHandle::null();
   mEmissionTextureSampler = SamplerHandle::null();
+  mNormalTextureSampler = SamplerHandle::null();
   mEnvironmentTextureSampler = SamplerHandle::null();
   mDirectionalShadowMapsSampler = SamplerHandle::null();
   mPointShadowMapsSampler = SamplerHandle::null();
@@ -280,7 +282,8 @@ auto RenderingEngine::groupMeshesByTextures(AssetHandle<Model> model) {
       const size_t hashDiffuse = textureHash(texturePack.diffuseMap);
       const size_t hashSpecular = textureHash(texturePack.specularMap);
       const size_t hashEmission = textureHash(texturePack.emissionMap);
-      return hashDiffuse ^ ((hashSpecular ^ (hashEmission << 1)) << 1);
+      const size_t hashNormal = textureHash(texturePack.normalMap);
+      return (hashDiffuse ^ ((hashSpecular ^ ((hashEmission ^ (hashNormal << 1)) << 1)) << 1));
     }
   };
 
@@ -290,6 +293,7 @@ auto RenderingEngine::groupMeshesByTextures(AssetHandle<Model> model) {
       .diffuseMap = model->diffuseMaps[meshIndex],
       .specularMap = model->specularMaps[meshIndex],
       .emissionMap = model->emissionMaps[meshIndex],
+      .normalMap = model->normalMaps[meshIndex],
     };
     texturesToMesh[pack].emplace_back(&mesh.get());
   }
@@ -330,6 +334,7 @@ const std::vector<RenderData>& RenderingEngine::addModel(const AssetHandle<Model
       .diffuseMap = textures.diffuseMap.isNull() ? Texture2DHandle::null() : this->addTexture2D(textures.diffuseMap),
       .specularMap = textures.specularMap.isNull() ? Texture2DHandle::null() : this->addTexture2D(textures.specularMap),
       .emissionMap = textures.emissionMap.isNull() ? Texture2DHandle::null() : this->addTexture2D(textures.emissionMap),
+      .normalMap = textures.normalMap.isNull() ? Texture2DHandle::null() : this->addTexture2D(textures.normalMap),
     };
     modelRenderData.push_back(renderData);
   }
@@ -589,6 +594,7 @@ void RenderingEngine::renderSceneFull(const std::span<Draw> draws, const Viewpor
   mDiffuseOverlayTextureSampler->bind(BINDING_SAMPLER_DIFFUSE_OVERLAY);
   mSpecularTextureSampler->bind(BINDING_SAMPLER_SPECULAR);
   mEmissionTextureSampler->bind(BINDING_SAMPLER_EMISSION);
+  mNormalTextureSampler->bind(BINDING_SAMPLER_NORMAL);
   mEnvironmentTextureSampler->bind(BINDING_SAMPLER_ENVIRONMENT);
   mDirectionalShadowMapsSampler->bind(BINDING_SAMPLER_DIRECTIONAL_SHADOWS);
   mPointShadowMapsSampler->bind(BINDING_SAMPLER_POINT_SHADOWS);
@@ -650,18 +656,19 @@ void RenderingEngine::renderSceneFull(const std::span<Draw> draws, const Viewpor
     }
 
     const auto bindTexture = [&](const auto currTexture, const auto lastTexture, const auto defaultTexture,
-                                 const GLuint unit, const GLchar* uniformName)
+                                 const GLuint unit, const GLchar* enabledUniformName)
     {
       if (drawIdx == 0 || currTexture != lastTexture) {
         currTexture.getOrDefault(defaultTexture).bind(unit);
         boundTextureSlots.insert(unit);
-        currDraw.shaderProgramInstance->setAndBindUniform(uniformName, !currTexture.isNull());
+        currDraw.shaderProgramInstance->setAndBindUniform(enabledUniformName, !currTexture.isNull());
       }
     };
     bindTexture(currDraw.diffuseMap, lastDraw->diffuseMap, mBlackTexture, BINDING_SAMPLER_DIFFUSE, "uMaterial.bUseDiffuse");
     bindTexture(currDraw.diffuseOverlayMap, lastDraw->diffuseOverlayMap, mTransparentTexture, BINDING_SAMPLER_DIFFUSE_OVERLAY, "uMaterial.bUseDiffuseOverlay");
     bindTexture(currDraw.specularMap, lastDraw->specularMap, mBlackTexture, BINDING_SAMPLER_SPECULAR, "uMaterial.bUseSpecular");
     bindTexture(currDraw.emissionMap, lastDraw->emissionMap, mBlackTexture, BINDING_SAMPLER_EMISSION, "uMaterial.bUseEmission");
+    bindTexture(currDraw.normalMap, lastDraw->normalMap, mFlatNormalMap, BINDING_SAMPLER_NORMAL, "uMaterial.bUseNormal");
     bindTexture(currDraw.environmentMap, lastDraw->environmentMap, mBlackCubeMap, BINDING_SAMPLER_ENVIRONMENT, "uMaterial.bUseEnvironment");
 
     currDraw.mesh->bind();

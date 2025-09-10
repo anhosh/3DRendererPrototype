@@ -19,5 +19,6 @@ add_subdirectory(modules/util)
 
 # declare executable targets
 add_subdirectory(demos/floating_backpack)
+add_subdirectory(demos/normal_mapping)
 add_subdirectory(demos/space)
 add_subdirectory(tests)

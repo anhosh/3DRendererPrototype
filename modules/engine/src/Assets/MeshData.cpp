@@ -20,12 +20,21 @@ MeshData MeshData::createCube(const glm::vec3 size) {
   };
 
   constexpr auto normals = std::array {
-    glm::vec3(-1.0f, +0.0f, +0.0f), // left
-    glm::vec3(+1.0f, +0.0f, +0.0f), // right
-    glm::vec3(+0.0f, +1.0f, +0.0f), // top
-    glm::vec3(+0.0f, -1.0f, +0.0f), // bottom
-    glm::vec3(+0.0f, +0.0f, +1.0f), // front
-    glm::vec3(+0.0f, +0.0f, -1.0f), // back
+    glm::vec3(-1.0f, +0.0f, +0.0f), // left face
+    glm::vec3(+1.0f, +0.0f, +0.0f), // right face
+    glm::vec3(+0.0f, +1.0f, +0.0f), // top face
+    glm::vec3(+0.0f, -1.0f, +0.0f), // bottom face
+    glm::vec3(+0.0f, +0.0f, +1.0f), // front face
+    glm::vec3(+0.0f, +0.0f, -1.0f), // back face
+  };
+
+  constexpr auto tangents = std::array {
+    glm::vec3(+0.0f, +1.0f, +0.0f), // left face
+    glm::vec3(+0.0f, -1.0f, +0.0f), // right face
+    glm::vec3(+1.0f, +0.0f, +0.0f), // top face
+    glm::vec3(-1.0f, +0.0f, +0.0f), // bottom face
+    glm::vec3(+1.0f, +0.0f, +0.0f), // front face
+    glm::vec3(-1.0f, +0.0f, +0.0f), // back face
   };
 
   constexpr auto faceIndices = std::array {
@@ -55,6 +64,7 @@ MeshData MeshData::createCube(const glm::vec3 size) {
       vertices.push_back(Vertex {
         .position = positions[posIndex],
         .normal = normals[face / 4],
+        .tangent = tangents[face / 4],
         .texCoord = texCoords[vertex],
       });
     }

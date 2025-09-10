@@ -1,6 +1,7 @@
 layout (location = 0) in vec3 inPosition;
 layout (location = 1) in vec3 inNormal;
-layout (location = 2) in vec2 inTexCoord;
+layout (location = 2) in vec3 inTangent;
+layout (location = 3) in vec2 inTexCoord;
 
 struct InstanceData {
   mat4 model;
@@ -14,6 +15,8 @@ layout (std430, binding = BINDING_SSBO_INSTANCES) readonly buffer Instances {
 out VS_OUT {
   vec3 position;
   vec3 normal;
+  vec3 tangent;
+  vec3 bitangent;
   vec2 texCoord;
 } vsOut;
 
@@ -25,5 +28,8 @@ void main() {
 
   vsOut.position = vertexPosWorld.xyz;
   vsOut.normal = normalize(currentInstance.normal * inNormal);
+  vsOut.tangent = normalize(currentInstance.normal * inTangent);
+  vsOut.tangent = normalize(vsOut.tangent - dot(vsOut.tangent, vsOut.normal) * vsOut.normal); // re-orthogonalise TBN
+  vsOut.bitangent = normalize(cross(vsOut.normal, vsOut.tangent));
   vsOut.texCoord = inTexCoord;
 }

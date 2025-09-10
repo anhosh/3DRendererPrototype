@@ -12,4 +12,5 @@ struct Model {
   std::vector<AssetHandle<Bitmap>> diffuseMaps;
   std::vector<AssetHandle<Bitmap>> specularMaps;
   std::vector<AssetHandle<Bitmap>> emissionMaps;
+  std::vector<AssetHandle<Bitmap>> normalMaps;
 };

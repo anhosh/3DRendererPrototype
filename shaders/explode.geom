@@ -6,12 +6,16 @@ layout(triangle_strip, max_vertices = 3) out;
 in VS_OUT {
   vec3 position;
   vec3 normal;
+  vec3 tangent;
+  vec3 bitangent;
   vec2 texCoord;
 } gsIn[];
 
 out GS_OUT {
   vec3 position;
   vec3 normal;
+  vec3 tangent;
+  vec3 bitangent;
   vec2 texCoord;
 } gsOut;
 
@@ -34,6 +38,8 @@ void main() {
   for (uint i = 0; i < 3; ++i) {
     gsOut.position = explode(vec4(gsIn[i].position, 1), normal).xyz;
     gsOut.normal = gsIn[i].normal;
+    gsOut.tangent = gsIn[i].tangent;
+    gsOut.bitangent = gsIn[i].bitangent;
     gsOut.texCoord = gsIn[i].texCoord;
     gl_Position = uCamera.projection * uCamera.view * vec4(gsOut.position, 1);
     EmitVertex();

@@ -1,10 +1,10 @@
-#include <FloatingBackpackDemo.hpp>
+#include <NormalMappingDemo.hpp>
 
 #include <Application.hpp>
 #include <Util/Log.hpp>
 
 int32_t main() {
-  Expected engine = Application::create("3D Renderer Prototype - Floating Backpack Demo", glm::uvec2(1920, 1080), std::make_unique<FloatingBackpackDemo>());
+  Expected engine = Application::create("3D Renderer Prototype - Normal Mapping Demo", glm::uvec2(1920, 1080), std::make_unique<NormalMappingDemo>());
   if (engine.has_value()) {
     engine->run();
     engine->shutDown();

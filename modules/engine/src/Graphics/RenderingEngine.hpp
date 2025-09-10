@@ -133,6 +133,7 @@ private:
   SamplerHandle mDiffuseOverlayTextureSampler = SamplerHandle::null();
   SamplerHandle mSpecularTextureSampler = SamplerHandle::null();
   SamplerHandle mEmissionTextureSampler = SamplerHandle::null();
+  SamplerHandle mNormalTextureSampler = SamplerHandle::null();
   SamplerHandle mEnvironmentTextureSampler = SamplerHandle::null();
   SamplerHandle mDirectionalShadowMapsSampler = SamplerHandle::null();
   SamplerHandle mPointShadowMapsSampler = SamplerHandle::null();
@@ -161,6 +162,7 @@ private:
     AssetHandle<Bitmap> diffuseMap = AssetHandle<Bitmap>::null();
     AssetHandle<Bitmap> specularMap = AssetHandle<Bitmap>::null();
     AssetHandle<Bitmap> emissionMap = AssetHandle<Bitmap>::null();
+    AssetHandle<Bitmap> normalMap = AssetHandle<Bitmap>::null();
 
     bool operator==(const TexturePack&) const = default;
   };
