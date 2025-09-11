@@ -118,11 +118,13 @@ CommandBuffer DemoBase::render() {
   for (const auto [shadowMapIndex, pack] : mScene.ecs.view<CompDirectionalLight, CompCamera>().each() | std::views::enumerate) {
     const auto [entity, light, camera] = pack;
     commandBuffer.commands.emplace_back(CmdRenderPass {
-      .renderPass.dstFramebuffer = mDirectionalLightShadowFramebuffers[shadowMapIndex],
-      .renderPass.pass = RenderPassScene {
-        .scene = &mScene,
-        .entityCamera = entity,
-        .mode = SceneRenderMode::DepthMap,
+      .renderPass = RenderPass {
+        .dstFramebuffer = mDirectionalLightShadowFramebuffers[shadowMapIndex],
+        .pass = RenderPassScene {
+          .scene = &mScene,
+          .entityCamera = entity,
+          .mode = SceneRenderMode::DepthMap,
+        },
       },
     });
   }
@@ -130,33 +132,41 @@ CommandBuffer DemoBase::render() {
   for (const auto [shadowMapIndex, pack] : mScene.ecs.view<CompSpotlight, CompCamera>().each() | std::views::enumerate) {
     const auto [entity, light, camera] = pack;
     commandBuffer.commands.emplace_back(CmdRenderPass {
-      .renderPass.dstFramebuffer = mSpotlightShadowFramebuffers[shadowMapIndex],
-      .renderPass.pass = RenderPassScene {
-        .scene = &mScene,
-        .entityCamera = entity,
-        .mode = SceneRenderMode::LinearizedDepthMap,
+      .renderPass = RenderPass {
+        .dstFramebuffer = mSpotlightShadowFramebuffers[shadowMapIndex],
+        .pass = RenderPassScene {
+          .scene = &mScene,
+          .entityCamera = entity,
+          .mode = SceneRenderMode::LinearizedDepthMap,
+        },
       },
     });
   }
 
   commandBuffer.commands.emplace_back(CmdRenderPass {
-    .renderPass.dstFramebuffer = mMainViewFramebuffer,
-    .renderPass.pass = RenderPassScene {
-      .scene = &mScene,
-      .entityCamera = mMainCamera,
-      .mode = mSceneRenderMode,
-      .shadowMaps.directionalShadowMaps = mDirectionalLightShadowMaps,
-      .shadowMaps.spotlightShadowMaps = mSpotlightShadowMaps,
+    .renderPass = RenderPass {
+      .dstFramebuffer = mMainViewFramebuffer,
+      .pass = RenderPassScene {
+        .scene = &mScene,
+        .entityCamera = mMainCamera,
+        .mode = mSceneRenderMode,
+        .shadowMaps = ShadowMaps {
+          .directionalShadowMaps = mDirectionalLightShadowMaps,
+          .spotlightShadowMaps = mSpotlightShadowMaps,
+        },
+      },
     }
   });
 
   FramebufferHandle lastFramebuffer = mMainViewFramebuffer;
   for (auto [shaderIndex, framebuffer] : mPostProcessingFramebuffers | std::views::enumerate) {
     commandBuffer.commands.emplace_back(CmdRenderPass {
-      .renderPass.dstFramebuffer = framebuffer,
-      .renderPass.pass = PostProcessingPass {
-        .srcFramebuffer = lastFramebuffer,
-        .postProcessingShader = mPostProcessingShaderProgramInstances[shaderIndex++],
+      .renderPass = RenderPass {
+        .dstFramebuffer = framebuffer,
+        .pass = PostProcessingPass {
+          .srcFramebuffer = lastFramebuffer,
+          .postProcessingShader = mPostProcessingShaderProgramInstances[shaderIndex++],
+        },
       },
     });
     lastFramebuffer = framebuffer;
@@ -164,12 +174,14 @@ CommandBuffer DemoBase::render() {
 
   if (mbDebugVisualiseVertexNormals) {
     commandBuffer.commands.emplace_back(CmdRenderPass {
-      .renderPass.dstFramebuffer = mMainViewFramebuffer,
-      .renderPass.pass = RenderPassScene {
-        .scene = &mScene,
-        .entityCamera = mMainCamera,
-        .mode = SceneRenderMode::VertexNormals,
-        .bClearFramebuffer = false,
+      .renderPass = RenderPass {
+        .dstFramebuffer = mMainViewFramebuffer,
+        .pass = RenderPassScene {
+          .scene = &mScene,
+          .entityCamera = mMainCamera,
+          .mode = SceneRenderMode::VertexNormals,
+          .bClearFramebuffer = false,
+        },
       },
     });
   }

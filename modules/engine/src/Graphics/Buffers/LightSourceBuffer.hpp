@@ -64,10 +64,12 @@ struct DirectionalLightShaderData {
 
     return DirectionalLightShaderData {
       .colors = LightColorUniforms::from(light.colors),
-      .view.view = transform.viewMatrix(),
-      .view.projection = camera.orthographic(),
-      .view.zMin = camera.clipBox.min.z,
-      .view.zMax = camera.clipBox.max.z,
+      .view = LightViewUniforms {
+        .view = transform.viewMatrix(),
+        .projection = camera.orthographic(),
+        .zMin = camera.clipBox.min.z,
+        .zMax = camera.clipBox.max.z,
+      },
       .direction = glm::normalize(light.direction),
     };
   }
@@ -111,10 +113,12 @@ struct SpotlightShaderData {
     transformCopy.translation -= transformCopy.forward() * light.debugZOffset;
     return SpotlightShaderData {
       .colors = LightColorUniforms::from(light.colors),
-      .view.view = transformCopy.viewMatrix(),
-      .view.projection = camera.perspective(),
-      .view.zMin = camera.clipBox.min.z,
-      .view.zMax = camera.clipBox.max.z,
+      .view = LightViewUniforms {
+        .view = transformCopy.viewMatrix(),
+        .projection = camera.perspective(),
+        .zMin = camera.clipBox.min.z,
+        .zMax = camera.clipBox.max.z,
+      },
       .position = transform.translation,
       .direction = light.direction,
       .cutOff = glm::cos(glm::radians(light.cutOff)),

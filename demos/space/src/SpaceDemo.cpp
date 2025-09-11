@@ -83,14 +83,16 @@ Expected<void> SpaceDemo::init(const std::shared_ptr<AssetManager>& assets, cons
 
   // Create scene
   mMainCamera = mScene.ecs.create();
-  mScene.ecs.emplace<CompCamera>(mMainCamera, CompCamera {
-    .clipBox.min.z = 0.01f,
-    .clipBox.max.z = 400.0f,
-  });
+  CompCamera mainCamera;
+  mainCamera.clipBox.min.z = 0.01f;
+  mainCamera.clipBox.max.z = 400.0f;
+  mScene.ecs.emplace<CompCamera>(mMainCamera, mainCamera);
   mScene.ecs.emplace<CompTransform>(mMainCamera, CompTransform {
     .translation = glm::vec3(70.0f, 75.0f, -58.0f),
-    .rotation.pitch = 38.0f,
-    .rotation.yaw = -42.0f,
+    .rotation = Rotation {
+      .pitch = 38.0f,
+      .yaw = -42.0f,
+    },
   });
   mCameraSpeed = 30.0f;
 
@@ -106,9 +108,11 @@ Expected<void> SpaceDemo::init(const std::shared_ptr<AssetManager>& assets, cons
   planetMeshes[0].emissionMap = planetMeshes[0].diffuseMap;
   mScene.ecs.emplace<CompGraphics>(mEnttSun, planetMeshes);
   mScene.ecs.emplace<CompPointLight>(mEnttSun, CompPointLight {
-    .colors.ambient = glm::vec3(0.14f),
-    .colors.diffuse = glm::vec3(50.0f),
-    .colors.specular = glm::vec3(75.0f),
+    .colors = LightColors {
+      .ambient = glm::vec3(0.14f),
+      .diffuse = glm::vec3(50.0f),
+      .specular = glm::vec3(75.0f),
+    },
     .constant = 1.0f,
     .linear = 1.01f,
     .quadratic = 0.01f,
@@ -162,8 +166,10 @@ Expected<void> SpaceDemo::init(const std::shared_ptr<AssetManager>& assets, cons
   mScene.ecs.emplace<CompGraphics>(mEnttMoon, planetMeshes);
   mScene.ecs.emplace<CompOrbit>(mEnttMoon, earthTransform.translation, 4.0f, 4000.0f / 360.0f * 12.0f);
   mScene.ecs.emplace<CompTransform>(mEnttMoon, CompTransform {
-    .rotation.pitch = -90.0f,
-    .rotation.yaw = 180.0f,
+    .rotation = Rotation {
+      .pitch = -90.0f,
+      .yaw = 180.0f,
+    },
     .scale = glm::vec3(0.0005f),
   });
   mCelestialBodyAngles.emplace_back(mEnttMoon, 0.0f);
