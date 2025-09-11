@@ -41,5 +41,6 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL Clang OR CMAKE_CXX_COMPILER_ID STREQUAL GNU)
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL MSVC)
   target_compile_options(${PROJECT_NAME} PRIVATE
       $<$<NOT:$<CONFIG:Debug>>:/WX> # warnings as errors if not Debug
+      /Zc:preprocessor
   )
 endif ()

@@ -18,12 +18,21 @@
     abort(); \
   )
 
-#define PANIC(fmt, ...) \
+#if defined(_MSVC_TRADITIONAL) && _MSVC_TRADITIONAL
+# define PANIC(fmt, ...) \
+  TO_STATEMENT( \
+    std::println(stderr, "Program panicked at {}:{}, {}:", __FILE__, __LINE__, __FUNCTION__); \
+    std::println(stderr, fmt ##__VA_ARGS__); \
+    abort(); \
+  )
+#else
+# define PANIC(fmt, ...) \
   TO_STATEMENT( \
     std::println(stderr, "Program panicked at {}:{}, {}:", __FILE__, __LINE__, __FUNCTION__); \
     std::println(stderr, fmt __VA_OPT__(,) __VA_ARGS__); \
     abort(); \
   )
+#endif
 
 #define RETURN_ERROR_IF_UNEXPECTED(expr) \
   TO_STATEMENT( \
