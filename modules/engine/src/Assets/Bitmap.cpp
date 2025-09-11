@@ -12,10 +12,11 @@ Expected<Bitmap> Bitmap::fromFile(const fs::path& fileName, const bool bFlipVert
 
   stbi_set_flip_vertically_on_load(bFlipVertically);
   int32_t width, height, channels;
-  uint8_t* loadedData = stbi_load(fileName.c_str(), &width, &height, &channels, 0);
+  std::string pathString = fileName.string();
+  uint8_t* loadedData = stbi_load(pathString.c_str(), &width, &height, &channels, 0);
   if (!loadedData) {
     stbi_image_free(loadedData);
-    return std::unexpected(std::format("Bitmap file was not found: {}", fileName.string()));
+    return std::unexpected(std::format("Bitmap file was not found: {}", pathString));
   }
 
   Expected ret = Bitmap::fromMemory(std::span(loadedData, static_cast<uint32_t>(width * height * channels)),
