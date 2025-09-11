@@ -64,12 +64,12 @@ Expected<void> NormalMappingDemo::init(const std::shared_ptr<AssetManager>& asse
     .cubeMesh = renderer->addMesh(skyboxCubeMesh),
     .texture = renderer->addTextureCubeMap(
       TextureCubeMapBitmaps {
-        bitmapSkyboxRight.value(),
-        bitmapSkyboxLeft.value(),
-        bitmapSkyboxTop.value(),
-        bitmapSkyboxBottom.value(),
-        bitmapSkyboxFront.value(),
-        bitmapSkyboxBack.value(),
+        .right = bitmapSkyboxRight.value(),
+        .left = bitmapSkyboxLeft.value(),
+        .top = bitmapSkyboxTop.value(),
+        .bottom = bitmapSkyboxBottom.value(),
+        .front = bitmapSkyboxFront.value(),
+        .back = bitmapSkyboxBack.value(),
         .bSRGB = true,
       }
     ),

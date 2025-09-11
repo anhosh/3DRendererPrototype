@@ -63,12 +63,12 @@ Expected<void> SpaceDemo::init(const std::shared_ptr<AssetManager>& assets, cons
 
   TextureCubeMapHandle skyboxTexture = renderer->addTextureCubeMap(
     TextureCubeMapBitmaps {
-      bitmapSkyboxRight.value(),
-      bitmapSkyboxLeft.value(),
-      bitmapSkyboxTop.value(),
-      bitmapSkyboxBottom.value(),
-      bitmapSkyboxFront.value(),
-      bitmapSkyboxBack.value(),
+      .right = bitmapSkyboxRight.value(),
+      .left = bitmapSkyboxLeft.value(),
+      .top = bitmapSkyboxTop.value(),
+      .bottom = bitmapSkyboxBottom.value(),
+      .front = bitmapSkyboxFront.value(),
+      .back = bitmapSkyboxBack.value(),
       .bSRGB = true,
     }
   );

@@ -95,10 +95,10 @@ Expected<void> RenderingEngine::init(AssetManager& assets) {
   mEnvironmentTextureSampler = this->addSampler({});
 
   constexpr SamplerOptions shadowSamplerOptions = {
-    .minFilter = GL_LINEAR,
-    .magFilter = GL_LINEAR,
     .wrapS = GL_CLAMP_TO_BORDER,
     .wrapT = GL_CLAMP_TO_BORDER,
+    .minFilter = GL_LINEAR,
+    .magFilter = GL_LINEAR,
     .borderColor = glm::vec4(1.0f),
     .compareMode = GL_COMPARE_REF_TO_TEXTURE,
     .compareFunc = GL_GREATER,

@@ -15,7 +15,7 @@ Expected<Bitmap> Bitmap::fromFile(const fs::path& fileName, const bool bFlipVert
   uint8_t* loadedData = stbi_load(fileName.c_str(), &width, &height, &channels, 0);
   if (!loadedData) {
     stbi_image_free(loadedData);
-    return std::unexpected(std::format("Bitmap file was not found: {}", fileName.c_str()));
+    return std::unexpected(std::format("Bitmap file was not found: {}", fileName.string()));
   }
 
   Expected ret = Bitmap::fromMemory(std::span(loadedData, static_cast<uint32_t>(width * height * channels)),

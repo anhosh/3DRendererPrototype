@@ -37,9 +37,10 @@ Expected<Shader> createShader(GLenum type, const fs::path& sourcePath, std::stri
   }
 
   char error[256];
-  const char* sourceCStr = stb_include_file((sShadersDir / sourcePath).c_str(), nullptr, sShadersDir.c_str(), error);
+  const char* sourceCStr = stb_include_file((sShadersDir / sourcePath).string().c_str(), nullptr,
+                                            sShadersDir.string().c_str(), error);
   if (sourceCStr == nullptr) {
-    return std::unexpected(std::format("Failed to load shader '{}':\n{}", sourcePath.c_str(), error));
+    return std::unexpected(std::format("Failed to load shader '{}':\n{}", sourcePath.string(), error));
   }
 
   const auto sources = std::array {
@@ -62,7 +63,7 @@ Expected<Shader> createShader(GLenum type, const fs::path& sourcePath, std::stri
     glGetShaderInfoLog(shader, static_cast<GLint>(infoLog.size()), &infoLogLength, infoLog.data());
     infoLog.resize(static_cast<size_t>(infoLogLength));
 
-    return std::unexpected(std::format("Failed to compile shader '{}':\n{}", sourcePath.c_str(), infoLog));
+    return std::unexpected(std::format("Failed to compile shader '{}':\n{}", sourcePath.string(), infoLog));
   }
 
   return Shader { type, shader };
@@ -119,17 +120,17 @@ Expected<GLuint> createShaderProgram(const ShaderProgramPaths& shaderPaths) {
     glGetProgramInfoLog(program, static_cast<GLint>(infoLog.size()), &infoLogLength, infoLog.data());
     infoLog.resize(static_cast<size_t>(infoLogLength));
 
-    std::string shaderList = std::format("VS: {}", shaderPaths.vertex.c_str());
+    std::string shaderList = std::format("VS: {}", shaderPaths.vertex.string());
     if (shaderPaths.tesselationControl.has_value()) {
-      shaderList += std::format(", TC: {}", shaderPaths.tesselationControl->c_str());
+      shaderList += std::format(", TC: {}", shaderPaths.tesselationControl->string());
     }
     if (shaderPaths.tesselationEvaluation.has_value()) {
-      shaderList += std::format(", TE: {}", shaderPaths.tesselationEvaluation->c_str());
+      shaderList += std::format(", TE: {}", shaderPaths.tesselationEvaluation->string());
     }
     if (shaderPaths.geometry.has_value()) {
-      shaderList += std::format(", GS: {}", shaderPaths.geometry->c_str());
+      shaderList += std::format(", GS: {}", shaderPaths.geometry->string());
     }
-    shaderList += std::format(", FS: {}", shaderPaths.fragment.c_str());
+    shaderList += std::format(", FS: {}", shaderPaths.fragment.string());
     return std::unexpected(std::format("Failed to link shader program ({}):\n{}", shaderList, infoLog));
   }
 

@@ -17,7 +17,7 @@ class ShaderProgram;
 class ShaderProgramInstance;
 class Mesh;
 class Sampler;
-class SamplerOptions;
+struct SamplerOptions;
 class Texture2D;
 class Texture2DArray;
 class TextureCubeMap;

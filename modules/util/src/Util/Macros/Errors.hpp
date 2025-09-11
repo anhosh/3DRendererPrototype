@@ -19,10 +19,10 @@
   )
 
 #if defined(_MSVC_TRADITIONAL) && _MSVC_TRADITIONAL
-# define PANIC(fmt, ...) \
+# define PANIC(...) \
   TO_STATEMENT( \
     std::println(stderr, "Program panicked at {}:{}, {}:", __FILE__, __LINE__, __FUNCTION__); \
-    std::println(stderr, fmt ##__VA_ARGS__); \
+    std::println(stderr, ##__VA_ARGS__); \
     abort(); \
   )
 #else

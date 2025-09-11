@@ -486,10 +486,10 @@ void DemoBase::guiPostProcessing(const AppState& state) {
       const ShaderProgramInstanceHandle shader = mRenderingEngine->createShaderProgramInstance(ShaderProgramType::PostProcessCopy);
       const FramebufferHandle newFramebuffer = mRenderingEngine->addFramebuffer({
         .size = state.windowSize,
+        .depthStencilMode = DepthStencilMode::None,
         .colorAttachments = {
           FramebufferAttachment { .texture = &mPostProcessingColorAttachments.back().get() },
         },
-        .depthStencilMode = DepthStencilMode::None,
       });
 
       mPostProcessingShaderProgramInstances.push_back(shader);
