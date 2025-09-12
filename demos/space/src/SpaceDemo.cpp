@@ -22,19 +22,19 @@ Expected<void> SpaceDemo::init(const std::shared_ptr<AssetManager>& assets, cons
   const Expected modelPlanet = assets->loadModel("sphere/sphere.obj");
   const Expected modelRock = assets->loadModel("rock/rock.obj");
 
-  Expected bitmapSkyboxRight   = assets->loadBitmap("skybox/px.png", false);
-  Expected bitmapSkyboxLeft    = assets->loadBitmap("skybox/nx.png", false);
-  Expected bitmapSkyboxTop     = assets->loadBitmap("skybox/py.png", false);
-  Expected bitmapSkyboxBottom  = assets->loadBitmap("skybox/ny.png", false);
-  Expected bitmapSkyboxFront   = assets->loadBitmap("skybox/pz.png", false);
-  Expected bitmapSkyboxBack    = assets->loadBitmap("skybox/nz.png", false);
-  Expected bitmapMercury       = assets->loadBitmap("spheres/2k_mercury.jpg", false);
-  Expected bitmapVenus         = assets->loadBitmap("spheres/2k_venus_atmosphere.jpg", false);
-  Expected bitmapEarthClouds   = assets->loadBitmap("spheres/2k_earth_clouds.png", false);
-  Expected bitmapEarthDayMap   = assets->loadBitmap("spheres/2k_earth_daymap.jpg", false);
-  Expected bitmapEarthSpecular = assets->loadBitmap("spheres/2k_earth_specular_map_clouds.png", false);
-  Expected bitmapMoon          = assets->loadBitmap("spheres/2k_moon.jpg", false);
-  Expected bitmapMars          = assets->loadBitmap("spheres/2k_mars.jpg", false);
+  Expected bitmapSkyboxRight   = assets->loadBitmap("skybox/px.png", true, false);
+  Expected bitmapSkyboxLeft    = assets->loadBitmap("skybox/nx.png", true, false);
+  Expected bitmapSkyboxTop     = assets->loadBitmap("skybox/py.png", true, false);
+  Expected bitmapSkyboxBottom  = assets->loadBitmap("skybox/ny.png", true, false);
+  Expected bitmapSkyboxFront   = assets->loadBitmap("skybox/pz.png", true, false);
+  Expected bitmapSkyboxBack    = assets->loadBitmap("skybox/nz.png", true, false);
+  Expected bitmapMercury       = assets->loadBitmap("spheres/2k_mercury.jpg", true, true);
+  Expected bitmapVenus         = assets->loadBitmap("spheres/2k_venus_atmosphere.jpg", true, true);
+  Expected bitmapEarthClouds   = assets->loadBitmap("spheres/2k_earth_clouds.png", true, true);
+  Expected bitmapEarthDayMap   = assets->loadBitmap("spheres/2k_earth_daymap.jpg", true, true);
+  Expected bitmapEarthSpecular = assets->loadBitmap("spheres/2k_earth_specular_map_clouds.png", false, true);
+  Expected bitmapMoon          = assets->loadBitmap("spheres/2k_moon.jpg", true, true);
+  Expected bitmapMars          = assets->loadBitmap("spheres/2k_mars.jpg", true, true);
 
   const AssetHandle<MeshData> skyboxCubeMesh = assets->addMesh(MeshData::createCube(glm::vec3(2.0f)));
 
@@ -136,7 +136,7 @@ Expected<void> SpaceDemo::init(const std::shared_ptr<AssetManager>& assets, cons
   planetMeshes[0].diffuseMap = textureMercury;
   planetMeshes[0].emissionMap = Texture2DHandle::null();
   mScene.ecs.emplace<CompGraphics>(enttMercury, planetMeshes);
-  mScene.ecs.emplace<CompOrbit>(enttMercury, glm::vec3(0.0f), 20.0f, 4000.0f / 200.0f);
+  mScene.ecs.emplace<CompOrbit>(enttMercury, glm::vec3(0.0f), 20.0f, 400.0f / 200.0f);
   mScene.ecs.emplace<CompTransform>(enttMercury, CompTransform { .rotation.pitch = -90.0f, .scale = glm::vec3(0.001f) });
   mCelestialBodyAngles.emplace_back(enttMercury, 0.0f);
 
@@ -144,7 +144,7 @@ Expected<void> SpaceDemo::init(const std::shared_ptr<AssetManager>& assets, cons
   mScene.ecs.emplace<CompName>(enttVenus, "Venus");
   planetMeshes[0].diffuseMap = textureVenus;
   mScene.ecs.emplace<CompGraphics>(enttVenus, planetMeshes);
-  mScene.ecs.emplace<CompOrbit>(enttVenus, glm::vec3(0.0f), 40.0f, 4000.0f / 160.0f);
+  mScene.ecs.emplace<CompOrbit>(enttVenus, glm::vec3(0.0f), 40.0f, 400.0f / 160.0f);
   mScene.ecs.emplace<CompTransform>(enttVenus, CompTransform { .rotation.pitch = -90.0f, .scale = glm::vec3(0.002f) });
   mCelestialBodyAngles.emplace_back(enttVenus, 0.0f);
 
@@ -154,7 +154,7 @@ Expected<void> SpaceDemo::init(const std::shared_ptr<AssetManager>& assets, cons
   planetMeshes[0].diffuseOverlayMap = textureEarthClouds;
   planetMeshes[0].specularMap = textureEarthSpecular;
   mScene.ecs.emplace<CompGraphics>(mEnttEarth, planetMeshes);
-  mScene.ecs.emplace<CompOrbit>(mEnttEarth, glm::vec3(0.0f), 60.0f, 4000.0f / 360.0f);
+  mScene.ecs.emplace<CompOrbit>(mEnttEarth, glm::vec3(0.0f), 60.0f, 400.0f / 360.0f);
   const CompTransform& earthTransform = mScene.ecs.emplace<CompTransform>(mEnttEarth, CompTransform { .rotation.pitch = -90.0f, .scale = glm::vec3(0.004f) });
   mCelestialBodyAngles.emplace_back(mEnttEarth, 0.0f);
 
@@ -164,7 +164,7 @@ Expected<void> SpaceDemo::init(const std::shared_ptr<AssetManager>& assets, cons
   planetMeshes[0].diffuseOverlayMap = Texture2DHandle::null();
   planetMeshes[0].specularMap = Texture2DHandle::null();
   mScene.ecs.emplace<CompGraphics>(mEnttMoon, planetMeshes);
-  mScene.ecs.emplace<CompOrbit>(mEnttMoon, earthTransform.translation, 4.0f, 4000.0f / 360.0f * 12.0f);
+  mScene.ecs.emplace<CompOrbit>(mEnttMoon, earthTransform.translation, 4.0f, 400.0f / 360.0f * 12.0f);
   mScene.ecs.emplace<CompTransform>(mEnttMoon, CompTransform {
     .rotation = Rotation {
       .pitch = -90.0f,
@@ -178,7 +178,7 @@ Expected<void> SpaceDemo::init(const std::shared_ptr<AssetManager>& assets, cons
   mScene.ecs.emplace<CompName>(enttMars, "Mars");
   planetMeshes[0].diffuseMap = textureMars;
   mScene.ecs.emplace<CompGraphics>(enttMars, planetMeshes);
-  mScene.ecs.emplace<CompOrbit>(enttMars, glm::vec3(0.0f), 80.0f, 4000.0f / 640.0f);
+  mScene.ecs.emplace<CompOrbit>(enttMars, glm::vec3(0.0f), 80.0f, 400.0f / 640.0f);
   mScene.ecs.emplace<CompTransform>(enttMars, CompTransform { .rotation.pitch = -90.0f, .scale = glm::vec3(0.003f) });
   mCelestialBodyAngles.emplace_back(enttMars, 0.0f);
 
@@ -191,7 +191,7 @@ Expected<void> SpaceDemo::init(const std::shared_ptr<AssetManager>& assets, cons
     const float angle = static_cast<float>(i) / static_cast<float>(numAsteroids) * 360.0f;
     const float distanceFromCentre = radius + displacementDistribution(gen);
 
-    mScene.ecs.emplace<CompOrbit>(enttAsteroid, glm::vec3(0.0f), distanceFromCentre, 100.0f * orbitSpeedDistribution(gen) / glm::pow2(distanceFromCentre));
+    mScene.ecs.emplace<CompOrbit>(enttAsteroid, glm::vec3(0.0f), distanceFromCentre, 10.0f * orbitSpeedDistribution(gen) / glm::pow2(distanceFromCentre));
     mScene.ecs.emplace<CompTransform>(enttAsteroid, CompTransform {
       .translation = {
         glm::sin(glm::radians(angle)) * distanceFromCentre,

@@ -9,11 +9,11 @@
 #include <Util/Paths.hpp>
 #include <Util/Timers/ScopedTimer.hpp>
 
-#include <assimp/Importer.hpp>
-#include <assimp/mesh.h>
-#include <assimp/postprocess.h>
-#include <assimp/scene.h>
 #include <glm/gtx/quaternion.hpp>
+
+#include <tiny_obj_loader.h>
+
+#include <ranges>
 
 AssetManager::AssetManager() {
   ZoneScoped;
@@ -32,7 +32,7 @@ AssetHandle<Bitmap> AssetManager::addBitmap(Bitmap&& bitmap) {
   return mBitmaps.add(std::move(bitmap));
 }
 
-Expected<AssetHandle<Bitmap>> AssetManager::loadBitmap(const std::filesystem::path& filePath, const bool bFlipVertically) {
+Expected<AssetHandle<Bitmap>> AssetManager::loadBitmap(const std::filesystem::path& filePath, const bool bSRGB, const bool bFlipVertically) {
   ZoneScoped;
 
   const std::filesystem::path fullPath = mTexturesDir / filePath;
@@ -43,6 +43,7 @@ Expected<AssetHandle<Bitmap>> AssetManager::loadBitmap(const std::filesystem::pa
 
   Bitmap bitmap;
   ASSIGN_EXPECTED_OR_RETURN(bitmap, Bitmap::fromFile(fullPath, bFlipVertically));
+  bitmap.bSRGB = bSRGB;
   const AssetHandle<Bitmap> handle = this->addBitmap(std::move(bitmap));
   mLoadedBitmaps.emplace(fullPath, handle);
   return handle;
@@ -57,16 +58,72 @@ Expected<AssetHandle<Model>> AssetManager::loadModel(const std::filesystem::path
     return handle;
   }
 
-  Assimp::Importer importer;
-  const aiScene* scene = importer.ReadFile(fullPath.string(), aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
+  ScopedTimer timer(std::format("Load model {}", filePath.string()));
 
-  if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
-    return std::unexpected(std::format("Assimp: {}", importer.GetErrorString()));
+  tinyobj::ObjReaderConfig config;
+  // config.mtl_search_path = "./";
+
+  tinyobj::ObjReader reader;
+  if (!reader.ParseFromFile(mModelsDir / filePath, config)) {
+    return std::unexpected(std::format("TinyObjLoader: {}", reader.Error()));
+  }
+  if (!reader.Warning().empty()) {
+    LOG_INFO("TinyObjLoader: {}", reader.Warning());
   }
 
-  ScopedTimer timer(std::format("Load model {}", filePath.string()));
   Model model;
-  RETURN_ERROR_IF_UNEXPECTED(this->processNode(model, scene->mRootNode, scene, filePath.string().ends_with("obj")));
+  const tinyobj::attrib_t& attrib = reader.GetAttrib();
+  const std::vector<tinyobj::shape_t>& shapes = reader.GetShapes();
+  const std::vector<tinyobj::material_t>& materials = reader.GetMaterials();
+
+  for (const tinyobj::shape_t& shape : shapes) {
+    MeshData meshData;
+    std::unordered_map<Vertex, uint32_t> uniqueVertices;
+
+    for (const tinyobj::index_t& index : shape.mesh.indices) {
+      Vertex vertex = {
+        .position = {
+          attrib.vertices[3 * index.vertex_index + 0],
+          attrib.vertices[3 * index.vertex_index + 1],
+          attrib.vertices[3 * index.vertex_index + 2],
+        },
+        .normal = {
+          attrib.normals[3 * index.normal_index + 0],
+          attrib.normals[3 * index.normal_index + 1],
+          attrib.normals[3 * index.normal_index + 2],
+        },
+        .texCoord = {
+          attrib.texcoords[2 * index.texcoord_index + 0],
+          attrib.texcoords[2 * index.texcoord_index + 1],
+        },
+      };
+      vertex.tangent = Rotation(90.0f, 0.0f, 0.0f).asMat3() * vertex.normal;
+
+      if (!uniqueVertices.contains(vertex)) {
+        uniqueVertices.emplace(vertex, uniqueVertices.size());
+        meshData.vertices.push_back(vertex);
+      }
+
+      meshData.indices.push_back(uniqueVertices[vertex]);
+    }
+
+    const AssetHandle<MeshData> meshHandle = this->addMesh(std::move(meshData));
+    model.meshes.push_back(meshHandle);
+
+    model.diffuseMaps.push_back(AssetHandle<Bitmap>::null());
+    model.specularMaps.push_back(AssetHandle<Bitmap>::null());
+    model.emissionMaps.push_back(AssetHandle<Bitmap>::null());
+    model.normalMaps.push_back(AssetHandle<Bitmap>::null());
+    if (!materials.empty() && !shape.mesh.material_ids.empty()) {
+      const size_t materialIndex = shape.mesh.material_ids.front();
+      const tinyobj::material_t& material = materials[materialIndex < materials.size() ? materialIndex : 0];
+      ASSIGN_EXPECTED_OR_IGNORE(model.diffuseMaps.back(), this->loadBitmap(material.diffuse_texname, true, false));
+      ASSIGN_EXPECTED_OR_IGNORE(model.specularMaps.back(), this->loadBitmap(material.specular_texname, false, false));
+      ASSIGN_EXPECTED_OR_IGNORE(model.emissionMaps.back(), this->loadBitmap(material.emissive_texname, true, false));
+      ASSIGN_EXPECTED_OR_IGNORE(model.normalMaps.back(), this->loadBitmap(material.bump_texname, false, false));
+    }
+  }
+
   const AssetHandle<Model> handle = mModels.add(std::move(model));
   mLoadedModels.emplace(fullPath, handle);
   return handle;
@@ -90,85 +147,4 @@ Expected<void> AssetManager::locateTextures() {
     return {};
   }
   return std::unexpected("Could not locate texture directory");
-}
-
-Expected<void> AssetManager::processNode(Model& model, const aiNode* node, const aiScene* scene, const bool bUsesHeightForNormal) {
-  ZoneScoped;
-
-  for (size_t i = 0; i < node->mNumMeshes; ++i) {
-    aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-    RETURN_ERROR_IF_UNEXPECTED(this->processMesh(model, mesh, scene, bUsesHeightForNormal));
-  }
-
-  for (size_t i = 0; i < node->mNumChildren; ++i) {
-    RETURN_ERROR_IF_UNEXPECTED(this->processNode(model, node->mChildren[i], scene, bUsesHeightForNormal));
-  }
-
-  return {};
-}
-
-Expected<void> AssetManager::processMesh(Model& model, const aiMesh* mesh, const aiScene* scene, const bool bUsesHeightForNormal) {
-  ZoneScoped;
-
-  std::vector<Vertex> vertices;
-  std::vector<uint32_t> indices;
-
-  vertices.resize(mesh->mNumVertices);
-  indices.reserve(mesh->mNumFaces * 3);
-
-  for (size_t v = 0; v < mesh->mNumVertices; ++v) {
-    const aiVector3D& position = mesh->mVertices[v];
-    vertices[v].position = glm::vec3(position.x, position.y, position.z);
-  }
-  for (size_t v = 0; v < mesh->mNumVertices; ++v) {
-    const aiVector3D& normal = mesh->mNormals[v];
-    vertices[v].normal = glm::vec3(normal.x, normal.y, normal.z);
-  }
-  for (size_t v = 0; v < mesh->mNumVertices; ++v) {
-    const aiVector3D& tangent = mesh->mTangents[v];
-    vertices[v].tangent = glm::vec3(tangent.x, tangent.y, tangent.z);
-  }
-  for (size_t v = 0; v < mesh->mNumVertices; ++v) {
-    const aiVector3D& texCoord = mesh->mTextureCoords[0] ? mesh->mTextureCoords[0][v] : aiVector3D(0.0f);
-    vertices[v].texCoord = glm::vec2(texCoord.x, texCoord.y);
-  }
-
-  for (size_t f = 0; f < mesh->mNumFaces; ++f) {
-    const aiFace face = mesh->mFaces[f];
-    for (size_t i = 0; i < face.mNumIndices; ++i) {
-      indices.push_back(face.mIndices[i]);
-    }
-  }
-
-  model.meshes.push_back(this->addMesh(MeshData(std::move(vertices), std::move(indices))));
-
-  const size_t meshIndex = model.meshes.size() - 1;
-  if (mesh->mMaterialIndex < scene->mNumMaterials) {
-    const aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
-    model.diffuseMaps.emplace_back(AssetHandle<Bitmap>::null());
-    model.specularMaps.emplace_back(AssetHandle<Bitmap>::null());
-    model.emissionMaps.emplace_back(AssetHandle<Bitmap>::null());
-    model.normalMaps.emplace_back(AssetHandle<Bitmap>::null());
-    ASSIGN_EXPECTED_OR_IGNORE(model.diffuseMaps[meshIndex], processTexture(material, aiTextureType_DIFFUSE));
-    ASSIGN_EXPECTED_OR_IGNORE(model.specularMaps[meshIndex], processTexture(material, aiTextureType_SPECULAR));
-    ASSIGN_EXPECTED_OR_IGNORE(model.emissionMaps[meshIndex], processTexture(material, aiTextureType_EMISSIVE));
-    ASSIGN_EXPECTED_OR_IGNORE(model.normalMaps[meshIndex], processTexture(material, bUsesHeightForNormal ? aiTextureType_HEIGHT : aiTextureType_NORMALS));
-  }
-
-  return {};
-}
-
-Expected<AssetHandle<Bitmap>> AssetManager::processTexture(const aiMaterial* material, const aiTextureType type) {
-  ZoneScoped;
-
-  if (material->GetTextureCount(type) == 0) {
-    return std::unexpected(std::format("Could not find a {} texture", aiTextureTypeToString(type)));
-  }
-
-  aiString pathStr;
-  material->GetTexture(type, 0, &pathStr);
-  Expected bitmap = this->loadBitmap(pathStr.C_Str());
-  RETURN_ERROR_IF_UNEXPECTED(bitmap);
-  bitmap.value()->bSRGB = type == aiTextureType_DIFFUSE || type == aiTextureType_EMISSIVE;
-  return bitmap;
 }

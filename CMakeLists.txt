@@ -7,7 +7,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # set other CMake options
 set(CMAKE_DEBUG_POSTFIX "-d")
-set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG_ENABLED")
 set(BUILD_SHARED_LIBS OFF)
 
@@ -16,7 +15,9 @@ add_subdirectory(modules/engine)
 add_subdirectory(modules/ext)
 add_subdirectory(modules/util)
 
-project(3DRendererPrototype)
+project(3DRendererPrototype
+  LANGUAGES CXX
+)
 
 # declare executable targets
 add_subdirectory(demos/normal_mapping)

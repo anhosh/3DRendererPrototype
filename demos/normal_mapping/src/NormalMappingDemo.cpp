@@ -13,14 +13,14 @@ Expected<void> NormalMappingDemo::init(const std::shared_ptr<AssetManager>& asse
   // Load assets
   const Expected modelBackpack = assets->loadModel("backpack/backpack.obj");
 
-  Expected bitmapBrickwall       = assets->loadBitmap("brickwall/brickwall.jpg", false);
-  Expected bitmapBrickwallNormal = assets->loadBitmap("brickwall/brickwall_normal.jpg", false);
-  Expected bitmapSkyboxRight  = assets->loadBitmap("skybox/right.jpg", false);
-  Expected bitmapSkyboxLeft   = assets->loadBitmap("skybox/left.jpg", false);
-  Expected bitmapSkyboxTop    = assets->loadBitmap("skybox/top.jpg", false);
-  Expected bitmapSkyboxBottom = assets->loadBitmap("skybox/bottom.jpg", false);
-  Expected bitmapSkyboxFront  = assets->loadBitmap("skybox/front.jpg", false);
-  Expected bitmapSkyboxBack   = assets->loadBitmap("skybox/back.jpg", false);
+  Expected bitmapBrickwall       = assets->loadBitmap("brickwall/brickwall.jpg", true, false);
+  Expected bitmapBrickwallNormal = assets->loadBitmap("brickwall/brickwall_normal.jpg", false, false);
+  Expected bitmapSkyboxRight     = assets->loadBitmap("skybox/right.jpg", true, false);
+  Expected bitmapSkyboxLeft      = assets->loadBitmap("skybox/left.jpg", true, false);
+  Expected bitmapSkyboxTop       = assets->loadBitmap("skybox/top.jpg", true, false);
+  Expected bitmapSkyboxBottom    = assets->loadBitmap("skybox/bottom.jpg", true, false);
+  Expected bitmapSkyboxFront     = assets->loadBitmap("skybox/front.jpg", true, false);
+  Expected bitmapSkyboxBack      = assets->loadBitmap("skybox/back.jpg", true, false);
 
   AssetHandle<Bitmap> floorBitmap = assets->addBitmap(Bitmap::fromMemory(asBytes("\xFF\xFF\xFF"), glm::uvec2(1), 3).value());
 

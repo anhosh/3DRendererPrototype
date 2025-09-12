@@ -283,7 +283,7 @@ auto RenderingEngine::groupMeshesByTextures(AssetHandle<Model> model) {
       const size_t hashSpecular = textureHash(texturePack.specularMap);
       const size_t hashEmission = textureHash(texturePack.emissionMap);
       const size_t hashNormal = textureHash(texturePack.normalMap);
-      return (hashDiffuse ^ ((hashSpecular ^ ((hashEmission ^ (hashNormal << 1)) << 1)) << 1));
+      return ((hashDiffuse ^ (hashSpecular << 1)) >> 1) ^ (hashEmission ^ (hashNormal << 1));
     }
   };
 

@@ -1,8 +1,0 @@
-generated/
-
-assimp.pc
-cmake_install.cmake
-cmake_uninstall.cmake
-include/assimp/config.h
-include/assimp/revision.h
-test/**/*_out.*
