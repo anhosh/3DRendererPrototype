@@ -1,11 +1,14 @@
 .idea/
+.vs/
 build/
+out/
 CMakeFiles/
 
 CMakeCache.txt
 cmake_install.cmake
 TracyTargets.cmake
 Makefile
+*.sln
 imgui.ini
 *.cap
 *.rdc

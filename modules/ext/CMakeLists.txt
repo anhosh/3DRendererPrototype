@@ -1,7 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(3DRendererPrototype-Ext)
-
 # add Assimp to build tree
 message(STATUS "[assimp]")
 add_subdirectory(assimp)
@@ -92,6 +90,8 @@ endif ()
 add_subdirectory(tracy)
 
 # declare ext library target
+project(3DRendererPrototype-Ext)
+
 add_library(${PROJECT_NAME} INTERFACE)
 add_library(3DRendererPrototype::Ext ALIAS ${PROJECT_NAME})
 

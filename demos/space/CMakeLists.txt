@@ -7,13 +7,16 @@ add_executable(${PROJECT_NAME})
 # copy assets folder to build directory
 file(COPY ${CMAKE_CURRENT_LIST_DIR}/assets DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
-# link to ext target
+# link libraries
 target_link_libraries(${PROJECT_NAME} PRIVATE
     3DRendererPrototype::Engine
     3DRendererPrototype::Ext
     3DRendererPrototype::Util
-    tbb
 )
+
+if (CMAKE_SYSTEM_NAME STREQUAL Linux)
+  target_link_libraries(${PROJECT_NAME} PRIVATE tbb)
+endif ()
 
 # setup precompiled header
 target_precompile_headers(${PROJECT_NAME} PRIVATE
