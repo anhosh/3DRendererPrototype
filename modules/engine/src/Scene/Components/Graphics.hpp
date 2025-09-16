@@ -1,9 +1,9 @@
 #pragma once
 
-#include <Graphics/RenderData.hpp>
+#include <GraphicsOpenGL/RenderData.hpp>
 
 #include <vector>
 
 struct CompGraphics {
-  std::vector<RenderData> renderData;
+  std::vector<GraphicsOpenGL::RenderData> renderData;
 };

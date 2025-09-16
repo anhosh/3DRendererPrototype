@@ -2,7 +2,7 @@
 
 #include <Assets/AssetManager.hpp>
 #include <Demo/DemoBase.hpp>
-#include <Graphics/RenderingEngine.hpp>
+#include <GraphicsOpenGL/RenderingEngine.hpp>
 
 #include <memory>
 
@@ -16,7 +16,7 @@ struct AppState {
   double lastGuiRenderDuration = 0.0f;
 
   std::shared_ptr<AssetManager> assetManager;
-  std::shared_ptr<RenderingEngine> renderingEngine;
+  std::shared_ptr<GraphicsOpenGL::RenderingEngine> renderingEngine;
 
   std::unique_ptr<DemoBase> currentDemo;
 };

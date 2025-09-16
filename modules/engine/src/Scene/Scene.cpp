@@ -1,7 +1,7 @@
 #include <Scene/Scene.hpp>
 
-#include <Graphics/Buffers/InstanceBuffer.hpp>
-#include <Graphics/RenderingEngine.hpp>
+#include <GraphicsOpenGL/Buffers/InstanceBuffer.hpp>
+#include <GraphicsOpenGL/RenderingEngine.hpp>
 #include <Scene/Components/Graphics.hpp>
 #include <Scene/Components/Outline.hpp>
 #include <Scene/Components/Spectator.hpp>
@@ -68,46 +68,46 @@ void Scene::prepareForRendering() {
   this->sortOutlines();
 }
 
-DirectionalLightSourceBuffer Scene::createDirectionalLightBufferData() const {
+GraphicsOpenGL::DirectionalLightSourceBuffer Scene::createDirectionalLightBufferData() const {
   ZoneScoped;
 
   const entt::basic_view directionalLights = ecs.view<const CompDirectionalLight, const CompCamera, const CompTransform>();
 
-  DirectionalLightSourceBuffer buffer;
+  GraphicsOpenGL::DirectionalLightSourceBuffer buffer;
   buffer.sources.reserve(std::distance(directionalLights.begin(), directionalLights.end()));
   for (const auto [entity, light, camera, transform] : directionalLights.each()) {
-    buffer.sources.push_back(DirectionalLightShaderData::from(light, camera, transform));
+    buffer.sources.push_back(GraphicsOpenGL::DirectionalLightShaderData::from(light, camera, transform));
   }
   return buffer;
 }
 
-PointLightSourceBuffer Scene::createPointLightBufferData() const {
+GraphicsOpenGL::PointLightSourceBuffer Scene::createPointLightBufferData() const {
   ZoneScoped;
 
   const entt::basic_view pointLights = ecs.view<const CompPointLight, const CompTransform>();
 
-  PointLightSourceBuffer buffer;
+  GraphicsOpenGL::PointLightSourceBuffer buffer;
   buffer.sources.reserve(static_cast<size_t>(std::distance(pointLights.begin(), pointLights.end())));
   for (const auto [entity, light, transform]: pointLights.each()) {
-    buffer.sources.push_back(PointLightShaderData::from(light, transform));
+    buffer.sources.push_back(GraphicsOpenGL::PointLightShaderData::from(light, transform));
   }
   return buffer;
 }
 
-SpotlightSourceBuffer Scene::createSpotlightBufferData() const {
+GraphicsOpenGL::SpotlightSourceBuffer Scene::createSpotlightBufferData() const {
   ZoneScoped;
 
   const entt::basic_view spotlights = ecs.view<const CompSpotlight, const CompCamera, const CompTransform>();
 
-  SpotlightSourceBuffer buffer;
+  GraphicsOpenGL::SpotlightSourceBuffer buffer;
   buffer.sources.reserve(static_cast<size_t>(std::distance(spotlights.begin(), spotlights.end())));
   for (const auto [entity, light, camera, transform]: spotlights.each()) {
-    buffer.sources.push_back(SpotlightShaderData::from(light, camera, transform));
+    buffer.sources.push_back(GraphicsOpenGL::SpotlightShaderData::from(light, camera, transform));
   }
   return buffer;
 }
 
-std::span<Draw> Scene::draw(const entt::entity entityCamera, RenderingEngine& renderingEngine) {
+std::span<GraphicsOpenGL::Draw> Scene::draw(const entt::entity entityCamera, GraphicsOpenGL::RenderingEngine& renderingEngine) {
   ZoneScoped;
 
   mCachedDraws.clear();
@@ -121,7 +121,7 @@ std::span<Draw> Scene::draw(const entt::entity entityCamera, RenderingEngine& re
   // Schedule instanced draws for meshes.
   {
     ZoneScopedN("Schedule draws");
-    InstanceBuffer instancesData;
+    GraphicsOpenGL::InstanceBuffer instancesData;
     instancesData.instances.reserve(mCachedSortedOpaqueMeshes.size() + mCachedSortedOutlines.size());
 
     {
@@ -135,7 +135,7 @@ std::span<Draw> Scene::draw(const entt::entity entityCamera, RenderingEngine& re
 
     if (skybox.has_value()) {
       ZoneScopedN("Skybox");
-      mCachedDraws.push_back(Draw {
+      mCachedDraws.push_back(GraphicsOpenGL::Draw {
         .shaderProgramInstance = skybox->shader,
         .mesh = skybox->cubeMesh,
         .environmentMap = skybox->texture,
@@ -152,7 +152,7 @@ std::span<Draw> Scene::draw(const entt::entity entityCamera, RenderingEngine& re
       for (size_t meshIndex = 1; meshIndex <= mCachedSortedOutlines.size(); ++meshIndex) {
         ZoneScopedN("Outline");
         MeshDataReference& firstInstance = mCachedSortedOutlines[firstInstanceIndex];
-        RenderData& firstInstanceRD = firstInstance.renderData();
+        GraphicsOpenGL::RenderData& firstInstanceRD = firstInstance.renderData();
 
         ++instanceCount;
         if (meshIndex < mCachedSortedOutlines.size() &&
@@ -173,12 +173,12 @@ std::span<Draw> Scene::draw(const entt::entity entityCamera, RenderingEngine& re
               outlineTransform.scale *= 1.1f;
               const glm::mat4 model  = outlineTransform.modelMatrix();
               const glm::mat3 normal = glm::transpose(glm::inverse(model));
-              return InstanceData(model, normal);
+              return GraphicsOpenGL::InstanceData(model, normal);
             });
         }
 
         const CompOutline& outline = firstInstance.ecs->get<CompOutline>(firstInstance.entity);
-        mCachedDraws.push_back(Draw {
+        mCachedDraws.push_back(GraphicsOpenGL::Draw {
           .shaderProgramInstance = outline.outlineShader,
           .mesh = firstInstanceRD.mesh,
           .instanceOffset = firstOutlineIndex + firstInstanceIndex,
@@ -197,7 +197,7 @@ std::span<Draw> Scene::draw(const entt::entity entityCamera, RenderingEngine& re
   return mCachedDraws;
 }
 
-void Scene::drawMeshes(const std::span<const MeshDataReference> meshes, InstanceBuffer& instanceBuffer) {
+void Scene::drawMeshes(const std::span<const MeshDataReference> meshes, GraphicsOpenGL::InstanceBuffer& instanceBuffer) {
   ZoneScoped;
 
   size_t firstInstanceIndex = 0;
@@ -205,7 +205,7 @@ void Scene::drawMeshes(const std::span<const MeshDataReference> meshes, Instance
   for (size_t meshIndex = 1; meshIndex <= meshes.size(); ++meshIndex) {
     ZoneScopedN("Mesh");
     const MeshDataReference& firstInstance = meshes[firstInstanceIndex];
-    const RenderData& firstInstanceRD = firstInstance.renderData();
+    const GraphicsOpenGL::RenderData& firstInstanceRD = firstInstance.renderData();
 
     ++instanceCount;
     if (meshIndex < meshes.size() &&
@@ -229,12 +229,12 @@ void Scene::drawMeshes(const std::span<const MeshDataReference> meshes, Instance
             const CompTransform& transform = ecs.get<const CompTransform>(meshRef.entity);
             const glm::mat4 model  = transform.modelMatrix();
             const glm::mat3 normal = glm::transpose(glm::inverse(model));
-            return InstanceData(model, normal);
+            return GraphicsOpenGL::InstanceData(model, normal);
           });
       }
     }
 
-    mCachedDraws.push_back(Draw {
+    mCachedDraws.push_back(GraphicsOpenGL::Draw {
       .shaderProgramInstance = firstInstanceRD.shader,
       .mesh = firstInstanceRD.mesh,
       .instanceOffset = firstInstanceIndex,
@@ -260,8 +260,8 @@ void Scene::sortMeshes() {
   std::sort(std::execution::par_unseq, mCachedSortedOpaqueMeshes.begin(), mCachedSortedOpaqueMeshes.end(),
     [&](const MeshDataReference& a, const MeshDataReference& b) {
       ZoneScopedN("Compare");
-      const RenderData& rdA = a.renderData();
-      const RenderData& rdB = b.renderData();
+      const GraphicsOpenGL::RenderData& rdA = a.renderData();
+      const GraphicsOpenGL::RenderData& rdB = b.renderData();
       return rdA.shader.itemID() < rdB.shader.itemID() || rdA.mesh.itemID() < rdB.mesh.itemID();
     });
 }
@@ -285,8 +285,8 @@ void Scene::sortOutlines() {
   std::sort(std::execution::par_unseq, mCachedSortedOutlines.begin(), mCachedSortedOutlines.end(),
     [](const MeshDataReference& a, const MeshDataReference& b) {
       ZoneScopedN("Compare");
-      const RenderData& rdA = a.renderData();
-      const RenderData& rdB = b.renderData();
+      const GraphicsOpenGL::RenderData& rdA = a.renderData();
+      const GraphicsOpenGL::RenderData& rdB = b.renderData();
       return rdA.mesh.itemID() < rdB.mesh.itemID();
     });
 }
@@ -294,7 +294,7 @@ void Scene::sortOutlines() {
 void Scene::onConstructGraphics(entt::registry&, const entt::entity enttOutline) {
   const CompGraphics& graphics = ecs.get<const CompGraphics>(enttOutline);
   if (const CompTransform* transform = ecs.try_get<const CompTransform>(enttOutline)) {
-    for (const RenderData& renderData : graphics.renderData) {
+    for (const GraphicsOpenGL::RenderData& renderData : graphics.renderData) {
       mSceneBounds.includeAABB(renderData.mesh->boundingBox().transformed(transform->modelMatrix()));
     }
   }
@@ -407,8 +407,8 @@ void Scene::onUpdateDirectionalLight(entt::registry&, const entt::entity enttLig
   }
 
   if (CompGraphics* graphics = ecs.try_get<CompGraphics>(enttLight)) {
-    for (RenderData& renderData : graphics->renderData) {
-      if (renderData.shader->type() == ShaderProgramType::Light) {
+    for (GraphicsOpenGL::RenderData& renderData : graphics->renderData) {
+      if (renderData.shader->type() == GraphicsOpenGL::ShaderProgramType::Light) {
         renderData.shader->uniforms["uLightColor"] = light.colors.diffuse;
       }
     }
@@ -421,8 +421,8 @@ void Scene::onUpdatePointLight(entt::registry&, const entt::entity enttLight) {
   const CompPointLight& light = ecs.get<const CompPointLight>(enttLight);
 
   if (CompGraphics* graphics = ecs.try_get<CompGraphics>(enttLight)) {
-    for (RenderData& renderData : graphics->renderData) {
-      if (renderData.shader->type() == ShaderProgramType::Light) {
+    for (GraphicsOpenGL::RenderData& renderData : graphics->renderData) {
+      if (renderData.shader->type() == GraphicsOpenGL::ShaderProgramType::Light) {
         renderData.shader->uniforms["uLightColor"] = light.colors.diffuse;
       }
     }
@@ -439,8 +439,8 @@ void Scene::onUpdateSpotlight(entt::registry&, const entt::entity enttLight) {
   }
 
   if (CompGraphics* graphics = ecs.try_get<CompGraphics>(enttLight)) {
-    for (RenderData& renderData : graphics->renderData) {
-      if (renderData.shader->type() == ShaderProgramType::Light) {
+    for (GraphicsOpenGL::RenderData& renderData : graphics->renderData) {
+      if (renderData.shader->type() == GraphicsOpenGL::ShaderProgramType::Light) {
         renderData.shader->uniforms["uLightColor"] = light.colors.diffuse;
       }
     }
@@ -461,7 +461,7 @@ void Scene::onUpdateTransform(entt::registry&, const entt::entity enttTransform)
   }
 
   if (CompGraphics* graphics = ecs.try_get<CompGraphics>(enttTransform)) {
-    for (const RenderData& renderData : graphics->renderData) {
+    for (const GraphicsOpenGL::RenderData& renderData : graphics->renderData) {
       mSceneBounds.includeAABB(renderData.mesh->boundingBox().transformed(transform.modelMatrix()));
     }
   }
@@ -508,10 +508,10 @@ void Scene::onUpdateTransform(entt::registry&, const entt::entity enttTransform)
   }
 }
 
-RenderData& Scene::MeshDataReference::renderData() {
+GraphicsOpenGL::RenderData& Scene::MeshDataReference::renderData() {
   return ecs->get<CompGraphics>(entity).renderData[renderDataIndex];
 }
 
-const RenderData& Scene::MeshDataReference::renderData() const {
+const GraphicsOpenGL::RenderData& Scene::MeshDataReference::renderData() const {
   return ecs->get<CompGraphics>(entity).renderData[renderDataIndex];
 }

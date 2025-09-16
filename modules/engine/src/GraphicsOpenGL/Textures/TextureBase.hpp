@@ -1,0 +1,29 @@
+#pragma once
+
+namespace GraphicsOpenGL {
+  class TextureBase {
+  public:
+    void init();
+    void destroy();
+    void bind(GLuint unit) const;
+    void unbind(GLuint unit) const;
+
+    [[nodiscard]] GLuint id() const { return mID; }
+    [[nodiscard]] GLuint target() const { return mTarget; }
+    [[nodiscard]] GLuint internalFormat() const { return mInternalFormat; }
+    [[nodiscard]] glm::uvec3 size() const { return mSize; }
+    [[nodiscard]] bool layered() const;
+
+  protected:
+    explicit TextureBase(GLenum target);
+
+    void allocate2D(glm::uvec2 size, GLint internalFormat);
+    void allocate3D(glm::uvec3 size, GLint internalFormat);
+
+  private:
+    glm::uvec3 mSize = glm::uvec3(0);
+    GLenum mTarget = GL_NONE;
+    GLuint mID = GL_NONE;
+    GLint mInternalFormat = GL_NONE;
+  };
+}

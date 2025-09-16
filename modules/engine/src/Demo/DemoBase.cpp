@@ -1,7 +1,7 @@
 #include <Demo/DemoBase.hpp>
 
 #include <AppState.hpp>
-#include <Graphics/RenderPass.hpp>
+#include <GraphicsOpenGL/RenderPass.hpp>
 #include <Scene/Components/Camera.hpp>
 #include <Scene/Components/Graphics.hpp>
 #include <Scene/Components/Name.hpp>
@@ -14,7 +14,7 @@
 
 #include <ranges>
 
-Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const std::shared_ptr<RenderingEngine>& renderer) {
+Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const std::shared_ptr<GraphicsOpenGL::RenderingEngine>& renderer) {
   mAssetManager = assets;
   mRenderingEngine = renderer;
 
@@ -48,7 +48,7 @@ Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const
     .size = glm::uvec2(1),
     .samples = 4,
     .colorAttachments = {
-      FramebufferAttachment { .texture = &mMainViewColorAttachment.get() },
+      GraphicsOpenGL::FramebufferAttachment { .texture = &mMainViewColorAttachment.get() },
     },
   });
 
@@ -61,11 +61,11 @@ Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const
     shadowMaps.get() = renderer->createEmptyTexture2DArray();
     shadowMaps.get()->allocate(shadowSize, glm::max(static_cast<int32_t>(numShadowMaps), 1), GL_DEPTH_COMPONENT16);
     for (uint32_t shadowMapIndex = 0; shadowMapIndex < numShadowMaps; ++shadowMapIndex) {
-      framebuffers.get().push_back(renderer->addFramebuffer(FramebufferCreateInfo {
+      framebuffers.get().push_back(renderer->addFramebuffer(GraphicsOpenGL::FramebufferCreateInfo {
         .size = shadowSize,
         .samples = 1,
-        .depthStencilMode = DepthStencilMode::DepthAttachment,
-        .depthStencilAttachment = FramebufferAttachment {
+        .depthStencilMode = GraphicsOpenGL::DepthStencilMode::DepthAttachment,
+        .depthStencilAttachment = GraphicsOpenGL::FramebufferAttachment {
           .texture = &shadowMaps.get().get(),
           .layer = shadowMapIndex,
         },
@@ -77,15 +77,15 @@ Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const
   mPostProcessingColorAttachments.emplace_back(mRenderingEngine->createEmptyTexture2D());
   mPostProcessingColorAttachments.back()->allocate(glm::uvec2(1), GL_RGBA8);
 
-  const ShaderProgramInstanceHandle gammaCorrectionShader =
-    mRenderingEngine->createShaderProgramInstance(ShaderProgramType::PostProcessGammaCorrection);
+  const GraphicsOpenGL::ShaderProgramInstanceHandle gammaCorrectionShader =
+    mRenderingEngine->createShaderProgramInstance(GraphicsOpenGL::ShaderProgramType::PostProcessGammaCorrection);
   mPostProcessingShaderProgramInstances.push_back(gammaCorrectionShader);
 
   mPostProcessingFramebuffers.push_back(mRenderingEngine->addFramebuffer({
     .size = glm::uvec2(1),
-    .depthStencilMode = DepthStencilMode::None,
+    .depthStencilMode = GraphicsOpenGL::DepthStencilMode::None,
     .colorAttachments = {
-      FramebufferAttachment { .texture = &mPostProcessingColorAttachments.back().get() },
+      GraphicsOpenGL::FramebufferAttachment { .texture = &mPostProcessingColorAttachments.back().get() },
     },
   }));
 
@@ -104,8 +104,8 @@ void DemoBase::update(double dt) {
   }
 }
 
-CommandBuffer DemoBase::render() {
-  CommandBuffer commandBuffer;
+GraphicsOpenGL::CommandBuffer DemoBase::render() {
+  GraphicsOpenGL::CommandBuffer commandBuffer;
   commandBuffer.commands.reserve(mDirectionalLightShadowFramebuffers.size() +
                                  mSpotlightShadowFramebuffers.size() +
                                  1 + // CmdRenderPass
@@ -117,13 +117,13 @@ CommandBuffer DemoBase::render() {
 
   for (const auto [shadowMapIndex, pack] : mScene.ecs.view<CompDirectionalLight, CompCamera>().each() | std::views::enumerate) {
     const auto [entity, light, camera] = pack;
-    commandBuffer.commands.emplace_back(CmdRenderPass {
-      .renderPass = RenderPass {
+    commandBuffer.commands.emplace_back(GraphicsOpenGL::CmdRenderPass {
+      .renderPass = GraphicsOpenGL::RenderPass {
         .dstFramebuffer = mDirectionalLightShadowFramebuffers[shadowMapIndex],
-        .pass = RenderPassScene {
+        .pass = GraphicsOpenGL::RenderPassScene {
           .scene = &mScene,
           .entityCamera = entity,
-          .mode = SceneRenderMode::DepthMap,
+          .mode = GraphicsOpenGL::SceneRenderMode::DepthMap,
         },
       },
     });
@@ -131,26 +131,26 @@ CommandBuffer DemoBase::render() {
 
   for (const auto [shadowMapIndex, pack] : mScene.ecs.view<CompSpotlight, CompCamera>().each() | std::views::enumerate) {
     const auto [entity, light, camera] = pack;
-    commandBuffer.commands.emplace_back(CmdRenderPass {
-      .renderPass = RenderPass {
+    commandBuffer.commands.emplace_back(GraphicsOpenGL::CmdRenderPass {
+      .renderPass = GraphicsOpenGL::RenderPass {
         .dstFramebuffer = mSpotlightShadowFramebuffers[shadowMapIndex],
-        .pass = RenderPassScene {
+        .pass = GraphicsOpenGL::RenderPassScene {
           .scene = &mScene,
           .entityCamera = entity,
-          .mode = SceneRenderMode::LinearizedDepthMap,
+          .mode = GraphicsOpenGL::SceneRenderMode::LinearizedDepthMap,
         },
       },
     });
   }
 
-  commandBuffer.commands.emplace_back(CmdRenderPass {
-    .renderPass = RenderPass {
+  commandBuffer.commands.emplace_back(GraphicsOpenGL::CmdRenderPass {
+    .renderPass = GraphicsOpenGL::RenderPass {
       .dstFramebuffer = mMainViewFramebuffer,
-      .pass = RenderPassScene {
+      .pass = GraphicsOpenGL::RenderPassScene {
         .scene = &mScene,
         .entityCamera = mMainCamera,
         .mode = mSceneRenderMode,
-        .shadowMaps = ShadowMaps {
+        .shadowMaps = GraphicsOpenGL::ShadowMaps {
           .directionalShadowMaps = mDirectionalLightShadowMaps,
           .spotlightShadowMaps = mSpotlightShadowMaps,
         },
@@ -158,12 +158,12 @@ CommandBuffer DemoBase::render() {
     }
   });
 
-  FramebufferHandle lastFramebuffer = mMainViewFramebuffer;
+  GraphicsOpenGL::FramebufferHandle lastFramebuffer = mMainViewFramebuffer;
   for (auto [shaderIndex, framebuffer] : mPostProcessingFramebuffers | std::views::enumerate) {
-    commandBuffer.commands.emplace_back(CmdRenderPass {
-      .renderPass = RenderPass {
+    commandBuffer.commands.emplace_back(GraphicsOpenGL::CmdRenderPass {
+      .renderPass = GraphicsOpenGL::RenderPass {
         .dstFramebuffer = framebuffer,
-        .pass = PostProcessingPass {
+        .pass = GraphicsOpenGL::PostProcessingPass {
           .srcFramebuffer = lastFramebuffer,
           .postProcessingShader = mPostProcessingShaderProgramInstances[shaderIndex++],
         },
@@ -173,13 +173,13 @@ CommandBuffer DemoBase::render() {
   }
 
   if (mbDebugVisualiseVertexNormals) {
-    commandBuffer.commands.emplace_back(CmdRenderPass {
-      .renderPass = RenderPass {
+    commandBuffer.commands.emplace_back(GraphicsOpenGL::CmdRenderPass {
+      .renderPass = GraphicsOpenGL::RenderPass {
         .dstFramebuffer = mMainViewFramebuffer,
-        .pass = RenderPassScene {
+        .pass = GraphicsOpenGL::RenderPassScene {
           .scene = &mScene,
           .entityCamera = mMainCamera,
-          .mode = SceneRenderMode::VertexNormals,
+          .mode = GraphicsOpenGL::SceneRenderMode::VertexNormals,
           .bClearFramebuffer = false,
         },
       },
@@ -188,12 +188,12 @@ CommandBuffer DemoBase::render() {
 
   if (mbDrawSceneBoundingBoxes) {
     constexpr auto boundingBoxColor = glm::vec3(1.0f, 1.0f, 0.0f);
-    const auto cmdDrawSceneBounds = CmdDrawDebugFrustum(Frustum::fromAABB(mScene.bounds()), boundingBoxColor);
+    const auto cmdDrawSceneBounds = GraphicsOpenGL::CmdDrawDebugFrustum(Frustum::fromAABB(mScene.bounds()), boundingBoxColor);
     commandBuffer.commands.emplace_back(cmdDrawSceneBounds);
     for (const auto [enttGraphics, graphics, transform] : mScene.ecs.view<const CompGraphics, const CompTransform>().each()) {
-      for (const RenderData& renderData : graphics.renderData) {
+      for (const GraphicsOpenGL::RenderData& renderData : graphics.renderData) {
         const Frustum frustum = Frustum::fromAABB(renderData.mesh->boundingBox().transformed(transform.modelMatrix()));
-        commandBuffer.commands.emplace_back(CmdDrawDebugFrustum(frustum, boundingBoxColor));
+        commandBuffer.commands.emplace_back(GraphicsOpenGL::CmdDrawDebugFrustum(frustum, boundingBoxColor));
       }
     }
   }
@@ -201,7 +201,7 @@ CommandBuffer DemoBase::render() {
   if (mbDrawViewFrustum) {
     const CompCamera& mainCamera = mScene.ecs.get<const CompCamera>(mMainCamera);
     const CompTransform& frustumTransform = mScene.ecs.get<const CompTransform>(mViewFrustum);
-    const auto command = CmdDrawDebugFrustum(mainCamera.viewFrustumPerspective(frustumTransform), glm::vec3(0.0f, 1.0f, 0.0f));
+    const auto command = GraphicsOpenGL::CmdDrawDebugFrustum(mainCamera.viewFrustumPerspective(frustumTransform), glm::vec3(0.0f, 1.0f, 0.0f));
     commandBuffer.commands.emplace_back(command);
   }
 
@@ -210,7 +210,7 @@ CommandBuffer DemoBase::render() {
                                                                                       const CompDirectionalLight,
                                                                                       const CompCamera>().each())
     {
-      const auto command = CmdDrawDebugFrustum(lightCamera.viewFrustumOrthographic(lightTransform), glm::vec3(1.0f, 0.0f, 0.0f));
+      const auto command = GraphicsOpenGL::CmdDrawDebugFrustum(lightCamera.viewFrustumOrthographic(lightTransform), glm::vec3(1.0f, 0.0f, 0.0f));
       commandBuffer.commands.emplace_back(command);
     }
   }
@@ -231,14 +231,14 @@ void DemoBase::onWindowResize(GLFWwindow*, const glm::uvec2 newSize) {
   mMainViewColorAttachment->init();
   mMainViewColorAttachment->allocate(newSize, GL_RGBA16);
 
-  for (Texture2DHandle texture : mPostProcessingColorAttachments) {
+  for (GraphicsOpenGL::Texture2DHandle texture : mPostProcessingColorAttachments) {
     texture->destroy();
     texture->init();
     texture->allocate(newSize, GL_RGBA8);
   }
 
   mMainViewFramebuffer->resize(newSize);
-  for (FramebufferHandle framebuffer : mPostProcessingFramebuffers) {
+  for (GraphicsOpenGL::FramebufferHandle framebuffer : mPostProcessingFramebuffers) {
     framebuffer->resize(newSize);
   }
 }
@@ -394,7 +394,7 @@ void DemoBase::guiActors() {
           bool bOutlined = mScene.ecs.all_of<CompOutline>(entity);
           if (ImGui::Checkbox(("Draw outline##" + name.name).c_str(), &bOutlined)) {
             if (bOutlined) {
-              const ShaderProgramInstanceHandle outlineShader = mRenderingEngine->createShaderProgramInstance(ShaderProgramType::Outline);
+              const GraphicsOpenGL::ShaderProgramInstanceHandle outlineShader = mRenderingEngine->createShaderProgramInstance(GraphicsOpenGL::ShaderProgramType::Outline);
               mScene.ecs.emplace<CompOutline>(entity, outlineShader);
             } else {
               mScene.ecs.erase<CompOutline>(entity);
@@ -422,11 +422,11 @@ void DemoBase::guiPostProcessing(const AppState& state) {
   if (ImGui::CollapsingHeader("Post processing")) {
     ImGui::Indent();
 
-    constexpr auto firstPostProcessingEffectIndex = static_cast<int32_t>(ShaderProgramType::PostProcessCopy);
+    constexpr auto firstPostProcessingEffectIndex = static_cast<int32_t>(GraphicsOpenGL::ShaderProgramType::PostProcessCopy);
     std::optional<int32_t> effectToDelete = std::nullopt;
     for (auto [effectIndex, effectShader] : mPostProcessingShaderProgramInstances | std::views::enumerate) {
       const size_t fsTypeNameIndex = static_cast<size_t>(effectShader->type()) - firstPostProcessingEffectIndex;
-      ShaderProgramInstanceHandle& shaderProgramInstance = effectShader;
+      GraphicsOpenGL::ShaderProgramInstanceHandle& shaderProgramInstance = effectShader;
 
       static constexpr auto fsTypeNames = std::array {
         "Copy",
@@ -450,7 +450,7 @@ void DemoBase::guiPostProcessing(const AppState& state) {
       if (ImGui::BeginCombo(("##postProcessingEffect" + effectIndexStr).c_str(), fsTypeNames[fsTypeNameIndex])) {
         for (auto [fsTypeOptionIndex, fsTypeName] : fsTypeNames | std::views::enumerate) {
           if (ImGui::MenuItem(fsTypeName)) {
-            const auto shaderProgramType = static_cast<ShaderProgramType>(fsTypeOptionIndex + firstPostProcessingEffectIndex);
+            const auto shaderProgramType = static_cast<GraphicsOpenGL::ShaderProgramType>(fsTypeOptionIndex + firstPostProcessingEffectIndex);
             shaderProgramInstance.erase();
             shaderProgramInstance = mRenderingEngine->createShaderProgramInstance(shaderProgramType);
           }
@@ -483,12 +483,12 @@ void DemoBase::guiPostProcessing(const AppState& state) {
     if (ImGui::Button("+ Add effect")) {
       mPostProcessingColorAttachments.emplace_back(mRenderingEngine->createEmptyTexture2D());
       mPostProcessingColorAttachments.back()->allocate(state.windowSize, GL_RGBA8);
-      const ShaderProgramInstanceHandle shader = mRenderingEngine->createShaderProgramInstance(ShaderProgramType::PostProcessCopy);
-      const FramebufferHandle newFramebuffer = mRenderingEngine->addFramebuffer({
+      const GraphicsOpenGL::ShaderProgramInstanceHandle shader = mRenderingEngine->createShaderProgramInstance(GraphicsOpenGL::ShaderProgramType::PostProcessCopy);
+      const GraphicsOpenGL::FramebufferHandle newFramebuffer = mRenderingEngine->addFramebuffer({
         .size = state.windowSize,
-        .depthStencilMode = DepthStencilMode::None,
+        .depthStencilMode = GraphicsOpenGL::DepthStencilMode::None,
         .colorAttachments = {
-          FramebufferAttachment { .texture = &mPostProcessingColorAttachments.back().get() },
+          GraphicsOpenGL::FramebufferAttachment { .texture = &mPostProcessingColorAttachments.back().get() },
         },
       });
 

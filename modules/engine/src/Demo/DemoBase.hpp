@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Graphics/RenderingEngine.hpp>
+#include <GraphicsOpenGL/RenderingEngine.hpp>
 #include <Scene/Scene.hpp>
 #include <Util/Expected.hpp>
 
@@ -10,11 +10,11 @@ class DemoBase {
 public:
   virtual ~DemoBase() = default;
 
-  virtual Expected<void> init(const std::shared_ptr<AssetManager>& assets, const std::shared_ptr<RenderingEngine>& renderer);
+  virtual Expected<void> init(const std::shared_ptr<AssetManager>& assets, const std::shared_ptr<GraphicsOpenGL::RenderingEngine>& renderer);
   virtual void processKeyboard(GLFWwindow* window) {}
   virtual void processMouse(glm::vec2 mousePosition) {}
   virtual void update(double dt);
-  [[nodiscard]] virtual CommandBuffer render();
+  [[nodiscard]] virtual GraphicsOpenGL::CommandBuffer render();
 
   virtual void onWindowResize(GLFWwindow* window, glm::uvec2 newSize);
   virtual void onFrameEnd() {}
@@ -34,26 +34,26 @@ protected:
   glm::uvec2 mWindowSize = glm::uvec2(0.0f);
 
   std::shared_ptr<AssetManager> mAssetManager;
-  std::shared_ptr<RenderingEngine> mRenderingEngine;
+  std::shared_ptr<GraphicsOpenGL::RenderingEngine> mRenderingEngine;
 
-  std::vector<ShaderProgramInstanceHandle> mPostProcessingShaderProgramInstances;
+  std::vector<GraphicsOpenGL::ShaderProgramInstanceHandle> mPostProcessingShaderProgramInstances;
 
   entt::entity mMainCamera = entt::null;
-  Texture2DHandle mMainViewColorAttachment = Texture2DHandle::null();
-  FramebufferHandle mMainViewFramebuffer = FramebufferHandle::null();
+  GraphicsOpenGL::Texture2DHandle mMainViewColorAttachment = GraphicsOpenGL::Texture2DHandle::null();
+  GraphicsOpenGL::FramebufferHandle mMainViewFramebuffer = GraphicsOpenGL::FramebufferHandle::null();
 
-  Texture2DArrayHandle mDirectionalLightShadowMaps = Texture2DArrayHandle::null();
-  Texture2DArrayHandle mSpotlightShadowMaps = Texture2DArrayHandle::null();
-  // TextureCubeMapArrayHandle mPointLightShadowMaps = TextureCubeMapArrayHandle::null();
-  std::vector<FramebufferHandle> mDirectionalLightShadowFramebuffers;
-  std::vector<FramebufferHandle> mSpotlightShadowFramebuffers;
-  // std::vector<FramebufferHandle> mPointLightShadowFramebuffers;
+  GraphicsOpenGL::Texture2DArrayHandle mDirectionalLightShadowMaps = GraphicsOpenGL::Texture2DArrayHandle::null();
+  GraphicsOpenGL::Texture2DArrayHandle mSpotlightShadowMaps = GraphicsOpenGL::Texture2DArrayHandle::null();
+  // GraphicsOpenGL::TextureCubeMapArrayHandle mPointLightShadowMaps = TextureCubeMapArrayHandle::null();
+  std::vector<GraphicsOpenGL::FramebufferHandle> mDirectionalLightShadowFramebuffers;
+  std::vector<GraphicsOpenGL::FramebufferHandle> mSpotlightShadowFramebuffers;
+  // std::vector<GraphicsOpenGL::FramebufferHandle> mPointLightShadowFramebuffers;
 
-  std::vector<Texture2DHandle> mPostProcessingColorAttachments;
-  std::vector<FramebufferHandle> mPostProcessingFramebuffers;
+  std::vector<GraphicsOpenGL::Texture2DHandle> mPostProcessingColorAttachments;
+  std::vector<GraphicsOpenGL::FramebufferHandle> mPostProcessingFramebuffers;
 
 private:
-  SceneRenderMode mSceneRenderMode = SceneRenderMode::Full;
+  GraphicsOpenGL::SceneRenderMode mSceneRenderMode = GraphicsOpenGL::SceneRenderMode::Full;
   bool mbDebugVisualiseVertexNormals = false;
   bool mbDrawSceneBoundingBoxes = false;
 

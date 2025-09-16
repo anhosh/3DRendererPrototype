@@ -1,9 +1,9 @@
 #pragma once
 
-#include <Graphics/ShaderProgramInstance.hpp>
+#include <GraphicsOpenGL/ShaderProgramInstance.hpp>
 
 struct CompOutline {
-  ShaderProgramInstanceHandle outlineShader;
+  GraphicsOpenGL::ShaderProgramInstanceHandle outlineShader;
 
   static void on_destroy(entt::registry& registry, const entt::entity entity) {
     registry.get<CompOutline>(entity).outlineShader.erase();

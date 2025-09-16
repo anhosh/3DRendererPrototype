@@ -3,7 +3,7 @@
 #include <Assets/AssetManager.hpp>
 #include <Assets/MeshData.hpp>
 #include <GUI.hpp>
-#include <Graphics/RenderingEngine.hpp>
+#include <GraphicsOpenGL/RenderingEngine.hpp>
 #include <Util/Macros/Errors.hpp>
 #include <Util/NotNull.hpp>
 #include <Util/Timers/TimedBlock.hpp>
@@ -36,7 +36,7 @@ Expected<Application> Application::create(const std::string_view title, const gl
   initialiseImGui(app.mState.window);
 
   app.mState.assetManager = std::make_shared<AssetManager>();
-  app.mState.renderingEngine = std::make_shared<RenderingEngine>();
+  app.mState.renderingEngine = std::make_shared<GraphicsOpenGL::RenderingEngine>();
   RETURN_ERROR_IF_UNEXPECTED(app.mState.renderingEngine->init(*app.mState.assetManager));
 
   app.mState.currentDemo = std::move(demo);
@@ -200,9 +200,9 @@ void Application::shutDown() {
 void Application::drawFrame() {
   ZoneScoped;
 
-  CommandBuffer commandBuffer = mState.currentDemo->render();
+  GraphicsOpenGL::CommandBuffer commandBuffer = mState.currentDemo->render();
   mState.lastSceneRenderDuration = timedBlock([&, this] {
-    const FramebufferHandle lastFramebuffer = mState.renderingEngine->submitCommands(std::move(commandBuffer));
+    const GraphicsOpenGL::FramebufferHandle lastFramebuffer = mState.renderingEngine->submitCommands(std::move(commandBuffer));
     mState.renderingEngine->present(mState.windowSize, lastFramebuffer);
   });
 

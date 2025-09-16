@@ -8,8 +8,6 @@ struct Vertex {
   glm::vec3 tangent;
   glm::vec2 texCoord;
 
-  static void setupVertexAttributes(GLuint vao);
-
   bool operator==(const Vertex& other) const = default;
   bool operator!=(const Vertex& other) const = default;
 };

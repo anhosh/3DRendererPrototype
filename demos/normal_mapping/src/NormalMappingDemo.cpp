@@ -7,7 +7,7 @@
 
 #include <imgui.h>
 
-Expected<void> NormalMappingDemo::init(const std::shared_ptr<AssetManager>& assets, const std::shared_ptr<RenderingEngine>& renderer) {
+Expected<void> NormalMappingDemo::init(const std::shared_ptr<AssetManager>& assets, const std::shared_ptr<GraphicsOpenGL::RenderingEngine>& renderer) {
   ZoneScoped;
 
   // Load assets
@@ -41,18 +41,18 @@ Expected<void> NormalMappingDemo::init(const std::shared_ptr<AssetManager>& asse
   const AssetHandle<MeshData> wallMeshData = assets->addMesh(MeshData::createCube(glm::vec3(5.0f, 5.0f, 5.0f)));
 
   // Get shader instances
-  const ShaderProgramInstanceHandle litSurfaceShader = renderer->createShaderProgramInstance(ShaderProgramType::LitSurface);
+  const GraphicsOpenGL::ShaderProgramInstanceHandle litSurfaceShader = renderer->createShaderProgramInstance(GraphicsOpenGL::ShaderProgramType::LitSurface);
 
   // Upload assets to GPU
-  std::vector<RenderData> backpackMeshes = renderer->addModel(modelBackpack.value(), litSurfaceShader);
+  std::vector<GraphicsOpenGL::RenderData> backpackMeshes = renderer->addModel(modelBackpack.value(), litSurfaceShader);
 
-  RenderData floorRenderData = {
+  GraphicsOpenGL::RenderData floorRenderData = {
     .mesh = renderer->addMesh(floorMeshData),
     .shader = litSurfaceShader,
     .diffuseMap = renderer->addTexture2D(floorBitmap),
   };
 
-  RenderData wallRenderData = {
+  GraphicsOpenGL::RenderData wallRenderData = {
     .mesh = renderer->addMesh(wallMeshData),
     .shader = litSurfaceShader,
     .diffuseMap = renderer->addTexture2D(bitmapBrickwall.value()),
@@ -60,10 +60,10 @@ Expected<void> NormalMappingDemo::init(const std::shared_ptr<AssetManager>& asse
   };
 
   // Create scene
-  mScene.skybox = Skybox {
+  mScene.skybox = GraphicsOpenGL::Skybox {
     .cubeMesh = renderer->addMesh(skyboxCubeMesh),
     .texture = renderer->addTextureCubeMap(
-      TextureCubeMapBitmaps {
+      GraphicsOpenGL::TextureCubeMapBitmaps {
         .right = bitmapSkyboxRight.value(),
         .left = bitmapSkyboxLeft.value(),
         .top = bitmapSkyboxTop.value(),
@@ -73,7 +73,7 @@ Expected<void> NormalMappingDemo::init(const std::shared_ptr<AssetManager>& asse
         .bSRGB = true,
       }
     ),
-    .shader = renderer->createShaderProgramInstance(ShaderProgramType::Skybox),
+    .shader = renderer->createShaderProgramInstance(GraphicsOpenGL::ShaderProgramType::Skybox),
   };
 
   const entt::entity enttSun = mScene.ecs.create();

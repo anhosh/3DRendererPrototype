@@ -1,8 +1,8 @@
 #pragma once
 
-#include <Graphics/Buffers/LightSourceBuffer.hpp>
-#include <Graphics/Draw.hpp>
-#include <Graphics/Skybox.hpp>
+#include <GraphicsOpenGL/Buffers/LightSourceBuffer.hpp>
+#include <GraphicsOpenGL/Draw.hpp>
+#include <GraphicsOpenGL/Skybox.hpp>
 #include <Scene/Scene.hpp>
 
 #include <Util/Math/AABB.hpp>
@@ -13,9 +13,11 @@
 #include <span>
 #include <vector>
 
-struct InstanceBuffer;
-struct RenderData;
-class RenderingEngine;
+namespace GraphicsOpenGL {
+  struct InstanceBuffer;
+  struct RenderData;
+  class RenderingEngine;
+}
 
 class Scene {
 public:
@@ -27,20 +29,20 @@ public:
 
   [[nodiscard]] AABB bounds() const { return mSceneBounds; }
 
-  [[nodiscard]] DirectionalLightSourceBuffer createDirectionalLightBufferData() const;
-  [[nodiscard]] PointLightSourceBuffer createPointLightBufferData() const;
-  [[nodiscard]] SpotlightSourceBuffer createSpotlightBufferData() const;
+  [[nodiscard]] GraphicsOpenGL::DirectionalLightSourceBuffer createDirectionalLightBufferData() const;
+  [[nodiscard]] GraphicsOpenGL::PointLightSourceBuffer createPointLightBufferData() const;
+  [[nodiscard]] GraphicsOpenGL::SpotlightSourceBuffer createSpotlightBufferData() const;
 
-  [[nodiscard]] std::span<Draw> draw(entt::entity enttCamera, RenderingEngine& renderingEngine);
+  [[nodiscard]] std::span<GraphicsOpenGL::Draw> draw(entt::entity enttCamera, GraphicsOpenGL::RenderingEngine& renderingEngine);
 
 public:
   entt::registry ecs;
-  std::optional<Skybox> skybox = std::nullopt;
+  std::optional<GraphicsOpenGL::Skybox> skybox = std::nullopt;
 
 private:
   struct MeshDataReference;
 
-  void drawMeshes(std::span<const MeshDataReference> meshes, InstanceBuffer& instanceBuffer);
+  void drawMeshes(std::span<const MeshDataReference> meshes, GraphicsOpenGL::InstanceBuffer& instanceBuffer);
 
   void sortMeshes();
   void sortTransparentMeshes(entt::entity enttCamera);
@@ -69,14 +71,14 @@ private:
     size_t renderDataIndex = SIZE_MAX;
     bool bHasOutline = false;
 
-    [[nodiscard]] RenderData& renderData();
-    [[nodiscard]] const RenderData& renderData() const;
+    [[nodiscard]] GraphicsOpenGL::RenderData& renderData();
+    [[nodiscard]] const GraphicsOpenGL::RenderData& renderData() const;
   };
 
   std::vector<MeshDataReference> mCachedSortedOpaqueMeshes;
   std::vector<MeshDataReference> mCachedSortedTransparentMeshes;
   std::vector<MeshDataReference> mCachedSortedOutlines;
-  std::vector<Draw> mCachedDraws;
+  std::vector<GraphicsOpenGL::Draw> mCachedDraws;
 
   AABB mSceneBounds;
 };
