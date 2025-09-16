@@ -20,12 +20,12 @@ endif ()
 
 # setup precompiled header
 target_precompile_headers(${PROJECT_NAME} PRIVATE
-    <glad/glad.h>
-    <GLFW/glfw3.h>
-    <glm/glm.hpp>
-    <glm/gtx/vec_swizzle.hpp>
-    <tracy/Tracy.hpp>
-    <cstdint>
+  <cstdint>
+  <glad/glad.h>
+  <glm/glm.hpp>
+  <glm/gtx/vec_swizzle.hpp>
+  <tracy/Tracy.hpp>
+  <vkfw/vkfw.hpp>
 )
 
 # enable including headers in 'src/'

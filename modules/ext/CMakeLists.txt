@@ -10,11 +10,6 @@ add_subdirectory(entt)
 message(STATUS "[GLAD]")
 add_subdirectory(glad)
 
-message(STATUS "[glfw]")
-set(GLFW_INSTALL OFF)
-set(GLFW_BUILD_DOCS OFF)
-add_subdirectory(glfw)
-
 message(STATUS "[glm]")
 set(GLM_ENABLE_CXX_20 ON)
 add_subdirectory(glm)
@@ -36,6 +31,11 @@ add_subdirectory(stb)
 
 message(STATUS "[tinyobjloader]")
 add_subdirectory(tinyobjloader)
+
+message(STATUS "[vkfw]")
+set(VKFW_FETCH_DEPENDENCIES ON)
+set(VKFW_NO_STRUCT_CONSTRUCTORS ON)
+add_subdirectory(vkfw)
 
 if (CMAKE_BUILD_TYPE STREQUAL Release)
   set(TRACY_ENABLE OFF)
@@ -62,6 +62,8 @@ target_link_libraries(${PROJECT_NAME} INTERFACE
   stb::stb
   tinyobjloader
   TracyClient
+  vkfw
+  vulkan
 )
 
 if (CMAKE_SYSTEM_NAME STREQUAL Linux)

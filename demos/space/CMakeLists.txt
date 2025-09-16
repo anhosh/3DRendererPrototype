@@ -9,9 +9,9 @@ file(COPY ${CMAKE_CURRENT_LIST_DIR}/assets DESTINATION ${CMAKE_CURRENT_BINARY_DI
 
 # link libraries
 target_link_libraries(${PROJECT_NAME} PRIVATE
-    3DRendererPrototype::Engine
-    3DRendererPrototype::Ext
-    3DRendererPrototype::Util
+  3DRendererPrototype::Engine
+  3DRendererPrototype::Ext
+  3DRendererPrototype::Util
 )
 
 if (CMAKE_SYSTEM_NAME STREQUAL Linux)
@@ -20,12 +20,12 @@ endif ()
 
 # setup precompiled header
 target_precompile_headers(${PROJECT_NAME} PRIVATE
-    <glad/glad.h>
-    <GLFW/glfw3.h>
-    <glm/glm.hpp>
-    <glm/gtx/vec_swizzle.hpp>
-    <tracy/Tracy.hpp>
-    <cstdint>
+  <cstdint>
+  <glad/glad.h>
+  <glm/glm.hpp>
+  <glm/gtx/vec_swizzle.hpp>
+  <tracy/Tracy.hpp>
+  <vkfw/vkfw.hpp>
 )
 
 # enable including headers in 'src/'

@@ -7,7 +7,11 @@
 #include <memory>
 
 struct AppState {
-  GLFWwindow* window = nullptr;
+  vkfw::UniqueInstance vkfwInstance;
+  vkfw::UniqueWindow window;
+  vk::UniqueInstance vkInstance;
+  vk::UniqueSurfaceKHR surface;
+
   glm::uvec2 windowSize = glm::uvec2(0);
 
   double currentFrameTime = 0.0f;

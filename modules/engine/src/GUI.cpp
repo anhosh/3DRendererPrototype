@@ -13,14 +13,14 @@ void initialiseImGui(NotNull<GLFWwindow> window) {
 
   ImGui::StyleColorsDark();
 
-  ImGui_ImplGlfw_InitForOpenGL(window, true);
-  ImGui_ImplOpenGL3_Init("#version 460 core");
+  ImGui_ImplGlfw_InitForVulkan(window, true);
+  // ImGui_ImplOpenGL3_Init("#version 460 core");
 }
 
 void shutdownImGui() {
   ZoneScoped;
 
-  ImGui_ImplOpenGL3_Shutdown();
+  // ImGui_ImplOpenGL3_Shutdown();
   ImGui_ImplGlfw_Shutdown();
   ImGui::DestroyContext();
 }
