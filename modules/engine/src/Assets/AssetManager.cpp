@@ -60,11 +60,8 @@ Expected<AssetHandle<Model>> AssetManager::loadModel(const std::filesystem::path
 
   ScopedTimer timer(std::format("Load model {}", filePath.string()));
 
-  tinyobj::ObjReaderConfig config;
-  // config.mtl_search_path = "./";
-
   tinyobj::ObjReader reader;
-  if (!reader.ParseFromFile(mModelsDir / filePath, config)) {
+  if (!reader.ParseFromFile((mModelsDir / filePath).string())) {
     return std::unexpected(std::format("TinyObjLoader: {}", reader.Error()));
   }
   if (!reader.Warning().empty()) {
