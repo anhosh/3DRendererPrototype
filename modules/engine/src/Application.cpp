@@ -41,6 +41,7 @@ Expected<Application> Application::create(const std::string_view title, const gl
 
   app.mState.currentDemo = std::move(demo);
   RETURN_ERROR_IF_UNEXPECTED(app.mState.currentDemo->init(app.mState.assetManager, app.mState.renderingEngine));
+  app.mState.currentDemo->onWindowResize(app.mState.window, app.mState.windowSize);
   FrameMarkEnd(markerName.data());
   return app;
 }
