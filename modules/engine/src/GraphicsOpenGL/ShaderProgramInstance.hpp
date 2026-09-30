@@ -92,4 +92,26 @@ namespace GraphicsOpenGL {
   };
 
   using ShaderProgramInstanceHandle = Registry<ShaderProgramInstance>::Handle;
+
+  template <> ShaderProgramInstance ShaderProgramInstance::create<ShaderProgramType::Light>(ShaderProgramHandle program);
+  template <> ShaderProgramInstance ShaderProgramInstance::create<ShaderProgramType::LitExploded>(ShaderProgramHandle program);
+  template <> ShaderProgramInstance ShaderProgramInstance::create<ShaderProgramType::LitSurface>(ShaderProgramHandle program);
+  template <> ShaderProgramInstance ShaderProgramInstance::create<ShaderProgramType::Outline>(ShaderProgramHandle program);
+  template <> ShaderProgramInstance ShaderProgramInstance::create<ShaderProgramType::ReflectiveSurface>(ShaderProgramHandle program);
+  template <> ShaderProgramInstance ShaderProgramInstance::create<ShaderProgramType::RefractiveSurface>(ShaderProgramHandle program);
+  template <> ShaderProgramInstance ShaderProgramInstance::create<ShaderProgramType::PostProcessCopy>(ShaderProgramHandle program);
+  template <> ShaderProgramInstance ShaderProgramInstance::create<ShaderProgramType::PostProcessBlur>(ShaderProgramHandle program);
+  template <> ShaderProgramInstance ShaderProgramInstance::create<ShaderProgramType::PostProcessEdgeDetection>(ShaderProgramHandle program);
+  template <> ShaderProgramInstance ShaderProgramInstance::create<ShaderProgramType::PostProcessEmboss>(ShaderProgramHandle program);
+  template <> ShaderProgramInstance ShaderProgramInstance::create<ShaderProgramType::PostProcessFlipHorizontally>(ShaderProgramHandle program);
+  template <> ShaderProgramInstance ShaderProgramInstance::create<ShaderProgramType::PostProcessFlipVertically>(ShaderProgramHandle program);
+  template <> ShaderProgramInstance ShaderProgramInstance::create<ShaderProgramType::PostProcessGammaCorrection>(ShaderProgramHandle program);
+  template <> ShaderProgramInstance ShaderProgramInstance::create<ShaderProgramType::PostProcessGrayscale>(ShaderProgramHandle program);
+  template <> ShaderProgramInstance ShaderProgramInstance::create<ShaderProgramType::PostProcessInvert>(ShaderProgramHandle program);
+  template <> ShaderProgramInstance ShaderProgramInstance::create<ShaderProgramType::PostProcessSharpen>(ShaderProgramHandle program);
+  template <> ShaderProgramInstance ShaderProgramInstance::create<ShaderProgramType::PostProcessSobelBottom>(ShaderProgramHandle program);
+  template <> ShaderProgramInstance ShaderProgramInstance::create<ShaderProgramType::PostProcessSobelLeft>(ShaderProgramHandle program);
+  template <> ShaderProgramInstance ShaderProgramInstance::create<ShaderProgramType::PostProcessSobelRight>(ShaderProgramHandle program);
+  template <> ShaderProgramInstance ShaderProgramInstance::create<ShaderProgramType::PostProcessSobelTop>(ShaderProgramHandle program);
+  template <> ShaderProgramInstance ShaderProgramInstance::create<ShaderProgramType::Skybox>(ShaderProgramHandle program);
 }

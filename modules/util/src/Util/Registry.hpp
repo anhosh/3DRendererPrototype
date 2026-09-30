@@ -29,7 +29,7 @@ public:
     friend class Registry;
 
   public:
-    using ItemType = ItemType;
+    // using ItemType = ItemType;
 
     constexpr Handle(const Handle&) = default;
     constexpr Handle(Handle&&) = default;

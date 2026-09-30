@@ -11,8 +11,8 @@ public:
   virtual ~DemoBase() = default;
 
   virtual Expected<void> init(const std::shared_ptr<AssetManager>& assets, const std::shared_ptr<GraphicsOpenGL::RenderingEngine>& renderer);
-  virtual void processKeyboard(GLFWwindow* window) {}
-  virtual void processMouse(glm::vec2 mousePosition) {}
+  virtual void processKeyboard(GLFWwindow* window [[maybe_unused]]) {}
+  virtual void processMouse(glm::vec2 mousePosition [[maybe_unused]]) {}
   virtual void update(double dt);
   [[nodiscard]] virtual GraphicsOpenGL::CommandBuffer render();
 

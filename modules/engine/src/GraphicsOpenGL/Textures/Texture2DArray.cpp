@@ -40,7 +40,7 @@ namespace GraphicsOpenGL {
     const glm::ivec2 size = bitmaps.front()->size();
 
     TracyGpuZone("Generate Texture2DArray");
-    this->allocate(size, bitmaps.size(), internalFormat);
+    this->allocate(size, static_cast<uint32_t>(bitmaps.size()), internalFormat);
     for (const auto [slice, bitmap] : bitmaps | std::views::enumerate) {
       glTextureSubImage3D(this->id(), 0, 0, 0, static_cast<GLint>(slice),
                           size.x, size.y, 1, format, GL_UNSIGNED_BYTE, bitmap->bytes());

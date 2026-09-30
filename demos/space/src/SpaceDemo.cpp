@@ -104,9 +104,11 @@ Expected<void> SpaceDemo::init(const std::shared_ptr<AssetManager>& assets, cons
     .shader = renderer->createShaderProgramInstance(ShaderProgramType::Skybox),
   };
 
+  constexpr Rotation planetRotation = { .pitch = -90.0f };
+
   mEnttSun = mScene.ecs.create();
   mScene.ecs.emplace<CompName>(mEnttSun, "Sun");
-  mScene.ecs.emplace<CompTransform>(mEnttSun, CompTransform { .rotation.pitch = 90.0f, .scale = glm::vec3(0.02f) });
+  mScene.ecs.emplace<CompTransform>(mEnttSun, CompTransform { .rotation = planetRotation, .scale = glm::vec3(0.02f) });
   planetMeshes[0].emissionMap = planetMeshes[0].diffuseMap;
   mScene.ecs.emplace<CompGraphics>(mEnttSun, planetMeshes);
   mScene.ecs.emplace<CompPointLight>(mEnttSun, CompPointLight {
@@ -132,14 +134,14 @@ Expected<void> SpaceDemo::init(const std::shared_ptr<AssetManager>& assets, cons
 
   constexpr uint32_t numAsteroids = 6000;
   mCelestialBodyAngles.reserve(numAsteroids + 5);
-
+  
   const entt::entity enttMercury = mScene.ecs.create();
   mScene.ecs.emplace<CompName>(enttMercury, "Mercury");
   planetMeshes[0].diffuseMap = textureMercury;
   planetMeshes[0].emissionMap = Texture2DHandle::null();
   mScene.ecs.emplace<CompGraphics>(enttMercury, planetMeshes);
   mScene.ecs.emplace<CompOrbit>(enttMercury, glm::vec3(0.0f), 20.0f, 400.0f / 200.0f);
-  mScene.ecs.emplace<CompTransform>(enttMercury, CompTransform { .rotation.pitch = -90.0f, .scale = glm::vec3(0.001f) });
+  mScene.ecs.emplace<CompTransform>(enttMercury, CompTransform { .rotation = planetRotation, .scale = glm::vec3(0.001f) });
   mCelestialBodyAngles.emplace_back(enttMercury, 0.0f);
 
   const entt::entity enttVenus = mScene.ecs.create();
@@ -147,7 +149,7 @@ Expected<void> SpaceDemo::init(const std::shared_ptr<AssetManager>& assets, cons
   planetMeshes[0].diffuseMap = textureVenus;
   mScene.ecs.emplace<CompGraphics>(enttVenus, planetMeshes);
   mScene.ecs.emplace<CompOrbit>(enttVenus, glm::vec3(0.0f), 40.0f, 400.0f / 160.0f);
-  mScene.ecs.emplace<CompTransform>(enttVenus, CompTransform { .rotation.pitch = -90.0f, .scale = glm::vec3(0.002f) });
+  mScene.ecs.emplace<CompTransform>(enttVenus, CompTransform { .rotation = planetRotation, .scale = glm::vec3(0.002f) });
   mCelestialBodyAngles.emplace_back(enttVenus, 0.0f);
 
   mEnttEarth = mScene.ecs.create();
@@ -157,7 +159,7 @@ Expected<void> SpaceDemo::init(const std::shared_ptr<AssetManager>& assets, cons
   planetMeshes[0].specularMap = textureEarthSpecular;
   mScene.ecs.emplace<CompGraphics>(mEnttEarth, planetMeshes);
   mScene.ecs.emplace<CompOrbit>(mEnttEarth, glm::vec3(0.0f), 60.0f, 400.0f / 360.0f);
-  const CompTransform& earthTransform = mScene.ecs.emplace<CompTransform>(mEnttEarth, CompTransform { .rotation.pitch = -90.0f, .scale = glm::vec3(0.004f) });
+  const CompTransform& earthTransform = mScene.ecs.emplace<CompTransform>(mEnttEarth, CompTransform { .rotation = planetRotation, .scale = glm::vec3(0.004f) });
   mCelestialBodyAngles.emplace_back(mEnttEarth, 0.0f);
 
   mEnttMoon = mScene.ecs.create();
@@ -181,7 +183,7 @@ Expected<void> SpaceDemo::init(const std::shared_ptr<AssetManager>& assets, cons
   planetMeshes[0].diffuseMap = textureMars;
   mScene.ecs.emplace<CompGraphics>(enttMars, planetMeshes);
   mScene.ecs.emplace<CompOrbit>(enttMars, glm::vec3(0.0f), 80.0f, 400.0f / 640.0f);
-  mScene.ecs.emplace<CompTransform>(enttMars, CompTransform { .rotation.pitch = -90.0f, .scale = glm::vec3(0.003f) });
+  mScene.ecs.emplace<CompTransform>(enttMars, CompTransform { .rotation = planetRotation, .scale = glm::vec3(0.003f) });
   mCelestialBodyAngles.emplace_back(enttMars, 0.0f);
 
   for (uint32_t i = 0; i < numAsteroids; ++i) {

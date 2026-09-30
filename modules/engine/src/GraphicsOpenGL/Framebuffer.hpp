@@ -3,6 +3,7 @@
 #include <GraphicsOpenGL/Textures/Texture2D.hpp>
 #include <Util/Registry.hpp>
 
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -24,7 +25,7 @@ namespace GraphicsOpenGL {
     glm::uvec2 size;
     uint32_t samples = 1;
     DepthStencilMode depthStencilMode = DepthStencilMode::DepthStencilRBO;
-    std::vector<FramebufferAttachment> colorAttachments;
+    std::vector<FramebufferAttachment> colorAttachments = {};
     std::optional<FramebufferAttachment> depthStencilAttachment = std::nullopt;
   };
 

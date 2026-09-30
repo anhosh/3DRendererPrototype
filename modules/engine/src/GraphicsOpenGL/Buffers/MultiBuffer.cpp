@@ -26,12 +26,12 @@ namespace GraphicsOpenGL {
     if (mNumBuffers < newNumBuffers) {
       this->reallocate(mBufferSize);
     }
-    mNumBuffers = newNumBuffers;
+    mNumBuffers = static_cast<uint32_t>(newNumBuffers);
   }
 
   void MultiBuffer::setCurrent(const size_t index) {
     assert(index < mNumBuffers);
-    mCurrentBuffer = index;
+    mCurrentBuffer = static_cast<uint32_t>(index);
   }
 
   void MultiBuffer::allocate(const size_t size) {

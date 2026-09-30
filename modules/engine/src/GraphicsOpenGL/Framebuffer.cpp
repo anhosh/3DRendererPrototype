@@ -21,7 +21,7 @@ namespace GraphicsOpenGL {
     glCreateFramebuffers(1, &mFBO);
 
     for (auto [i, attachment] : mInfo.colorAttachments | std::views::enumerate) {
-      glNamedFramebufferTexture(mFBO, GL_COLOR_ATTACHMENT0 + i, attachment.texture->id(), 0);
+      glNamedFramebufferTexture(mFBO, GL_COLOR_ATTACHMENT0 + static_cast<GLenum>(i), attachment.texture->id(), 0);
       if (attachment.texture->layered()) {
         glNamedFramebufferTextureLayer(mFBO, GL_DEPTH_ATTACHMENT, attachment.texture->id(), 0, attachment.layer);
       }
@@ -96,7 +96,7 @@ namespace GraphicsOpenGL {
       }
       glTextureStorage2DMultisample(attachment, static_cast<GLsizei>(mInfo.samples), mInfo.colorAttachments[i].texture->internalFormat(),
                                     static_cast<GLint>(mInfo.size.x), static_cast<GLint>(mInfo.size.y), GL_TRUE);
-      glNamedFramebufferTexture(mMultisampledFBO, GL_COLOR_ATTACHMENT0 + i, attachment, 0);
+      glNamedFramebufferTexture(mMultisampledFBO, GL_COLOR_ATTACHMENT0 + static_cast<GLenum>(i), attachment, 0);
     }
 
     switch (mInfo.depthStencilMode) {
@@ -193,9 +193,9 @@ namespace GraphicsOpenGL {
   void Framebuffer::setColorAttachment(const FramebufferAttachment attachment, const size_t index) {
     assert(index < mInfo.colorAttachments.size());
     mInfo.colorAttachments[index] = attachment;
-    glNamedFramebufferTexture(mFBO, GL_COLOR_ATTACHMENT0 + index, attachment.texture->id(), 0);
+    glNamedFramebufferTexture(mFBO, GL_COLOR_ATTACHMENT0 + static_cast<GLenum>(index), attachment.texture->id(), 0);
     if (attachment.texture->layered()) {
-      glNamedFramebufferTextureLayer(mFBO, GL_DEPTH_ATTACHMENT, attachment.texture->id(), 0, attachment.layer);
+      glNamedFramebufferTextureLayer(mFBO, GL_DEPTH_ATTACHMENT, attachment.texture->id(), 0, static_cast<GLint>(attachment.layer));
     }
   }
 
@@ -203,7 +203,7 @@ namespace GraphicsOpenGL {
     mInfo.depthStencilAttachment = attachment;
     glNamedFramebufferTexture(mFBO, GL_DEPTH_ATTACHMENT, attachment.texture->id(), 0);
     if (attachment.texture->layered()) {
-      glNamedFramebufferTextureLayer(mFBO, GL_DEPTH_ATTACHMENT, attachment.texture->id(), 0, attachment.layer);
+      glNamedFramebufferTextureLayer(mFBO, GL_DEPTH_ATTACHMENT, attachment.texture->id(), 0, static_cast<GLint>(attachment.layer));
     }
   }
 }

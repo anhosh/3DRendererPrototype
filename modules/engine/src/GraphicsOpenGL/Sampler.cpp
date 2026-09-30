@@ -24,11 +24,11 @@ namespace GraphicsOpenGL {
   }
 
   void Sampler::bind(const size_t unit) const {
-    glBindSampler(unit, mID);
+    glBindSampler(static_cast<GLuint>(unit), mID);
   }
 
   void Sampler::unbind(const size_t unit) const {
     (void)mID;
-    glBindSampler(unit, GL_NONE);
+    glBindSampler(static_cast<GLuint>(unit), GL_NONE);
   }
 }

@@ -94,7 +94,7 @@ Expected<void> DemoBase::init(const std::shared_ptr<AssetManager>& assets, const
   return {};
 }
 
-void DemoBase::update(double dt) {
+void DemoBase::update(double dt [[maybe_unused]]) {
   ZoneScopedN("DemoBase::update");
 
   if (mbViewFrustumFollowsMainView) {
