@@ -15,6 +15,8 @@
 #include <execution>
 #include <random>
 
+using namespace GraphicsOpenGL;
+
 Expected<void> SpaceDemo::init(const std::shared_ptr<AssetManager>& assets, const std::shared_ptr<RenderingEngine>& renderer) {
   ZoneScoped;
 
